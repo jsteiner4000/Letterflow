@@ -41,17 +41,27 @@ async function main() {
         continue
       }
       const target = path.join(root, 'resources', 'engines', backend, engine)
-      if (fs.existsSync(path.join(target, entry.exe))) {
+      // Marker: Hash aller Archive; Neuentpacken, wenn er fehlt oder abweicht (neuer Pin in engines.json)
+      const parts = [entry, ...(entry.extra || [])]
+      const marker = parts.map((p) => p.sha256).join('+')
+      const markerFile = path.join(target, '.sha256')
+      if (fs.existsSync(markerFile) && fs.readFileSync(markerFile, 'utf8').trim() === marker && fs.existsSync(path.join(target, entry.exe))) {
         console.log(`OK ${backend}/${engine}`)
         continue
       }
-      fs.mkdirSync(target, { recursive: true })
-      for (const part of [entry, ...(entry.extra || [])]) {
+      // In ein temporaeres Verzeichnis entpacken und erst bei Erfolg umbenennen
+      const tmp = target + '.tmp'
+      fs.rmSync(tmp, { recursive: true, force: true })
+      fs.mkdirSync(tmp, { recursive: true })
+      for (const part of parts) {
         const zip = path.join(cacheDir, path.basename(new URL(part.url).pathname))
         await download(part, zip)
-        execFileSync(process.platform === 'win32' ? path.join(process.env.SystemRoot, 'System32', 'tar.exe') : 'tar', ['-xf', zip, '-C', target], { stdio: 'inherit' })
+        execFileSync(process.platform === 'win32' ? path.join(process.env.SystemRoot, 'System32', 'tar.exe') : 'tar', ['-xf', zip, '-C', tmp], { stdio: 'inherit' })
       }
-      if (!fs.existsSync(path.join(target, entry.exe))) throw new Error(`exe fehlt: ${target}/${entry.exe}`)
+      if (!fs.existsSync(path.join(tmp, entry.exe))) throw new Error(`exe fehlt: ${tmp}/${entry.exe}`)
+      fs.writeFileSync(path.join(tmp, '.sha256'), marker)
+      fs.rmSync(target, { recursive: true, force: true })
+      fs.renameSync(tmp, target)
       console.log(`Entpackt ${backend}/${engine}`)
     }
   }

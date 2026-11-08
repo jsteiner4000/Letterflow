@@ -1,6 +1,6 @@
 # Messungen auf dem Entwickler-Laptop
 
-Stand: 2026-11-08 · Task 1 · Version 0.0.1
+Stand: 2026-11-08 · Task 1 (Fix-Runde 1) · Version 0.1.1
 
 Alle Zahlen stammen aus Läufen auf diesem Rechner (`scripts/bench.js`, je 5 Läufe nach einem Aufwärmlauf, Median). Nichts ist geschätzt, außer wo ausdrücklich „Schätzung" steht.
 
@@ -8,13 +8,18 @@ Alle Zahlen stammen aus Läufen auf diesem Rechner (`scripts/bench.js`, je 5 Lä
 
 ## Kurzfassung der Entscheidungen
 
+Maßgeblich ist der Entwurf (`docs/superpowers/specs/2026-11-08-letterflow-design.md`). Die Abschnitte 1–7 beschreiben die ursprüngliche Whisper-Messung; die Whisper-Werte dienen nur noch als Vergleich und als Rückfall.
+
 | Frage | Entscheidung |
 |---|---|
-| Stufe dieses Laptops | **„schnell"** (~1,7B). Auch „schnell" verfehlt hier das Ziel von 2 s (siehe unten). |
-| Schwelle „gründlich" in `chooseSmoothingTier` | **CUDA vorhanden ODER dediziertes VRAM ≥ 6144 MiB.** Nicht die von `llama-server --list-devices` gemeldete Größe nehmen (Vega meldet dort 8142 MiB, hat aber nur 512 MiB dediziert). |
-| `timeoutMs` der Glättung | **5000 ms** für Stufe „schnell" (gemessenes Maximum 2,7 s). Für „gründlich" auf iGPU/CPU-Klasse wäre **10000 ms** nötig (Maximum 6,8 s). |
-| Vulkan auf Vega stabil? | **Ja, stabil** (llama.cpp, 4 Modelle × 6 Anfragen, kein Absturz, kein Fehler). Aber **kein deutlicher Tempogewinn** gegenüber CPU (−15 % bis +13 %), daher läuft dieser Laptop effektiv auf CPU. |
-| whisper.cpp Vulkan für Windows | **Kein offizielles Asset.** Offen, siehe Abschnitt „Offene Frage". |
+| Spracherkennung | **Parakeet v3 (int8, sherpa-onnx, CPU)**; Whisper entfällt. Rückfall auf Whisper nur, wenn der Testsatz mit echter Sprache (Task 11) bei Parakeet durchfällt (Abschnitt 9). |
+| Glättung „Automatisch" | **Regeln** auf schwächeren Rechnern; **Qwen3-4B-Instruct-2507 (Q4_K_M)** bei NVIDIA oder ≥ 6144 MiB dediziertem VRAM. Das 1,7B-Modell entfällt. |
+| Schwelle in `chooseSmoothingTier` | **CUDA vorhanden ODER dediziertes VRAM ≥ 6144 MiB.** Nicht die von `llama-server --list-devices` gemeldete Größe nehmen (Vega meldet dort 8142 MiB, hat aber nur 512 MiB dediziert). |
+| Dieser Laptop | Regel-Glättung (kein CUDA, 512 MiB dediziert). Das 4B-Modell braucht hier 4,7 s (CPU) bzw. 5,2 s (Vulkan) für 40 Wörter. |
+| `timeoutMs` des Sprachmodells | Dort, wo das Modell läuft: **5000 ms** auf schneller Hardware (CUDA/große GPU). Auf CPU/iGPU-Klasse wären **10000 ms** nötig (Maximum 6,2 s bei Qwen3-4B-Instruct-2507, 7,1 s bei Qwen3.5-4B). Bei Überschreitung greift die Regel-Glättung. |
+| 2-s-Ziel (Loslassen → Text, 10 s Diktat) | Die **Erkennung** schafft es (Parakeet 0,3–0,7 s). Die **Glättung** ist der Engpass: Regeln sind praktisch sofort, das 4B-Modell braucht auf dieser Hardware 4,7–5,2 s und gehört deshalb nur auf starke Hardware. |
+| Vulkan auf Vega stabil? | **Ja, stabil** (llama.cpp, 4 Modelle × 6 Anfragen, kein Absturz, kein Fehler). Aber **kein deutlicher Tempogewinn** gegenüber CPU (−15 % bis +13 %). |
+| Whisper-Vulkan für Windows | **Erledigt/entfällt:** Whisper wird nicht mehr gebündelt, kein Vulkan-Build nötig. |
 
 ## 1. Release-Assets (neueste Releases am 2026-11-08)
 
@@ -131,7 +136,9 @@ Ziel laut Spec: unter 2 s von Loslassen bis Text bei 10 s Diktat mit Glättung. 
 
 **Das 2-s-Ziel wird auf diesem Laptop nicht erreicht**, auch nicht mit „schnell". Realistisch sind ≈ 4–5 s. Wer schneller sein will, braucht GPU-Beschleunigung für Whisper (Vulkan-Build, siehe offene Frage), einen noch kleineren Whisper oder Glättung nur auf Wunsch.
 
-## 6. Festlegungen
+## 6. Festlegungen (ursprünglich, mit Stufe „schnell"; überholt durch die Kurzfassung)
+
+Hinweis: Die Stufe „schnell" mit Qwen3-1.7B entfällt; stattdessen gilt „Automatisch": Regeln oder Qwen3-4B-Instruct-2507 (siehe Kurzfassung). Die Schwelle (CUDA oder ≥ 6144 MiB dediziert) und die Messwerte bleiben gültig.
 
 ### 6.1 `chooseSmoothingTier` (Task 5)
 
@@ -155,12 +162,9 @@ Ziel laut Spec: unter 2 s von Loslassen bis Text bei 10 s Diktat mit Glättung. 
 
 - Erste Beobachtung, kein Beschluss: Mit `-l de` blieb ein englischer Satz im Mix englisch; mit `language=en` und `prompt="Letterflow"` wurde „pull request" richtig erkannt. Der Vergleich `de` vs. `auto` gehört in den Testsatz mit echter Sprache.
 
-## 7. Offene Frage: whisper.cpp unter Windows mit Vulkan
+## 7. Whisper unter Windows mit Vulkan (erledigt)
 
-whisper.cpp liefert kein Windows-x64-Vulkan-Asset. Optionen, die den Controller/Julius entscheiden müssen (nicht ohne Rückfrage ausgeführt, weil mehrere GB Werkzeuge nötig sind):
-
-1. Lokal bauen: Visual Studio Build Tools (C++-Workload), CMake, Vulkan SDK; `cmake -B build -DGGML_VULKAN=1 -DWHISPER_BUILD_SERVER=ON && cmake --build build --config Release`. Task 12 baut es ohnehin in der CI (`.github/workflows/build-engines.yml`).
-2. Whisper auf dem Laptop bei CPU belassen (Messwerte oben) und Vulkan erst per CI-Build liefern. Da die Vega-iGPU bei llama.cpp keinen Vorteil bringt, ist offen, ob Whisper-Vulkan auf ihr schneller wäre (Encoder rechnet stärker, weniger bandbreitenbegrenzt; unbelegt).
+whisper.cpp liefert kein Windows-x64-Vulkan-Asset. Die Frage ist durch die Entscheidung für Parakeet (Abschnitt 9, Entwurf „Spracherkennung") **gegenstandslos**: Die Erkennung läuft auf dem Prozessor, es werden keine Whisper-GPU-Builds gebraucht und keine Build-Tools installiert. Die Whisper-Einträge in `engines.json` und die Messwerte aus Abschnitt 5.1 bleiben als Vergleichswerte und für den möglichen Rückfall (nur falls der Testsatz in Task 11 bei Parakeet durchfällt).
 
 ## 8. Werkzeuge und Hinweise
 
@@ -243,7 +247,7 @@ Befunde:
 
 - Parakeet braucht für 3–12 s Audio **0,2–0,7 s** (Echtzeitfaktor ≈ 0,06; `sherpa-onnx-offline.exe` meldet bei 2 Clips RTF 0,061). Die Zeit wächst mit der Audiolänge (anders als bei Whisper, das immer ein 30-s-Fenster rechnet). **Das 2-s-Ziel für die Erkennung wird auf diesem Laptop weit unterboten**; ein 30-s-Diktat läge nach linearer Hochrechnung bei grob 1,5–2 s (Hochrechnung, nicht gemessen; längster gemessener Clip 11,9 s).
 - **Threads: 4 ≈ 8** (Unterschiede innerhalb der Streuung, 4 bei kurzen Clips minimal schneller), **16 ist rund 1,5× langsamer** (SMT bringt nichts). Empfehlung: 4–8, Standard 6 oder 8 (6 nicht gemessen).
-- **Whisper lief in dieser Sitzung 2- bis 2,5-mal langsamer als in Abschnitt 5.1** (dort 11,9 s bzw. 14,0 s für 10-s- und 3-s-Clip, hier 24–34 s). Ein Kontrolllauf mit de2/de3 ergab 25,6 s und 23,7 s. Ursache nicht geklärt (nicht untersucht: Temperatur/Taktfrequenz, Hintergrundlast durch Browser und andere Programme; Energieplan „Höchstleistung", Netzbetrieb). Die Aussage „Parakeet ist ≥ 20-mal schneller" gilt mit beiden Whisper-Werten (11,9–14,0 s aus 5.1 → 17–52×; 24–34 s aus dieser Sitzung → 35–125×).
+- **Whisper lief in dieser Sitzung 2- bis 2,5-mal langsamer als in Abschnitt 5.1** (dort 11,9 s bzw. 14,0 s für 10-s- und 3-s-Clip, hier 24–34 s). Ein Kontrolllauf mit de2/de3 ergab 25,6 s und 23,7 s. Ursache nicht geklärt (nicht untersucht: Temperatur/Taktfrequenz, Hintergrundlast durch Browser und andere Programme; Energieplan „Höchstleistung", Netzbetrieb). Die Aussage „Parakeet ist ≥ 17-mal schneller" gilt mit beiden Whisper-Werten (11,9–14,0 s aus 5.1 → 17–52×; 24–34 s aus dieser Sitzung → 35–125×).
 - Whisper-Auto-Lauf (`-l auto`, 1 Lauf je Clip) ist nur für die Qualität; seine Zeiten sind hier nicht aufgeführt (gleiche Größenordnung).
 
 ### 9.4 Qualität
@@ -296,7 +300,7 @@ Beurteilung:
 
 - **Tempo:** Parakeet v3 int8 auf der CPU ist für Letterflow **klar besser**: 0,2–0,7 s für 3–12 s Audio gegenüber 24–34 s (diese Sitzung) bzw. 12–14 s (Abschnitt 5.1) bei Whisper large-v3-turbo-q5_0, in beiden Fällen ohne `-ac`-Trick. Die Dauer wächst linear mit der Länge, kein 30-s-Fenster. Damit ist das Ziel „unter 2 s vom Loslassen bis Text" für die **Erkennung** erreicht und die Glättung (Abschnitt 5.2) wird zum Engpass (ca. 2,2–4,7 s).
 - **Qualität:** Auf dem TTS-Testsatz **etwa gleichauf**: Parakeet ist bei Deutsch minimal schlechter (1,9 % vs. 0 %), bei Englisch mit `-l de` deutlich besser (4,3 % vs. 52,2 %; Whisper `auto` 0 %), im Mix gleich oder besser (5,1 % und 7,7 % vs. 5,1 % und 10,3 %). Das sind Unterschiede von 1–4 Wörtern; **kein belastbarer Beweis**. Vorteil Parakeet: keine Sprachvorgabe nötig, kein Übersetzen bei Mixsätzen; Nachteil: keine Spracherkennung als Ausgabe, Satzzeichen und Groß-/Kleinschreibung sind unzuverlässig (Glättung bleibt nötig), Wortenden teils verschluckt.
-- **Vorschlag:** Parakeet v3 (int8) als Standard-Engine einplanen, **Whisper als wählbaren Rückfall** behalten (andere Sprachen mit Spracherkennung, Qualitätsvergleich). Vor der endgültigen Entscheidung den Testsatz mit **echter Sprache** (Task 8) mit beiden Engines laufen lassen. Anbindung über `sherpa-onnx-node` im eigenen Prozess; Diktate vor dem Erkennen an Pausen auf höchstens 15–20 s teilen (Model Card). Modell 640 MiB Download, CC-BY-4.0-Hinweis in die Lizenzseite aufnehmen.
+- **Entscheidung (Julius, 2026-11-08):** Parakeet v3 (int8) ist die Spracherkennung, Whisper entfällt. Rückfall auf Whisper nur, wenn der Testsatz mit **echter Sprache** (Task 11) bei Parakeet durchfällt. Anbindung über `sherpa-onnx-node` im eigenen Prozess; Diktate vor dem Erkennen an Pausen auf höchstens 15–20 s teilen (Model Card). Modell 640 MiB Download, CC-BY-4.0-Hinweis in die Lizenzseite aufnehmen.
 - Gemessen wurde nur CPU; GPU/NPU nicht.
 
 Reproduzieren: `node scripts/bench-parakeet.js parakeet --threads 8` (mit `SHERPA_NODE_DIR` auf einen Ordner mit `node_modules/sherpa-onnx-node`), `node scripts/bench-parakeet.js whisper --lang de|auto --runs 3`, `node scripts/bench-parakeet.js score`; Testclips mit `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-testset.ps1`. Rohdaten: `test-results/spike-*.json` (nicht eingecheckt).
