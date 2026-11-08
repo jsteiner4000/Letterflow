@@ -1,0 +1,99 @@
+/* Aufnahme-Pille: das Fenster ist transparent, nur die Pille selbst ist sichtbar. */
+html,
+body {
+  background: transparent;
+  animation: none;
+  overflow: hidden;
+  height: 100%;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pille {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 22px;
+  background: var(--hintergrund);
+  border: 1px solid var(--linie);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+  color: var(--text);
+  font-size: 14px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity var(--fade),
+    transform var(--fade);
+}
+
+.pille.sichtbar {
+  opacity: 1;
+  transform: none;
+}
+
+.balken {
+  display: none;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+}
+
+.balken i {
+  display: block;
+  width: 4px;
+  height: 22px;
+  border-radius: 2px;
+  background: var(--akzent);
+  transform: scaleY(0.18);
+  transition: transform 90ms ease-out;
+}
+
+.pille[data-kind='aufnahme'] .balken {
+  display: flex;
+}
+
+.punkt {
+  display: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--akzent);
+}
+
+.pille[data-kind='verarbeitung'] .punkt,
+.pille[data-kind='info'] .punkt,
+.pille[data-kind='warnung'] .punkt,
+.pille[data-kind='fehler'] .punkt {
+  display: block;
+}
+
+.pille[data-kind='verarbeitung'] .punkt {
+  animation: atmen 1.2s ease-in-out infinite;
+}
+
+.pille[data-kind='warnung'] .punkt {
+  background: #d97706;
+}
+
+.pille[data-kind='fehler'] .punkt {
+  background: #dc2626;
+}
+
+@keyframes atmen {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pille[data-kind='verarbeitung'] .punkt {
+    animation: none;
+  }
+}

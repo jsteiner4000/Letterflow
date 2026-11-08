@@ -19,4 +19,16 @@ contextBridge.exposeInMainWorld('letterflow', {
   status: {
     get: () => ipcRenderer.invoke('status:get'),
   },
+  overlay: {
+    ready: () => ipcRenderer.send('overlay:ready'),
+    onState: (cb) => ipcRenderer.on('overlay:state', (_event, state) => cb(state)),
+    onLevel: (cb) => ipcRenderer.on('overlay:level', (_event, n) => cb(n)),
+    onHide: (cb) => ipcRenderer.on('overlay:hide', () => cb()),
+    onRecordStart: (cb) => ipcRenderer.on('overlay:record-start', (_event, id) => cb(id)),
+    onRecordStop: (cb) => ipcRenderer.on('overlay:record-stop', () => cb()),
+    pcm: (daten) => ipcRenderer.send('overlay:pcm', daten),
+    started: () => ipcRenderer.send('overlay:started'),
+    stopped: () => ipcRenderer.send('overlay:stopped'),
+    recorderError: (fehler) => ipcRenderer.send('overlay:recorder-error', fehler),
+  },
 });

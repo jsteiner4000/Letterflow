@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'self'; script-src 'self'"
+    />
+    <title>Letterflow</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="overlay.css" />
+  </head>
+  <body>
+    <div id="pille" class="pille" role="status" aria-live="polite">
+      <span id="balken" class="balken" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i>
+      </span>
+      <span id="punkt" class="punkt" aria-hidden="true"></span>
+      <span id="text" class="text"></span>
+    </div>
+    <script src="overlay.js"></script>
+  </body>
+</html>

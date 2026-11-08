@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, session } = require('electron');
 
 const testMode = process.env.LETTERFLOW_TEST === '1';
 let loginItemCalls = 0; // Zähler für Tests: echte Registrierungen
@@ -10,7 +10,12 @@ if (testMode && process.env.LETTERFLOW_DATA_DIR) {
   app.setPath('userData', process.env.LETTERFLOW_DATA_DIR);
 }
 
+// Testmodus: Chromium liefert ein künstliches Mikrofon (periodischer Ton), kein echtes Gerät nötig.
+if (testMode) app.commandLine.appendSwitch('use-fake-device-for-media-stream');
+
 const windows = require('./windows');
+const { setupPermissions } = require('./permissions');
+const { createOverlay } = require('./overlay');
 const tray = require('./tray');
 const { loadSettings, saveSettings } = require('./settings');
 const setup = require('./setup');
@@ -143,6 +148,7 @@ if (!app.requestSingleInstanceLock()) {
   }
 
   app.whenReady().then(() => {
+    setupPermissions(session.defaultSession);
     registerIpc();
     trayHandle = tray.createTray();
     enginesAnstossen(app.getPath('userData'));
@@ -154,7 +160,25 @@ if (!app.requestSingleInstanceLock()) {
     });
     if (testMode) {
       // Test-Brücke für electronApp.evaluate (wird in späteren Tasks erweitert).
+      const overlay = createOverlay();
+      const aufnahme = { pakete: [] };
+      overlay.on('pcm', (pcm) => aufnahme.pakete.push(pcm));
+      overlay.on('recorder-error', (e) => (aufnahme.fehler = e.name));
       global.__letterflow = {
+        overlay,
+        // Test: Aufnahme beginnen/beenden und die gesammelten Pakete als Kennzahlen lesen.
+        aufnahmeStart: async (deviceId = null) => {
+          aufnahme.pakete = [];
+          aufnahme.fehler = null;
+          await overlay.startRecording(deviceId);
+        },
+        aufnahmeStopp: () => overlay.stopRecording(),
+        aufnahmeStand: () => ({
+          fehler: aufnahme.fehler,
+          pakete: aufnahme.pakete.length,
+          werte: aufnahme.pakete.reduce((n, p) => n + p.length, 0),
+          rms: aufnahme.pakete.map((p) => Math.sqrt(p.reduce((n, v) => n + v * v, 0) / p.length)),
+        }),
         trayTooltip: () => tray.TOOLTIP,
         openAbout: () => windows.openAbout(),
         openSettings: () => windows.openSettings(),
