@@ -25,6 +25,7 @@ const MESSAGES = {
   noMic: 'Kein Mikrofon gefunden',
   micFailed: 'Mikrofon konnte nicht gestartet werden',
   helperFailed: 'Tastenkürzel nicht verfügbar – Letterflow bitte neu starten',
+  failed: 'Diktat fehlgeschlagen – bitte erneut versuchen',
 };
 
 // Gerät fehlt oder ist weg: einmal mit dem Windows-Standardgerät neu versuchen.
@@ -59,6 +60,9 @@ class Dictation {
     this.pasteChain = Promise.resolve(); // Einfügen in Reihenfolge
     this.busy = 0; // Diktate in Verarbeitung
     this.messageTimer = null;
+    this.pendingMessage = null; // Meldung, die nach der laufenden Aufnahme nachgeholt wird
+    this.keysReleased = Promise.resolve(); // Einfügen erst, wenn das Kürzel losgelassen ist
+    this.releaseKeys = () => {};
     this.helperHandlers = {
       'hotkey-down': () => this._down(),
       'hotkey-up': () => this._up(),
@@ -92,6 +96,8 @@ class Dictation {
   _down() {
     // Auch ohne Aufnahme maskieren, sonst öffnet das Loslassen von Win das Startmenü.
     this.helper.setMask(true);
+    this.releaseKeys();
+    this.keysReleased = new Promise((resolve) => (this.releaseKeys = resolve));
     if (this.recording) return;
     const status = this.getStatus().engines;
     if (status === 'fehlt') {
@@ -107,14 +113,21 @@ class Dictation {
       this._message('info', MESSAGES.loading, INFO_MS);
       return;
     }
-    const engines = this.getEngines();
     const settings = this.getSettings();
     const rec = {
       startedAt: Date.now(),
       deviceId: settings.micDeviceId || null,
       retried: false,
       segmenter: createSegmenter(),
-      queue: createTranscriptQueue((samples) => engines.transcribe(samples)),
+      // Engines zur Laufzeit holen: nach einem Neustart ist es ein neues Objekt.
+      queue: createTranscriptQueue(async (samples) => {
+        try {
+          return await this.getEngines().transcribe(samples);
+        } catch (e) {
+          rec.failed = true;
+          throw e;
+        }
+      }),
       focus: this.helper.focus(),
     };
     this.recording = rec;
@@ -127,11 +140,13 @@ class Dictation {
 
   _up() {
     this.helper.setMask(false);
+    this.releaseKeys();
     if (this.recording) this._finish(this.recording, false);
   }
 
   _cancel() {
     this.helper.setMask(false);
+    this.releaseKeys();
     const rec = this.recording;
     if (!rec) return;
     this._end(rec);
@@ -226,7 +241,8 @@ class Dictation {
     this._idle();
     let t = Date.now();
     const raw = await rec.queue.finish();
-    this.log(`diktat: erkennung ${Date.now() - t} ms`);
+    this.log(`diktat: erkennung ${Date.now() - t} ms${rec.failed ? ', mit fehlern' : ''}`);
+    if (!raw && rec.failed) throw new Error('Spracherkennung fehlgeschlagen');
     if (!raw) return null;
     const settings = this.getSettings();
     const engines = this.getEngines();
@@ -245,12 +261,24 @@ class Dictation {
 
   async _deliver(job) {
     let restore = null;
+    let result = null;
     try {
-      const result = await job;
+      result = await job;
+      // Hält der Nutzer schon das nächste Kürzel, würde STRG+V mit gedrückten Tasten ankommen.
+      if (result) await this.keysReleased;
       if (result) restore = await this._insert(result);
     } catch (e) {
       console.error('Diktat fehlgeschlagen:', e);
       this.log(`diktat: fehler ${e && e.name}`);
+      // Nie still verlieren: vorhandenen Text in die Zwischenablage, sonst Fehlermeldung.
+      const saved =
+        result &&
+        (await clipboard.writeText(result.text).then(
+          () => true,
+          () => false,
+        ));
+      if (saved) this._message('warnung', MESSAGES.noTextField, WARNING_MS);
+      else this._message('fehler', MESSAGES.failed, WARNING_MS);
     } finally {
       this.busy -= 1;
       this._idle();
@@ -271,13 +299,14 @@ class Dictation {
       this._message('warnung', MESSAGES.noTextField, WARNING_MS);
       return null;
     }
-    const snap = await snapshot();
+    // Sichern darf scheitern: dann wird nur nicht wiederhergestellt.
+    const snap = await snapshot().catch(() => null);
     await clipboard.writeText(text);
     const r = await this.helper.paste(focus.hwnd);
     this.log(
       `diktat: einfügen ${Date.now() - t} ms, ${r.ok ? 'ok' : r.reason || 'fehlgeschlagen'}`,
     );
-    if (r.ok) return () => restoreIfUnchanged(snap, text);
+    if (r.ok) return snap && (() => restoreIfUnchanged(snap, text));
     const windowChanged = r.reason === 'fenster-gewechselt';
     this._message(
       'warnung',
@@ -289,10 +318,12 @@ class Dictation {
 
   // --- Pille -------------------------------------------------------------------
 
-  // shortcut: während einer neuen Aufnahme entfallen Meldungen (der Text liegt trotzdem in der
-  // Zwischenablage); bei Bedarf Meldungen nach der Aufnahme nachholen.
+  // Während einer Aufnahme wird die (letzte) Meldung gemerkt und danach gezeigt.
   _message(kind, text, ms) {
-    if (this.recording) return;
+    if (this.recording) {
+      this.pendingMessage = [kind, text, ms];
+      return;
+    }
     clearTimeout(this.messageTimer);
     this.overlay.show({ kind, text });
     this.messageTimer = setTimeout(() => {
@@ -304,7 +335,11 @@ class Dictation {
   // Ruhezustand der Pille: Aufnahme und Meldungen haben Vorrang, sonst „Schreibe …“ oder aus.
   _idle() {
     if (this.recording || this.messageTimer) return;
-    if (this.busy > 0) this.overlay.show({ kind: 'verarbeitung' });
+    if (this.pendingMessage) {
+      const [kind, text, ms] = this.pendingMessage;
+      this.pendingMessage = null;
+      this._message(kind, text, ms);
+    } else if (this.busy > 0) this.overlay.show({ kind: 'verarbeitung' });
     else this.overlay.hide();
   }
 }

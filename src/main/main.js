@@ -59,17 +59,20 @@ if (!app.requestSingleInstanceLock()) {
   let letzteEinstellungen = {}; // zuletzt gelesene Einstellungen (falls die Datei kurz gesperrt ist)
 
   // engines: 'fehlt' (Einrichtung offen), 'startet', 'bereit' oder 'fehler'.
+  // Solange die Hardware-Erkennung läuft, ist die Einrichtung noch nicht geprüft: 'startet'.
   function getStatus() {
     return {
       backend: engines ? engines.backend : hardware ? hardware.backend : null,
       tier: engines ? engines.tier : hardware ? hardware.tier : null,
       engines: startFehler
         ? 'fehler'
-        : !setup.isComplete()
-          ? 'fehlt'
-          : engines
-            ? engines.status
-            : 'startet',
+        : !hardware
+          ? 'startet'
+          : !setup.isComplete()
+            ? 'fehlt'
+            : engines
+              ? engines.status
+              : 'startet',
       rueckfall: engines ? engines.fallback : false,
     };
   }

@@ -11,6 +11,8 @@ port.on('message', ({ data }) => {
     if (data.samples.length === 0) return; // Test: Worker antwortet nie (Zeitüberschreitung)
     if (process.env.LETTERFLOW_FAKE_ASR_LOG)
       fs.appendFileSync(process.env.LETTERFLOW_FAKE_ASR_LOG, `${data.samples.length}\n`);
+    if (process.env.LETTERFLOW_FAKE_ASR_FEHLER === '1')
+      return port.postMessage({ type: 'error', id: data.id, message: 'Testfehler' });
     port.postMessage({
       type: 'result',
       id: data.id,

@@ -5,6 +5,7 @@ const readline = require('node:readline');
 const { createHotkeyMachine } = require('./hotkey-machine');
 
 const TIMEOUT_MS = 1000;
+const PASTE_TIMEOUT_MS = 4000; // der Helfer wartet bis zu 3 s, bis die Tasten losgelassen sind
 // Wartezeiten vor Neustarts nach Abstürzen; bei MAX_FAILURES Ausfällen binnen einer Minute Aufgabe
 const BACKOFF_MS = [300, 1000, 3000, 10000];
 const MAX_FAILURES = 5;
@@ -106,14 +107,14 @@ class Helper extends EventEmitter {
     if (this.proc && this.proc.stdin.writable) this.proc.stdin.write(JSON.stringify(obj) + '\n');
   }
 
-  _request(obj, fallback) {
+  _request(obj, fallback, timeoutMs = TIMEOUT_MS) {
     return new Promise((resolve) => {
       if (!this.proc) return resolve(fallback);
       const id = this.nextId++;
       const timer = setTimeout(() => {
         this.pending.delete(id);
         resolve(fallback);
-      }, TIMEOUT_MS);
+      }, timeoutMs);
       this.pending.set(id, { resolve, timer, fallback });
       this.send({ id, ...obj });
     });
@@ -129,7 +130,7 @@ class Helper extends EventEmitter {
   }
 
   paste(hwnd) {
-    return this._request({ cmd: 'paste', hwnd }, { ...PASTE_FALLBACK });
+    return this._request({ cmd: 'paste', hwnd }, { ...PASTE_FALLBACK }, PASTE_TIMEOUT_MS);
   }
 
   setMask(on) {

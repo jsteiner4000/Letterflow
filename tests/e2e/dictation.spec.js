@@ -218,3 +218,42 @@ test('Mikrofon während der Aufnahme abgezogen → einmal Windows-Standard', asy
   await loslassen();
   await expect.poll(lastPaste, { timeout: 10000 }).toEqual({ text: 'Hallo tim.', hwnd: 42 });
 });
+
+test('Erkennung scheitert → Fehlermeldung statt stillem Ausblenden', async () => {
+  await starten({ env: { LETTERFLOW_FAKE_ASR_FEHLER: '1' } });
+  await fokus(TEXTFELD);
+  await diktieren();
+  const p = await pille();
+  await expect(p).toHaveText('Diktat fehlgeschlagen – bitte erneut versuchen', { timeout: 10000 });
+  await expect(p).toHaveAttribute('data-kind', 'fehler');
+  expect(await lastPaste()).toBeNull();
+});
+
+test('Einfügen wartet, bis das nächste Kürzel losgelassen ist', async () => {
+  // „langsame eingabe“ braucht im Ersatz-Sprachmodell 3 s: das zweite Kürzel ist dann schon gedrückt.
+  await starten({
+    settings: { smoothingModel: 'gruendlich' },
+    env: { LETTERFLOW_FAKE_ASR_TEXT: 'langsame eingabe' },
+  });
+  await fokus(TEXTFELD);
+  await diktieren();
+  await druecken();
+  await expect.poll(protokoll, { timeout: 10000 }).toMatch(/glättung \d+ ms/);
+  await new Promise((r) => setTimeout(r, 500)); // Gegenprobe: ohne Warten käme das Einfügen sofort
+  expect(await lastPaste()).toBeNull();
+  await loslassen();
+  await expect.poll(lastPaste).toEqual({ text: 'Langsame Eingabe.', hwnd: 42 });
+});
+
+test('Engine-Neustart während der Aufnahme → Erkennung nutzt die neuen Engines', async () => {
+  await starten();
+  await fokus(TEXTFELD);
+  await druecken();
+  const seite = await overlaySeite();
+  await expect(seite.locator('html')).toHaveAttribute('data-sample-rate', '16000');
+  await app.evaluate(() => global.__letterflow.enginesNeustart(false));
+  await expect.poll(() => app.evaluate(() => global.__letterflow.status().engines)).toBe('bereit');
+  await new Promise((r) => setTimeout(r, 1500)); // Sprechdauer
+  await loslassen();
+  await expect.poll(lastPaste, { timeout: 10000 }).toEqual({ text: 'Hallo tim.', hwnd: 42 });
+});
