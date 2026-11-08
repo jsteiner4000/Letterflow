@@ -74,6 +74,14 @@ test('leise Aufnahme wird verstärkt', () => {
   expect(laut[1]).toBeCloseTo(-0.25, 5);
   const normal = Float32Array.from([0.6, -0.2]);
   expect(normalizeLevel(normal)).toBe(normal);
+  const grenze = Float32Array.from([0.1, -0.05]);
+  expect(normalizeLevel(grenze)).toBe(grenze);
   const stille = new Float32Array(4);
   expect(normalizeLevel(stille)).toBe(stille);
+});
+
+test('add nach finish ist nicht erlaubt', async () => {
+  const q = createTranscriptQueue(async () => 'x');
+  await q.finish();
+  expect(() => q.add(abschnitt(), true)).toThrow();
 });

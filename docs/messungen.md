@@ -310,3 +310,13 @@ Reproduzieren: `node scripts/bench-parakeet.js parakeet --threads 8` (mit `SHERP
 Geprüft am 2026-11-08 mit Electron 45.2.3 und `sherpa-onnx-node` 2.0.1: `utilityProcess.fork(src/asr/worker.js)` lädt das N-API-Addon (ohne `electron-rebuild`), der Worker meldet `ready` nach **2,7 s** (Modell laden, 4 Threads), und `testdata/testset/de2.wav` (3,6 s) ergibt in **218 ms** „Wir treffen uns am Dienstag um 10 Uhr im Büro." – identisch mit dem Ergebnis unter Node (Abschnitt 9.4). Damit ist die Rückfalloption (b) aus 9.5 nicht nötig. Der Float32Array-Transfer per `postMessage` funktioniert.
 
 Gleiche Prüfung mit dem echten `EngineManager` (Vulkan, Qwen3-4B, `-ngl 99`): beide Engines bereit nach 5,2 s, Erkennung 299 ms, `llama-server` antwortet mit Schlüssel (200), ohne Schlüssel 401, PID-Datei nach `stop()` weg.
+
+## 11. Hotwords für das Wörterbuch (Task 8)
+
+Geprüft am 2026-11-08 (Dev-Laptop, `sherpa-onnx-node` 2.0.1, Parakeet v3 int8, 4 Threads, CPU) mit einem Wegwerf-Skript über `testdata/testset/*.wav` (das Skript ist nicht eingecheckt).
+
+- **Technisch möglich:** `createStream(hotwords)` mit `decodingMethod: 'modified_beam_search'` wird für `nemo_transducer` angenommen und läuft ohne Fehler; hohe Boost-Werte verändern die Ausgabe, die Boosts greifen also.
+- **Nur als Token-Folgen:** Das Modell bringt keine `bpe.vocab` mit, Hotwords müssen daher als Folgen von Token aus `tokens.txt` angegeben werden (`▁ D iens tag :1.5`); die Zerlegung der Wörter müssten wir selbst bauen. Token, die es nicht gibt, verwirft sherpa-onnx mit der Meldung „Encode hotwords failed, skipping“, ohne die Erkennung abzubrechen.
+- **Kein Gewinn:** Die echten Fehler des Modells („Recate“ statt Recap, „Produktschneidi“ statt production-ready, „Ple“ statt Please, „Diensta“ statt Dienstag) wurden bei Boost-Werten von 1,5 bis 30 **nie** korrigiert. Bei Boost ≥ 20 entstanden neue Fehler („Sprint“ wurde zu „SIN“, ein Satz brach nach „D“ ab). Ursache vermutlich: Das Modell liefert diese Wortenden akustisch nicht, und die Token-Folge trifft die Schreibweise des Modells (Groß-/Kleinschreibung) nicht sicher; die Ursache ist nicht weiter untersucht.
+- **Tempo:** `greedy_search` 2,85 s gegen `modified_beam_search` 3,06 s für sechs Clips (ohne Hotwords, im Messrauschen einer einzelnen Messung); mit Hotwords lagen die Summen zwischen 2,7 und 3,2 s. Kein relevanter Unterschied, aber auch kein Nutzen.
+- **Entscheidung:** Hotwords werden nicht umgesetzt; der Worker bleibt bei `greedy_search`. **Das Wörterbuch wirkt nur in der Glättung (Task 9).**

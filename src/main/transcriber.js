@@ -13,11 +13,14 @@ function normalizeLevel(samples) {
 }
 
 // Erkennt Abschnitte nacheinander (nie parallel), sobald sie eintreffen; finish() liefert den Gesamttext.
+// Eine Warteschlange je Diktat: add() nach finish() ist nicht erlaubt.
 function createTranscriptQueue(transcribeFn) {
   let kette = Promise.resolve();
   const texte = [];
+  let beendet = false;
   return {
     add(samples, hadSpeech) {
+      if (beendet) throw new Error('add() nach finish() ist nicht erlaubt.');
       if (!hadSpeech) return;
       const platz = texte.push('') - 1; // Reihenfolge bleibt auch bei Fehlern erhalten
       kette = kette.then(async () => {
@@ -29,6 +32,7 @@ function createTranscriptQueue(transcribeFn) {
       });
     },
     async finish() {
+      beendet = true;
       await kette;
       return texte.filter(Boolean).join(' ');
     },
