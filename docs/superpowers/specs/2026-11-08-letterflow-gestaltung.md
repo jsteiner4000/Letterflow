@@ -100,3 +100,24 @@ Einrichtungsfenster und Über-Dialog übernehmen Tokens, Glasflächen, Schriften
 - Technik der Bildschirmleser-Ansage für die nicht fokussierbare Pille.
 - Genaue Federwerte innerhalb der genannten Zeiten.
 - Erzeugung der zusätzlichen Taskleisten-ICOs aus dem bestehenden Logo (`branding/`).
+
+## Aus einem Guss: Skalen (Apple-Design-Prüfung, 2026-11-08)
+
+Alle Fenster und die Pille nutzen **nur** diese Werte (Entwurf `docs/design/einstellungen.html` ist darauf angeglichen; Pille bei der Umsetzung angleichen):
+
+- **Schrift** (Inter mit `font-optical-sizing:auto`, Outfit nur für Überschriften und Wortmarke; Laufweite nach Größe, nie ein Einheitswert):
+  | Rolle | Schrift | Größe/Zeilenhöhe | Laufweite |
+  |---|---|---|---|
+  | Seitentitel | Outfit 600 | 22/28 | −0,015em |
+  | Wortmarke | Outfit 600 | 16/20 | −0,01em |
+  | Abschnitt | Outfit 600 | 15/20 | −0,005em |
+  | Text betont / Pillen-Name | Inter 600 | 13/18 | 0 |
+  | Text | Inter 500 | 13/18 | 0 |
+  | Zweitzeile / Pillen-Zustand / Hinweis | Inter 500 | 12/16 | 0 |
+  | Kennzeichnung (z. B. „Auf diesem PC“) | Inter 600 | 11/14 | +0,02em |
+  Über Glas (Pille): Gewicht nie unter 500, keine Deckkraft-Abschwächung.
+- **Abstände:** nur 4 · 8 · 12 · 16 · 24 · 32 px (2 px nur innerhalb Wellenform/Pegel). Pille: links 12, rechts 16, Symbol→Text 8, Text→rechter Platz 16.
+- **Radien (konzentrisch):** Pille 22 · Karten/Flächen 12 · Bedienelemente, Tasten-Kappen, Menüpunkte 8 · Logo 24 px → 6 · Programmsymbol 20 px → 5.
+- **Farbrollen:** `--accent` (App: Auswahl, Schalter, Fokus) und `--live` `#5EEAD4` (nur Live: Wellenform, Erfolgshäkchen, Taskleisten-Symbol „hört zu“). Keine weiteren Mint-/Türkis-Töne.
+- **Material:** Pille = schwerstes Material (dunkel getönt), Karten = leichtes Glas, Seitenleiste = Grundfläche ohne eigenes Glas. Nie helles Glas auf hellem Glas.
+- **Bewegung:** kritisch gedämpfte Federn (Dämpfung 1,0, Reaktion 0,3–0,4 s), keine Überschwinger; Verschwinden schneller als Erscheinen; Erscheinen und Verschwinden auf demselben Weg (nach unten, 6 px + Skalierung 0,96). **Reaktion ohne Verzögerung:** Die Pille ist spätestens im nächsten Frame nach dem Tastendruck sichtbar; Knöpfe reagieren beim Drücken (`:active`), nicht erst beim Loslassen.
