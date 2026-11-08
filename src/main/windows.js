@@ -74,7 +74,11 @@ function openSetup() {
 
 function closeSetup() {
   const win = offen.get('setup');
-  if (win && !win.isDestroyed()) win.close();
+  if (!win || win.isDestroyed()) return;
+  // Ein Fenster, das noch lädt, abzuräumen stürzt Electron ab: erst nach dem Laden schließen.
+  if (win.webContents.isLoadingMainFrame()) {
+    win.webContents.once('did-finish-load', () => !win.isDestroyed() && win.close());
+  } else win.close();
 }
 
 module.exports = { openAbout, openSettings, openSetup, closeSetup };

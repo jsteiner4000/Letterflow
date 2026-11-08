@@ -141,6 +141,9 @@ test('nach einem unerwarteten Fehler startet ein neuer Aufruf erneut', async () 
     app.evaluate(() => global.__letterflow.ensureSetup({ backend: 'cpu', tier: 'schnell' }));
   await app.evaluate(() => global.__letterflow.setupAusfallNaechstes());
   await expect(lauf()).rejects.toThrow();
+  // Das Einrichtungsfenster des gescheiterten Laufs muss ganz geschlossen sein, bevor ein neuer
+  // Lauf es wieder öffnet (sonst kollidieren Schließen und Öffnen im Hauptprozess).
+  await expect.poll(() => app.windows().some((w) => w.url().endsWith('setup.html'))).toBe(false);
   await lauf();
   expect(fs.readFileSync(path.join(ordner, 'tokens.txt')).equals(dateien['parakeet-tokens'])).toBe(
     true,

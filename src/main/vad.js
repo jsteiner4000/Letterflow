@@ -1,5 +1,5 @@
 // Sprechpausen-Erkennung: teilt einen PCM-Strom (16 kHz mono, Float32) an Pausen in Abschnitte.
-// Energie-Schwelle adaptiv: Grundrauschen = Minimum der Frame-RMS der letzten 1,5 s Nicht-Sprache.
+// Energie-Schwelle adaptiv: Grundrauschen = gleitendes Minimum der Frame-RMS der letzten 1,5 s.
 
 const RAND_MS = 200; // Vor- und Nachlauf je Abschnitt
 const RAUSCH_FENSTER_MS = 1500;
@@ -22,7 +22,7 @@ function createSegmenter({
   const schnittFrames = Math.round(SCHNITT_FENSTER_MS / frameMs);
 
   let rest = new Float32Array(0); // noch unvollständiger Rahmen
-  const rauschen = []; // RMS der letzten Nicht-Sprache-Rahmen
+  const rauschen = []; // RMS der letzten Rahmen (1,5 s)
   let vorlauf = []; // letzte Rahmen vor dem Abschnitt
   let rahmen = []; // aktueller Abschnitt: { pcm, rms, sprache }
   let level = 0;
@@ -74,16 +74,16 @@ function createSegmenter({
     let sumQuadrat = 0;
     for (let i = 0; i < pcm.length; i++) sumQuadrat += pcm[i] * pcm[i];
     const rms = Math.sqrt(sumQuadrat / pcm.length);
-    const grundrauschen = rauschen.length ? Math.min(...rauschen) : 0;
+    // Jeder Rahmen zählt (gleitendes Minimum inkl. aktuellem): so wird auch Raumrauschen über
+    // der Mindestschwelle als Grundrauschen gelernt und gilt nicht als Dauersprache.
+    rauschen.push(rms);
+    if (rauschen.length > rauschFrames) rauschen.shift();
+    const grundrauschen = Math.min(...rauschen);
     const sprache = rms > Math.max(3 * grundrauschen, MIN_SCHWELLE);
     // Pegel: schneller Anstieg, langsames Abklingen
     level = Math.max(Math.min(1, Math.sqrt(rms / 0.3)), level * 0.85);
     const eintrag = { pcm, rms, sprache };
 
-    if (!sprache) {
-      rauschen.push(rms);
-      if (rauschen.length > rauschFrames) rauschen.shift();
-    }
     if (!rahmen.length && !sprache) {
       vorlauf.push(eintrag);
       if (vorlauf.length > randFrames) vorlauf.shift();

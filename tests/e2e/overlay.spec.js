@@ -75,3 +75,22 @@ test('Nicht erlaubtes Gerät meldet recorder-error', async () => {
   const stand = await bruecke(() => global.__letterflow.aufnahmeStand());
   expect(stand.fehler).toBe('OverconstrainedError');
 });
+
+test('ungültige PCM-Nutzdaten werden verworfen, gültige angenommen', async () => {
+  await bruecke(() => global.__letterflow.overlay.show({ kind: 'aufnahme' }));
+  const seite = await overlaySeite();
+  await bruecke(() => {
+    global.__pakete = [];
+    global.__letterflow.overlay.on('pcm', (p) => global.__pakete.push(p.length));
+  });
+  await seite.evaluate(() => {
+    window.letterflow.overlay.pcm(new Uint8Array(3)); // Länge nicht durch 4 teilbar
+    window.letterflow.overlay.pcm(new Float32Array(buffer8(), 0, 0)); // leer, gültig
+    window.letterflow.overlay.pcm(new Float32Array(4));
+    function buffer8() {
+      return new ArrayBuffer(8);
+    }
+  });
+  // Nur die zwei gültigen Pakete (Länge 0 und 4) kommen an; das ungültige wurde verworfen.
+  await expect.poll(() => bruecke(() => global.__pakete)).toEqual([0, 4]);
+});

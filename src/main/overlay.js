@@ -5,7 +5,9 @@ const path = require('node:path');
 const RENDERER = path.join(__dirname, '..', 'renderer');
 const PRELOAD = path.join(__dirname, '..', 'preload', 'preload.js');
 const BREITE = 420;
-const HOEHE = 72;
+const PILLE_HOEHE = 44;
+const HOEHE = 96; // Platz für Schatten (ca. 20 px) rundum, damit nichts hart abgeschnitten wird
+const LADE_FRIST_MS = 10000;
 const ABSTAND = 60; // zum unteren Rand des Bildschirms
 const AUSBLEND_MS = 200; // etwas länger als der Fade im Renderer (180 ms)
 const STOPP_WARTEZEIT_MS = 2000;
@@ -27,8 +29,11 @@ function createOverlay() {
   };
   const onPcm = (event, daten) => {
     if (!vonOverlay(event)) return;
-    const pcm = daten instanceof Float32Array ? daten : new Float32Array(daten.buffer ?? daten);
-    events.emit('pcm', pcm);
+    // Vertrauensgrenze: nur ausgerichtete Float32-Daten annehmen, alles andere verwerfen.
+    const ok =
+      ArrayBuffer.isView(daten) && daten.byteOffset % 4 === 0 && daten.byteLength % 4 === 0;
+    if (!ok) return;
+    events.emit('pcm', new Float32Array(daten.buffer, daten.byteOffset, daten.byteLength / 4));
   };
   const onFehler = (event, fehler) => {
     if (!vonOverlay(event)) return;
@@ -73,9 +78,19 @@ function createOverlay() {
     diese.on('closed', () => {
       if (win === diese) win = null;
     });
-    bereit = new Promise((resolve) => {
-      diese.__bereit = resolve;
+    bereit = new Promise((resolve, reject) => {
+      const frist = setTimeout(() => {
+        // Seite lädt nicht: Fenster verwerfen, damit ein neuer Versuch frisch beginnt.
+        if (win === diese) win = null;
+        if (!diese.isDestroyed()) diese.destroy();
+        reject(new Error('Aufnahme-Fenster hat nicht rechtzeitig geladen'));
+      }, LADE_FRIST_MS);
+      diese.__bereit = () => {
+        clearTimeout(frist);
+        resolve();
+      };
     });
+    bereit.catch(() => {}); // Fehler wird von den Aufrufern behandelt
     diese.loadFile(path.join(RENDERER, 'overlay.html'));
     return bereit;
   }
@@ -85,7 +100,7 @@ function createOverlay() {
     const a = anzeige.workArea;
     win.setBounds({
       x: Math.round(a.x + (a.width - BREITE) / 2),
-      y: Math.round(a.y + a.height - ABSTAND - HOEHE),
+      y: Math.round(a.y + a.height - ABSTAND - (HOEHE + PILLE_HOEHE) / 2),
       width: BREITE,
       height: HOEHE,
     });
@@ -109,14 +124,16 @@ function createOverlay() {
 
   Object.assign(events, {
     show(state) {
-      ensureWindow().then(() => {
-        if (!win || win.isDestroyed()) return;
-        clearTimeout(ausblendTimer);
-        senden('overlay:state', { kind: state.kind, text: state.text });
-        positionieren();
-        // showInactive: kein Fokusklau; der Renderer blendet den fertigen Inhalt weich ein.
-        if (!win.isVisible()) win.showInactive();
-      });
+      ensureWindow()
+        .then(() => {
+          if (!win || win.isDestroyed()) return;
+          clearTimeout(ausblendTimer);
+          senden('overlay:state', { kind: state.kind, text: state.text });
+          positionieren();
+          // showInactive: kein Fokusklau; der Renderer blendet den fertigen Inhalt weich ein.
+          if (!win.isVisible()) win.showInactive();
+        })
+        .catch(() => {}); // Pille bleibt aus, wenn das Fenster nicht lädt
     },
     level(n) {
       senden('overlay:level', Math.max(0, Math.min(1, Number(n) || 0)));

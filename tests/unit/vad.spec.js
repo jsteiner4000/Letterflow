@@ -43,14 +43,22 @@ test('leises Mikrofon wird trotzdem erkannt', () => {
 });
 
 test('Dauersprechen wird nach 20 s geteilt', () => {
+  // Sprachähnlich: Ton mit Silbenrhythmus (3 Hz); ein völlig konstanter Pegel gälte als Rauschen.
   const ton = Float32Array.from({ length: 45 * RATE }, (_, i) =>
-    Math.fround(0.3 * Math.sin((2 * Math.PI * 220 * i) / RATE)),
+    Math.fround(
+      0.3 *
+        (0.6 + 0.4 * Math.sin((2 * Math.PI * 3 * i) / RATE)) *
+        Math.sin((2 * Math.PI * 220 * i) / RATE),
+    ),
   );
   const { teile, rest } = laufen(ton);
   const alle = rest ? [...teile, rest] : teile;
   expect(alle.length).toBeGreaterThanOrEqual(3);
   for (const t of alle) expect(t.length).toBeLessThanOrEqual(20 * RATE);
-  expect(alle.reduce((n, t) => n + t.length, 0)).toBe(ton.length);
+  // Nichts Hörbares geht verloren; nur die Stille vor dem ersten Rahmen mit Sprache fällt weg.
+  const summe = alle.reduce((n, t) => n + t.length, 0);
+  expect(summe).toBeLessThanOrEqual(ton.length);
+  expect(summe).toBeGreaterThan(ton.length - 0.3 * RATE);
 });
 
 test('Pegel steigt bei Sprache und fällt in der Stille', () => {
@@ -80,4 +88,21 @@ test('Abschnitte enthalten Vor- und Nachlauf', () => {
   // 1 s Ton + je ca. 200 ms Vor- und Nachlauf (auf 30-ms-Rahmen gerundet)
   expect(alle[0].length).toBeGreaterThan(1.3 * RATE);
   expect(alle[0].length).toBeLessThan(1.55 * RATE);
+});
+
+for (const pegel of [0.006, 0.01]) {
+  test(`gleichmäßiges Raumrauschen (RMS ${pegel}) ergibt keinen Abschnitt`, () => {
+    const { seg, teile, rest } = laufen(rauschen(5, pegel));
+    expect(teile).toEqual([]);
+    expect(rest).toBeNull();
+    expect(seg.hadSpeech).toBe(false);
+  });
+}
+
+test('Sprache über Raumrauschen (RMS 0.006) ergibt weiter zwei Abschnitte', () => {
+  const sprache = fixtureWav('sprache-pause-sprache');
+  const hintergrund = rauschen(sprache.length / RATE, 0.006);
+  const gemischt = sprache.map((v, i) => v + hintergrund[i]);
+  const { teile, rest } = laufen(gemischt);
+  expect(teile.length + (rest ? 1 : 0)).toBe(2);
 });

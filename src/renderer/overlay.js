@@ -32,6 +32,7 @@ async function aufnahmeStarten(deviceId) {
   await aufnahmeBeenden(false);
   const token = ++startToken;
   let strom = null;
+  let ctx = null;
   try {
     strom = await navigator.mediaDevices.getUserMedia({
       audio: {
@@ -42,7 +43,13 @@ async function aufnahmeStarten(deviceId) {
         autoGainControl: false,
       },
     });
-    const ctx = new AudioContext({ sampleRate: 16000 });
+    ctx = new AudioContext({ sampleRate: 16000 });
+    if (ctx.sampleRate !== 16000) {
+      // Falsche Abtastrate würde unbemerkt falsche Daten liefern: lieber melden.
+      const fehler = new Error(`Abtastrate ${ctx.sampleRate} statt 16000`);
+      fehler.name = 'SampleRateError';
+      throw fehler;
+    }
     await ctx.audioWorklet.addModule('recorder-worklet.js');
     const quelle = ctx.createMediaStreamSource(strom);
     const knoten = new AudioWorkletNode(ctx, 'recorder', { numberOfOutputs: 0 });
@@ -61,6 +68,7 @@ async function aufnahmeStarten(deviceId) {
     window.letterflow.overlay.started();
   } catch (fehler) {
     if (strom) strom.getTracks().forEach((t) => t.stop());
+    if (ctx) await ctx.close().catch(() => {});
     window.letterflow.overlay.recorderError({ name: fehler && fehler.name });
   }
 }
