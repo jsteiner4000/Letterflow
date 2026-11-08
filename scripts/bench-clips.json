@@ -1,0 +1,12 @@
+[
+ {"id":"de1","cat":"de","ref":"Ich habe gestern Abend noch lange an dem Bericht gearbeitet.","parts":[["de","Ich habe gestern Abend noch lange an dem Bericht gearbeitet."]]},
+ {"id":"de2","cat":"de","ref":"Wir treffen uns am Dienstag um zehn Uhr im Büro.","parts":[["de","Wir treffen uns am Dienstag um zehn Uhr im Büro."]]},
+ {"id":"de3","cat":"de","ref":"Am Wochenende fahren wir an den See, wenn das Wetter hält, und grillen mit den Nachbarn, die wir schon lange nicht mehr gesehen haben, und danach gehen wir noch eine Runde schwimmen.","parts":[["de","Am Wochenende fahren wir an den See, wenn das Wetter hält, und grillen mit den Nachbarn, die wir schon lange nicht mehr gesehen haben, und danach gehen wir noch eine Runde schwimmen."]]},
+ {"id":"en1","cat":"en","ref":"Please send me the report before the meeting tomorrow morning.","parts":[["en","Please send me the report before the meeting tomorrow morning."]]},
+ {"id":"en2","cat":"en","ref":"The new version of the application is ready for testing on all devices.","parts":[["en","The new version of the application is ready for testing on all devices."]]},
+ {"id":"mx1","cat":"mixed","ref":"Ich schick dir das Meeting-Recap nach dem Standup.","parts":[["de","Ich schick dir das"],["en","Meeting Recap"],["de","nach dem"],["en","Standup."]]},
+ {"id":"mx2","cat":"mixed","ref":"Kannst du den Pull Request reviewen, bevor wir deployen?","parts":[["de","Kannst du den"],["en","Pull Request"],["de","reviewen, bevor wir"],["en","deployen?"]]},
+ {"id":"mx3","cat":"mixed","ref":"Das Feature ist noch nicht production-ready.","parts":[["de","Das"],["en","Feature"],["de","ist noch nicht"],["en","production-ready."]]},
+ {"id":"mx4","cat":"mixed","ref":"Wir treffen uns am Dienstag im Office.","parts":[["de","Wir treffen uns am Dienstag im"],["en","Office."]]},
+ {"id":"mx5","cat":"mixed","ref":"Lass uns das im nächsten Sprint fixen.","parts":[["de","Lass uns das im nächsten"],["en","Sprint"],["de","fixen."]]}
+]

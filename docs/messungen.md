@@ -169,3 +169,134 @@ whisper.cpp liefert kein Windows-x64-Vulkan-Asset. Optionen, die den Controller/
 - PowerShell-Skripte sind auf diesem Rechner per Ausführungsrichtlinie gesperrt: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-bench-wav.ps1` (nur für den Aufruf, keine Systemeinstellung geändert).
 - `testdata/bench-3s.wav` entstand durch Ausschneiden der letzten 3 s von `bench-10s.wav` (Datenteil beginnt bei Byte 46); die WAVs sind nicht eingecheckt.
 - Rohdaten der Läufe: `test-results/bench.json` (nicht eingecheckt, per `node scripts/bench.js` reproduzierbar).
+
+
+## 9. Spike: Parakeet v3 (sherpa-onnx)
+
+Stand: 2026-11-08 · Version 0.0.3 · Frage: Ist NVIDIA Parakeet TDT 0.6B v3 (int8, sherpa-onnx, CPU) für Letterflow die bessere Spracherkennung als Whisper large-v3-turbo, in Tempo UND Qualität (Deutsch, Englisch, Mix)?
+
+**Wichtig vorab:** Die Testclips sind **Windows-Sprachausgabe (TTS), keine echte Sprache**. TTS ist sauber, ohne Rauschen, Dialekt und Zögern; sie ist ein Näherungswert für Tempo und eine grobe Probe für Qualität. Mit 15 Clips und 114 Referenzwörtern entscheiden bei der Fehlerrate (WER) einzelne Wörter; die Qualitätszahlen sind **kein Beleg**, nur ein Hinweis. Die Entscheidung braucht den Testsatz mit echter Sprache (Task 8). Whisper lief mit dem **quantisierten** `ggml-large-v3-turbo-q5_0` (wie im Rest dieses Dokuments), nicht mit dem unquantisierten Modell.
+
+### 9.1 Bezugsquellen
+
+| Was | Quelle | Größe | SHA-256 | Lizenz |
+|---|---|---|---|---|
+| sherpa-onnx **v2.0.1** (2026-10-26), Windows x64, `shared-MD-Release-no-tts` | `https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.1/sherpa-onnx-v2.0.1-win-x64-shared-MD-Release-no-tts.tar.bz2` | 20 962 760 B (entpackt: `bin` 40 MB, `lib` 20 MB) | `11fd6a50b97eed38b54fb16d8219f49b16aa7f6a8e43a042316469ef47652e82` (identisch mit dem GitHub-`digest`) | Apache-2.0 |
+| `encoder.int8.onnx` | `https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/main/encoder.int8.onnx` | 652 282 294 B | `1afbe69c1ffdabee94755f42e4daf1d93549131a3da11356bda84fcef0f2c479` | CC BY 4.0 |
+| `decoder.int8.onnx` | dito | 11 845 274 B | `0222a86147299d4dee90edf95b6d13827edb42ad8b7c9cf0b2582f030937c0b5` | CC BY 4.0 |
+| `joiner.int8.onnx` | dito | 6 355 277 B | `cbd02f3696e9944970111fb439d9c3fd365a80374565f13f2b9c7007d253fc98` | CC BY 4.0 |
+| `tokens.txt` | dito | 93 939 B | `d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d` | CC BY 4.0 |
+
+- Modell gesamt **670 576 784 B (≈ 640 MiB)**, Ablage `%LOCALAPPDATA%\Letterflow\models\sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8\`. Die SHA-256 der drei ONNX-Dateien stimmen mit den LFS-Hashes auf Hugging Face überein. Der Hugging-Face-Eintrag von k2-fsa-Maintainer `csukuangfj` nennt `base_model: nvidia/parakeet-tdt-0.6b-v3`; die Gewichte sind von NVIDIA, der ONNX-Export vom sherpa-onnx-Projekt.
+- **Lizenz laut Model Card: `cc-by-4.0`.** Das verlangt Namensnennung (NVIDIA, Link, Hinweis auf Änderungen/Quantisierung) im „Über"-Dialog bzw. in den Lizenztexten der App; kommerzielle Nutzung ist erlaubt. sherpa-onnx selbst: Apache-2.0.
+- Binaries liegen unter `resources/engines/cpu/sherpa/` (git-ignoriert). Die Variante `shared-MD-…-no-tts` enthält `sherpa-onnx-offline.exe`, `sherpa-onnx-offline-websocket-server.exe` und `onnxruntime.dll`.
+- Laut Model Card: 25 Sprachen (u. a. de, en), 16-kHz-Mono, **meldet die erkannte Sprache nicht**, lange Aufnahmen **an Stille in 15–20-s-Stücke teilen** (sonst Genauigkeits- und Speicherprobleme), sehr leise Eingabe vorher normalisieren (Upstream-Issue #4024). Eigene Modell-Card-Messung (FLEURS): Deutsch 6,84 % WER, Englisch 11,16 % (nicht von uns gemessen).
+
+### 9.2 Testclips (TTS)
+
+`scripts/make-testset.ps1` + `scripts/bench-clips.json` → `testdata/testset/*.wav` (16 kHz mono, git-ignoriert). Installierte Stimmen: Hedda (de-DE), Zira (en-US), Hazel (en-GB), Hortense (fr), Elsa (it). Deutsch = Hedda, Englisch = Zira. Gemischte Sätze gibt es in **zwei Varianten**: `mxN` mit Stimmenwechsel pro Phrase (englische Phrasen mit Zira; klingt abgehackt, daher längere Clips) und `mxNh` nur mit Hedda (englische Wörter mit deutschem Akzent, näher an echten Sprechern).
+
+| Clip | Art | Länge | Referenz |
+|---|---|---|---|
+| de1 | Deutsch | 4,2 s | Ich habe gestern Abend noch lange an dem Bericht gearbeitet. |
+| de2 | Deutsch (**„3-s-Clip"**) | 3,6 s | Wir treffen uns am Dienstag um zehn Uhr im Büro. |
+| de3 | Deutsch (**„10-s-Clip"**) | 11,9 s | Am Wochenende fahren wir an den See, wenn das Wetter hält, und grillen mit den Nachbarn, die wir schon lange nicht mehr gesehen haben, und danach gehen wir noch eine Runde schwimmen. |
+| en1 | Englisch | 3,7 s | Please send me the report before the meeting tomorrow morning. |
+| en2 | Englisch | 4,5 s | The new version of the application is ready for testing on all devices. |
+| mx1 / mx1h | Mix | 6,5 / 3,5 s | Ich schick dir das Meeting-Recap nach dem Standup. |
+| mx2 / mx2h | Mix | 7,6 / 4,7 s | Kannst du den Pull Request reviewen, bevor wir deployen? |
+| mx3 / mx3h | Mix | 6,1 / 3,0 s | Das Feature ist noch nicht production-ready. |
+| mx4 / mx4h | Mix | 4,2 / 3,1 s | Wir treffen uns am Dienstag im Office. |
+| mx5 / mx5h | Mix | 5,3 / 3,1 s | Lass uns das im nächsten Sprint fixen. |
+
+### 9.3 Tempo
+
+Messung: `scripts/bench-parakeet.js` (Parakeet über das npm-Paket `sherpa-onnx-node` 2.0.1 im selben Prozess, Zeit = Stream anlegen + Decodieren + Ergebnis, ohne Datei-Lesen; Whisper über `whisper-server` `/inference`, `-t 8 -l de -nt -ng`, ohne `-ac`, ohne Prompt). Je Clip **Median aus 3 Läufen**, vorher ein Aufwärmlauf (Parakeet) bzw. Server schon geladen (Whisper). Ryzen 7 7730U, 16 Threads verfügbar, Netzbetrieb.
+
+| Clip | Länge | Parakeet 4 Threads | **Parakeet 8 Threads** | Parakeet 16 Threads | Whisper turbo-q5_0, 8 Threads |
+|---|---|---|---|---|---|
+| de1 | 4,2 s | 257 ms | 311 ms | 480 ms | 25 336 ms |
+| **de2 (≈ 3 s)** | 3,6 s | 232 ms | **271 ms** | 450 ms | **31 473 ms** |
+| **de3 (≈ 10 s)** | 11,9 s | 701 ms | **682 ms** | 982 ms | **33 892 ms** |
+| en1 | 3,7 s | 239 ms | 266 ms | 414 ms | 32 964 ms |
+| en2 | 4,5 s | 281 ms | 322 ms | 518 ms | 29 818 ms |
+| mx1 | 6,5 s | 379 ms | 385 ms | 602 ms | 29 277 ms |
+| mx1h | 3,5 s | 232 ms | 311 ms | 450 ms | 31 074 ms |
+| mx2 | 7,6 s | 439 ms | 472 ms | 795 ms | 24 488 ms |
+| mx2h | 4,7 s | 292 ms | 336 ms | 563 ms | 24 379 ms |
+| mx3 | 6,1 s | 367 ms | 358 ms | 570 ms | 24 113 ms |
+| mx3h | 3,0 s | 198 ms | 202 ms | 368 ms | 24 178 ms |
+| mx4 | 4,2 s | 267 ms | 296 ms | 500 ms | 24 675 ms |
+| mx4h | 3,1 s | 202 ms | 222 ms | 361 ms | 24 254 ms |
+| mx5 | 5,3 s | 323 ms | 314 ms | 605 ms | 24 335 ms |
+| mx5h | 3,1 s | 205 ms | 262 ms | 421 ms | 24 105 ms |
+
+Weitere Werte:
+
+| | Parakeet int8 (sherpa-onnx) | Whisper large-v3-turbo-q5_0 |
+|---|---|---|
+| Ladezeit | **2,1 s** (4/8/16 Threads: 2107 / 2118 / 2170 ms; `sherpa-onnx-offline.exe` meldet „recognizer created in" 2,0–2,2 s, Prozess gesamt 2,8–3,0 s für 11,9 s Audio) | 0,7 s bis `/health` (0,69–0,71 s; mappt das Modell, lädt lazy) |
+| Spitzen-RAM | Node-Prozess: 750 MiB nach dem Laden, **1003 MiB Spitze** (4 T: 997, 16 T: 1005; enthält ca. 50 MiB Node-Grundlast) | `whisper-server`: **744 MiB** Spitze (748 im Auto-Lauf) |
+| Erster Lauf nach dem Laden | 255 / 264 / 519 ms (4 / 8 / 16 T), also kein spürbarer Kaltstart | – |
+
+Befunde:
+
+- Parakeet braucht für 3–12 s Audio **0,2–0,7 s** (Echtzeitfaktor ≈ 0,06; `sherpa-onnx-offline.exe` meldet bei 2 Clips RTF 0,061). Die Zeit wächst mit der Audiolänge (anders als bei Whisper, das immer ein 30-s-Fenster rechnet). **Das 2-s-Ziel für die Erkennung wird auf diesem Laptop weit unterboten**; ein 30-s-Diktat läge nach linearer Hochrechnung bei grob 1,5–2 s (Hochrechnung, nicht gemessen; längster gemessener Clip 11,9 s).
+- **Threads: 4 ≈ 8** (Unterschiede innerhalb der Streuung, 4 bei kurzen Clips minimal schneller), **16 ist rund 1,5× langsamer** (SMT bringt nichts). Empfehlung: 4–8, Standard 6 oder 8 (6 nicht gemessen).
+- **Whisper lief in dieser Sitzung 2- bis 2,5-mal langsamer als in Abschnitt 5.1** (dort 11,9 s bzw. 14,0 s für 10-s- und 3-s-Clip, hier 24–34 s). Ein Kontrolllauf mit de2/de3 ergab 25,6 s und 23,7 s. Ursache nicht geklärt (nicht untersucht: Temperatur/Taktfrequenz, Hintergrundlast durch Browser und andere Programme; Energieplan „Höchstleistung", Netzbetrieb). Die Aussage „Parakeet ist ≥ 20-mal schneller" gilt mit beiden Whisper-Werten (11,9–14,0 s aus 5.1 → 17–52×; 24–34 s aus dieser Sitzung → 35–125×).
+- Whisper-Auto-Lauf (`-l auto`, 1 Lauf je Clip) ist nur für die Qualität; seine Zeiten sind hier nicht aufgeführt (gleiche Größenordnung).
+
+### 9.4 Qualität
+
+WER = Wortfehlerrate gegen die Referenz (klein, Satzzeichen weg, Bindestrich = Leerzeichen, Ziffer „10" = „zehn", weil beide Systeme „10" schreiben); Summe der Fehler (Ersetzen + Einfügen + Löschen) geteilt durch Referenzwörter, gepoolt je Gruppe. Parakeet-Ergebnis war bei 4, 8 und 16 Threads identisch.
+
+| Gruppe | Referenzwörter | Parakeet v3 int8 | Whisper `-l de` | Whisper `-l auto` |
+|---|---|---|---|---|
+| Deutsch (de1–de3) | 52 | **1,9 %** (1 Fehler) | **0 %** | 0 % |
+| Englisch (en1, en2) | 23 | **4,3 %** (1) | **52,2 %** (12; en2 wurde ins Deutsche **übersetzt**) | **0 %** |
+| Mix, Stimmenwechsel (mx1–mx5) | 39 | **5,1 %** (2) | 5,1 % (2) | 5,1 % (2) |
+| Mix, nur Hedda (mx1h–mx5h) | 39 | **7,7 %** (3) | 10,3 % (4) | 10,3 % (4) |
+
+Transkripte (Auto-Lauf von Whisper ist identisch mit `-l de`, außer wo angegeben):
+
+| Clip | Parakeet (8 T) | Whisper `-l de` |
+|---|---|---|
+| de1 | Ich habe gestern Abend noch lange an dem Bericht gearbeitet. | gleich |
+| de2 | Wir treffen uns am Dienstag um 10 Uhr im Büro. | gleich |
+| de3 | …gesehen haben, und danach gehen **noch eine Runde** schwimmen. („wir" fehlt) | …und danach gehen wir noch eine Runde schwimmen. |
+| en1 | **Ple** send me the report before the meeting tomorrow morning. | Please send me the report before the meeting tomorrow morning. (Wort erhalten, obwohl `de` erzwungen) |
+| en2 | The new version of the application is ready for testing on all devices. | **Die neue Version ist bereit für alle Geräte.** (`-l auto`: korrekter englischer Satz) |
+| mx1 | Ich schick dir das. Meeting Recap Nach dem Standup. | Ich schick dir das. Meeting Recap. Nach dem Stand-up. |
+| mx1h | Ich schick dir das Meeting-**Recate** nach dem Standup. | Ich **schicke** dir das Meeting **Re-Kate** nach dem Standup. |
+| mx2 | Kannst du den Pull request reviewen **before** wir deployen | kannst du den pull request reviewen, bevor wir deployen |
+| mx2h | Kannst du den Pull Request reviewen? Bevor wir deployen. | kannst du den pull request reviewen, bevor wir deployen. |
+| mx3 | Das Feature ist noch nicht Production Ready. | Das Feature ist noch nicht. Production ready. |
+| mx3h | Das Feature ist noch nicht **Produktschneidi**. | Das Feature ist noch nicht **Production-ID**. |
+| mx4 | Wir treffen uns am **Diensta** im Office. | Wir treffen uns am Dienstag im Office. |
+| mx4h | Wir treffen uns am Dienstag im Office. | gleich |
+| mx5 / mx5h | Lass uns das im nächsten Sprint fixen. | gleich |
+
+Beurteilung:
+
+- **Englische Wörter bleiben englisch?** Bei beiden Systemen ja: Meeting-Recap, Standup, Pull Request, reviewen, deployen, Feature, Office, Sprint, fixen kamen in allen Mixsätzen als englische Wörter bzw. deutsch gebeugt an; kein Wort wurde übersetzt. Fehler bei Parakeet: „Recate", „Produktschneidi" (Wort „production-ready" in mx3h nicht erkannt) und „before" für „bevor" (mx2). Whisper: „Re-Kate", „Production-ID". Auf TTS-Mix kein klarer Gewinner.
+- **Interpunktion und Groß-/Kleinschreibung bei Parakeet:** Ja, die Ausgabe hat Satzzeichen (Punkt, Komma, Fragezeichen) und Großschreibung am Satzanfang und bei Nomen, aber **unzuverlässig**: mx2 ohne Satzzeichen, falsche Großschreibung („Nach dem Standup", „Production Ready"), Punkt mitten im Satz in mx1 und Fragezeichen statt Komma in mx2h. Zahlen als Ziffern („10"). Whisper: ähnliche Satzzeichen, in mx2/mx2h klein geschrieben, in mx3 ein Punkt mitten im Satz. **Beide brauchen die Glättungsstufe** (Task 9), Parakeet etwa gleich dringend wie Whisper.
+- **Spracherkennung pro Clip:** **Parakeet meldet keine Sprache** (`lang` leer; Model Card: „does not report which language it heard"). Es braucht aber auch keine Sprachvorgabe: Englische Clips kamen auf Englisch, deutsche auf Deutsch, ohne Parameter, **das Mischproblem (Whisper übersetzt englischen Satz bei erzwungenem `de`: en2 → deutscher Satz) tritt nicht auf**. Whisper: mit `-l auto` meldete es für alle 15 Clips die dominante Sprache richtig (en1, en2 = english, alle anderen = german), mit `-l de` bleibt es bei Mischsätzen brauchbar, übersetzt aber reine englische Sätze mitunter.
+- **Fehlerbild Parakeet auf TTS:** Wortenden wirken verschluckt („Diensta", „Ple", fehlendes „wir" in de3). Echte Sprache kann besser oder schlechter sein; unbekannt.
+
+### 9.5 Integration (nur Doku und Funktionsprüfung, kein Produktcode)
+
+**(a) npm-Paket `sherpa-onnx-node` 2.0.1 (Apache-2.0)** — vorhanden und **geprüft**: `npm i sherpa-onnx-node` installiert `sherpa-onnx-node` (109 KB JS) plus per optionaler Abhängigkeit `sherpa-onnx-win-x64` (23 MB: `sherpa-onnx.node`, `onnxruntime.dll`, `sherpa-onnx-c-api.dll`, …) ohne Compiler. Das Addon ist ein **N-API-Modul** (`napi_create_function` im Binary), also ABI-stabil und ohne `electron-rebuild`. Läuft unter Node 26.13.0 (hier gemessen); weitere Plattformpakete: win-ia32, win-arm64, linux, darwin. API: `new OfflineRecognizer({featConfig, modelConfig: {transducer, tokens, numThreads, provider: 'cpu', modelType: 'nemo_transducer'}})`, `createStream` → `acceptWaveform` → `decode` → `getResult` (auch Wort-/Token-Zeitstempel).
+**(b) Fertige Server-Executables** im Release-ZIP: `sherpa-onnx-offline-websocket-server.exe` (gestartet und geprüft: lädt die Parakeet-Dateien, „Listening on: 6006"; Parameter `--port`, `--num-work-threads`, `--max-batch-size`) und `sherpa-onnx-online-websocket-server.exe` (Streaming-Modelle). Es gibt **keinen HTTP-/OpenAI-kompatiblen Server** und keine `/health`-Abfrage; Protokoll = Websocket mit Binärdaten (Float-Samples), Client in Node nachzubauen. **Es gibt keine Option für die Bind-Adresse** (`--help` nennt nur `--port`); der Server hört nach `netstat` auf `0.0.0.0` (Firewall-Abfrage und Netzwerk-Erreichbarkeit, unschön für eine „komplett lokale" App). Außerdem `sherpa-onnx-offline.exe` (CLI, Modell lädt je Aufruf 2,1 s, nur für Tests geeignet).
+
+**Empfehlung: (a) `sherpa-onnx-node`, aber in einem eigenen Prozess** (Electron `utilityProcess` oder Kindprozess mit `ELECTRON_RUN_AS_NODE`), nicht im Hauptprozess: Das Decodieren blockiert den Event-Loop (0,3–0,7 s), und ein Absturz im Native-Code soll nicht die App mitreißen. Vorteile gegenüber (b): kein Port, keine Bind-Adresse auf `0.0.0.0`, kein Protokoll nachbauen, kein Warten auf „bereit" über HTTP, Modell bleibt im Speicher, Zeitstempel und Fehler als JS-Objekte; Auslieferung als normale npm-Abhängigkeit (+ 23 MB DLLs, `asarUnpack` nötig). Nachteil: der Hilfsprozess ersetzt das gewohnte „Child-Prozess wie `whisper-server`"-Muster nur teilweise (IPC statt HTTP). (b) ist die Rückfalloption, falls das Addon in Electron nicht lädt; das ist hier **nicht getestet** (nur Node 26).
+
+**GPU unter Windows:** Prebuilt gibt es **CUDA** (`sherpa-onnx-v2.0.1-cuda-12.x-cudnn-9.x-onnxruntime1.28.2-win-x64-cuda.tar.bz2`, 597 MB, und eine CUDA-13-Variante, 481 MB; braucht NVIDIA-GPU und cuDNN, hier nicht testbar, `provider: "cuda"`). **DirectML** ist im Quellcode vorhanden (`provider: "directml"`, in `sherpa-onnx/csrc/session.cc`, CMake-Option `SHERPA_ONNX_ENABLE_DIRECTML`, Standard **OFF**), aber das Release v2.0.1 hat **kein** vorgebautes DirectML-Asset und `sherpa-onnx-node` bringt nur die CPU-Variante; DirectML hieße selbst bauen (Visual Studio + Windows-SDK). Für diesen Laptop (Vega-iGPU) ist GPU unnötig: CPU genügt. Außerdem enthält unser whisper.cpp-ZIP `parakeet-cli.exe` (nicht untersucht).
+
+### 9.6 Empfehlung
+
+- **Tempo:** Parakeet v3 int8 auf der CPU ist für Letterflow **klar besser**: 0,2–0,7 s für 3–12 s Audio gegenüber 24–34 s (diese Sitzung) bzw. 12–14 s (Abschnitt 5.1) bei Whisper large-v3-turbo-q5_0, in beiden Fällen ohne `-ac`-Trick. Die Dauer wächst linear mit der Länge, kein 30-s-Fenster. Damit ist das Ziel „unter 2 s vom Loslassen bis Text" für die **Erkennung** erreicht und die Glättung (Abschnitt 5.2) wird zum Engpass (ca. 2,2–4,7 s).
+- **Qualität:** Auf dem TTS-Testsatz **etwa gleichauf**: Parakeet ist bei Deutsch minimal schlechter (1,9 % vs. 0 %), bei Englisch mit `-l de` deutlich besser (4,3 % vs. 52,2 %; Whisper `auto` 0 %), im Mix gleich oder besser (5,1 % und 7,7 % vs. 5,1 % und 10,3 %). Das sind Unterschiede von 1–4 Wörtern; **kein belastbarer Beweis**. Vorteil Parakeet: keine Sprachvorgabe nötig, kein Übersetzen bei Mixsätzen; Nachteil: keine Spracherkennung als Ausgabe, Satzzeichen und Groß-/Kleinschreibung sind unzuverlässig (Glättung bleibt nötig), Wortenden teils verschluckt.
+- **Vorschlag:** Parakeet v3 (int8) als Standard-Engine einplanen, **Whisper als wählbaren Rückfall** behalten (andere Sprachen mit Spracherkennung, Qualitätsvergleich). Vor der endgültigen Entscheidung den Testsatz mit **echter Sprache** (Task 8) mit beiden Engines laufen lassen. Anbindung über `sherpa-onnx-node` im eigenen Prozess; Diktate vor dem Erkennen an Pausen auf höchstens 15–20 s teilen (Model Card). Modell 640 MiB Download, CC-BY-4.0-Hinweis in die Lizenzseite aufnehmen.
+- Gemessen wurde nur CPU; GPU/NPU nicht.
+
+Reproduzieren: `node scripts/bench-parakeet.js parakeet --threads 8` (mit `SHERPA_NODE_DIR` auf einen Ordner mit `node_modules/sherpa-onnx-node`), `node scripts/bench-parakeet.js whisper --lang de|auto --runs 3`, `node scripts/bench-parakeet.js score`; Testclips mit `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-testset.ps1`. Rohdaten: `test-results/spike-*.json` (nicht eingecheckt).
