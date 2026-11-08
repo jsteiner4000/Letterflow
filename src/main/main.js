@@ -35,16 +35,30 @@ if (!app.requestSingleInstanceLock()) {
     const dir = app.getPath('userData');
     ipcMain.handle('settings:get', () => loadSettings(dir));
     ipcMain.handle('settings:set', (_event, patch) => {
-      const settings = saveSettings(dir, patch);
+      let settings;
+      try {
+        settings = saveSettings(dir, patch);
+      } catch (fehler) {
+        console.error('Einstellungen nicht gespeichert:', fehler);
+        return { error: 'speichern' };
+      }
       for (const win of BrowserWindow.getAllWindows()) {
         if (!win.isDestroyed()) win.webContents.send('settings:changed', settings);
       }
-      applyAutostart(settings);
+      try {
+        applyAutostart(settings);
+      } catch (fehler) {
+        console.error('Autostart nicht gesetzt:', fehler);
+      }
       return settings;
     });
     // Platzhalter bis Task 5 echte Werte liefert.
     ipcMain.handle('status:get', () => ({ backend: null, tier: null, engines: 'fehlt' }));
-    applyAutostart(loadSettings(dir));
+    try {
+      applyAutostart(loadSettings(dir));
+    } catch (fehler) {
+      console.error('Einstellungen nicht lesbar:', fehler);
+    }
   }
 
   app.whenReady().then(() => {

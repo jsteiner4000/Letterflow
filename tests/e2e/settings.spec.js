@@ -99,3 +99,54 @@ test('im Vollbild ohne Kopfzeile vollständig bedienbar', async () => {
   }));
   expect(maße.scroll).toBeLessThanOrEqual(maße.client);
 });
+
+test('zwei schnelle Wörterbuch-Einträge gehen beide nicht verloren', async () => {
+  const { win, dataDir } = await einstellungenOeffnen();
+  await expect(win.getByLabel('Mit Windows starten')).toBeChecked();
+  await win.evaluate(() => {
+    const eingabe = document.getElementById('neuer-eintrag');
+    const form = document.getElementById('woerterbuch-form');
+    for (const wort of ['Alpha', 'Beta']) {
+      eingabe.value = wort;
+      form.requestSubmit();
+    }
+  });
+  await expect.poll(() => gespeichert(dataDir).dictionary).toEqual(['Alpha', 'Beta']);
+  await expect(win.getByRole('listitem').filter({ hasText: 'Beta' })).toBeVisible();
+});
+
+test('Entfernen lässt andere Einträge unberührt und behält den Fokus', async () => {
+  const { win, dataDir } = await einstellungenOeffnen({
+    dataDir: require('node:fs').mkdtempSync(
+      require('node:path').join(require('node:os').tmpdir(), 'lf-'),
+    ),
+  });
+  for (const wort of ['Alpha', 'Beta', 'Gamma']) {
+    await win.getByLabel('Neuer Eintrag').fill(wort);
+    await win.getByRole('button', { name: 'Hinzufügen' }).click();
+    await expect(win.getByRole('listitem').filter({ hasText: wort })).toBeVisible();
+  }
+  await win.evaluate(() => {
+    window.__alpha = document.querySelector('#eintraege li');
+  });
+  await win.getByRole('button', { name: 'Beta entfernen' }).focus();
+  await win.keyboard.press('Enter');
+  await expect.poll(() => gespeichert(dataDir).dictionary).toEqual(['Alpha', 'Gamma']);
+  // Gleiches Element wie vorher (nicht neu gebaut) und Fokus auf dem Nachbarn.
+  expect(await win.evaluate(() => window.__alpha === document.querySelector('#eintraege li'))).toBe(
+    true,
+  );
+  await expect(win.getByRole('button', { name: 'Gamma entfernen' })).toBeFocused();
+});
+
+test('Speicherfehler zeigt einen Hinweis und lässt nichts inkonsistent', async () => {
+  const { win, dataDir } = await einstellungenOeffnen();
+  await expect(win.getByLabel('Mit Windows starten')).toBeChecked();
+  // Ein Ordner an Stelle der Datei lässt das Lesen und Speichern scheitern.
+  fs.mkdirSync(path.join(dataDir, 'settings.json'));
+  await win.getByLabel('Neuer Eintrag').fill('Fehlerfall');
+  await win.getByRole('button', { name: 'Hinzufügen' }).click();
+  await expect(win.getByText('Einstellung konnte nicht gespeichert werden.')).toBeVisible();
+  await expect(win.getByRole('listitem').filter({ hasText: 'Fehlerfall' })).toHaveCount(0);
+  await expect(win.getByLabel('Neuer Eintrag')).toHaveValue('Fehlerfall');
+});

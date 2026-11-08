@@ -44,3 +44,49 @@ test('Teil-Änderungen behalten übrige Werte, unbekannte Felder fallen weg', ()
   });
   expect(fs.existsSync(path.join(dir, 'settings.json.tmp'))).toBe(false);
 });
+
+test('Lesefehler außer "fehlt" werden weitergegeben, nichts wird überschrieben', () => {
+  saveSettings(dir, { hotkey: 'rctrl' });
+  const original = fs.readFileSync;
+  fs.readFileSync = () => {
+    throw Object.assign(new Error('belegt'), { code: 'EBUSY' });
+  };
+  try {
+    expect(() => loadSettings(dir)).toThrow('belegt');
+    expect(() => saveSettings(dir, { smoothing: false })).toThrow('belegt');
+  } finally {
+    fs.readFileSync = original;
+  }
+  expect(loadSettings(dir).hotkey).toBe('rctrl');
+});
+
+test('Umbenennen wird einmal wiederholt', () => {
+  const original = fs.renameSync;
+  let aufrufe = 0;
+  fs.renameSync = (...args) => {
+    aufrufe += 1;
+    if (aufrufe === 1) throw Object.assign(new Error('gesperrt'), { code: 'EPERM' });
+    return original(...args);
+  };
+  try {
+    saveSettings(dir, { smoothing: false });
+  } finally {
+    fs.renameSync = original;
+  }
+  expect(aufrufe).toBe(2);
+  expect(loadSettings(dir).smoothing).toBe(false);
+});
+
+test('dauerhafter Umbenennen-Fehler wirft und lässt die alte Datei unversehrt', () => {
+  saveSettings(dir, { hotkey: 'rctrl' });
+  const original = fs.renameSync;
+  fs.renameSync = () => {
+    throw Object.assign(new Error('gesperrt'), { code: 'EPERM' });
+  };
+  try {
+    expect(() => saveSettings(dir, { hotkey: 'ctrl+shift' })).toThrow('gesperrt');
+  } finally {
+    fs.renameSync = original;
+  }
+  expect(loadSettings(dir).hotkey).toBe('rctrl');
+});

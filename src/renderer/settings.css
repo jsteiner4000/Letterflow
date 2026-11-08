@@ -123,7 +123,19 @@ button:hover {
   padding: 3px 4px 3px 12px;
   border: 1px solid var(--linie);
   border-radius: 999px;
+}
+#eintraege li.neu {
   animation: einblenden var(--fade) both;
+}
+.fehler {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--akzent);
+  border-radius: 8px;
+  animation: einblenden var(--fade) both;
+}
+.fehler[hidden] {
+  display: none;
 }
 #eintraege li span {
   overflow-wrap: anywhere;

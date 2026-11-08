@@ -20,45 +20,97 @@ function anzeigen(s) {
   eintraegeAnzeigen(s.dictionary);
 }
 
+let eintraegeGezeigt = false;
+
+// Ändert nur die Chips, die sich wirklich geändert haben (kein Flackern, Fokus bleibt).
 function eintraegeAnzeigen(liste) {
   const ul = $('eintraege');
-  ul.replaceChildren();
-  for (const eintrag of liste) {
-    const li = document.createElement('li');
-    const text = document.createElement('span');
-    text.textContent = eintrag;
-    const knopf = document.createElement('button');
-    knopf.type = 'button';
-    knopf.textContent = 'Entfernen';
-    knopf.setAttribute('aria-label', `${eintrag} entfernen`);
-    knopf.addEventListener('click', () =>
-      api.settings.set({ dictionary: aktuell.dictionary.filter((e) => e !== eintrag) }),
-    );
-    li.append(text, knopf);
-    ul.append(li);
+  const vorhanden = new Map([...ul.children].map((li) => [li.dataset.eintrag, li]));
+  for (const [eintrag, li] of vorhanden) {
+    if (liste.includes(eintrag)) continue;
+    if (li.contains(document.activeElement)) {
+      const nachbar = li.nextElementSibling || li.previousElementSibling;
+      (nachbar ? nachbar.querySelector('button') : $('neuer-eintrag')).focus();
+    }
+    li.remove();
+    vorhanden.delete(eintrag);
   }
+  liste.forEach((eintrag, i) => {
+    let li = vorhanden.get(eintrag);
+    if (!li) {
+      li = document.createElement('li');
+      li.dataset.eintrag = eintrag;
+      if (eintraegeGezeigt) li.classList.add('neu');
+      const text = document.createElement('span');
+      text.textContent = eintrag;
+      const knopf = document.createElement('button');
+      knopf.type = 'button';
+      knopf.textContent = 'Entfernen';
+      knopf.setAttribute('aria-label', `${eintrag} entfernen`);
+      knopf.addEventListener('click', () =>
+        speichern((s) => ({ dictionary: s.dictionary.filter((e) => e !== eintrag) })),
+      );
+      li.append(text, knopf);
+    }
+    if (ul.children[i] !== li) ul.insertBefore(li, ul.children[i] || null);
+  });
+  eintraegeGezeigt = true;
+}
+
+// --- Speichern -----------------------------------------------------------
+
+// Aktionen laufen nacheinander; jede rechnet gegen den Stand, den die vorige geliefert hat.
+let warteschlange = Promise.resolve();
+
+function hinweis(text) {
+  $('fehler').textContent = text || '';
+  $('fehler').hidden = !text;
+}
+
+function speichern(patchOderFunktion) {
+  const lauf = warteschlange.then(async () => {
+    const patch =
+      typeof patchOderFunktion === 'function' ? patchOderFunktion(aktuell) : patchOderFunktion;
+    let ergebnis;
+    try {
+      ergebnis = await api.settings.set(patch);
+    } catch {
+      ergebnis = { error: 'speichern' };
+    }
+    if (!ergebnis || ergebnis.error) {
+      hinweis('Einstellung konnte nicht gespeichert werden.');
+      anzeigen(aktuell); // Bedienelemente auf den tatsächlichen Stand zurücksetzen
+      return false;
+    }
+    hinweis('');
+    anzeigen(ergebnis);
+    return true;
+  });
+  warteschlange = lauf.catch(() => {});
+  return lauf;
 }
 
 // --- Eingaben ------------------------------------------------------------
 
 for (const r of document.querySelectorAll('input[name="hotkey"]')) {
-  r.addEventListener('change', () => api.settings.set({ hotkey: r.value }));
+  r.addEventListener('change', () => speichern({ hotkey: r.value }));
 }
 for (const r of document.querySelectorAll('input[name="smoothingModel"]')) {
-  r.addEventListener('change', () => api.settings.set({ smoothingModel: r.value }));
+  r.addEventListener('change', () => speichern({ smoothingModel: r.value }));
 }
-$('glaettung').addEventListener('change', (e) => api.settings.set({ smoothing: e.target.checked }));
-$('autostart').addEventListener('change', (e) => api.settings.set({ autostart: e.target.checked }));
-$('mikrofon').addEventListener('change', (e) =>
-  api.settings.set({ micDeviceId: e.target.value || null }),
-);
-$('woerterbuch-form').addEventListener('submit', (e) => {
+$('glaettung').addEventListener('change', (e) => speichern({ smoothing: e.target.checked }));
+$('autostart').addEventListener('change', (e) => speichern({ autostart: e.target.checked }));
+$('mikrofon').addEventListener('change', (e) => speichern({ micDeviceId: e.target.value || null }));
+$('woerterbuch-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const eingabe = $('neuer-eintrag');
   const wert = eingabe.value.trim();
   if (!wert) return;
-  eingabe.value = '';
-  api.settings.set({ dictionary: [...aktuell.dictionary, wert] });
+  const ok = await speichern((s) =>
+    s.dictionary.includes(wert) ? {} : { dictionary: [...s.dictionary, wert] },
+  );
+  // Erst nach Erfolg leeren, und nur wenn inzwischen nichts Neues getippt wurde.
+  if (ok && eingabe.value.trim() === wert) eingabe.value = '';
 });
 
 // --- Mikrofone -----------------------------------------------------------
@@ -130,7 +182,12 @@ api.settings.onChanged((s) => {
 });
 
 (async () => {
-  aktuell = await api.settings.get();
+  try {
+    aktuell = await api.settings.get();
+  } catch {
+    hinweis('Einstellungen konnten nicht gelesen werden.');
+    return;
+  }
   await mikrofoneLaden();
   anzeigen(aktuell);
   statusAktualisieren();

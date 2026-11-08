@@ -50,8 +50,11 @@ function loadSettings(dir) {
   let text;
   try {
     text = fs.readFileSync(datei, 'utf8');
-  } catch {
-    return sanitize({});
+  } catch (fehler) {
+    // Nur "Datei fehlt" bedeutet Standardwerte. Alles andere (z. B. EBUSY) weitergeben,
+    // damit ein späteres Speichern die echten Einstellungen nicht überschreibt.
+    if (fehler.code === 'ENOENT') return sanitize({});
+    throw fehler;
   }
   try {
     return sanitize(JSON.parse(text));
@@ -61,6 +64,16 @@ function loadSettings(dir) {
       fs.copyFileSync(datei, datei + '.defekt');
     } catch {}
     return sanitize({});
+  }
+}
+
+// Virenscanner halten die Datei kurz fest (EPERM/EBUSY): einmal nach kurzer Pause wiederholen.
+function umbenennen(von, nach) {
+  try {
+    fs.renameSync(von, nach);
+  } catch {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+    fs.renameSync(von, nach);
   }
 }
 
@@ -77,7 +90,7 @@ function saveSettings(dir, patch) {
   const datei = dateiPfad(dir);
   const tmp = datei + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(neu, null, 2));
-  fs.renameSync(tmp, datei);
+  umbenennen(tmp, datei);
   return neu;
 }
 
