@@ -13,6 +13,7 @@ if (testMode && process.env.LETTERFLOW_DATA_DIR) {
 const windows = require('./windows');
 const tray = require('./tray');
 const { loadSettings, saveSettings } = require('./settings');
+const setup = require('./setup');
 
 if (!app.requestSingleInstanceLock()) {
   // Zweite Instanz: sofort beenden, die erste öffnet die Einstellungen.
@@ -29,6 +30,11 @@ if (!app.requestSingleInstanceLock()) {
     if (testMode || !app.isPackaged) return;
     loginItemCalls += 1;
     app.setLoginItemSettings({ openAtLogin: settings.autostart });
+  }
+
+  // Platzhalter bis Task 5 Backend und Stufe ermittelt; Engines gelten nach der Einrichtung als bereit.
+  function getStatus() {
+    return { backend: null, tier: null, engines: setup.isComplete() ? 'bereit' : 'fehlt' };
   }
 
   function registerIpc() {
@@ -52,8 +58,7 @@ if (!app.requestSingleInstanceLock()) {
       }
       return settings;
     });
-    // Platzhalter bis Task 5 echte Werte liefert.
-    ipcMain.handle('status:get', () => ({ backend: null, tier: null, engines: 'fehlt' }));
+    ipcMain.handle('status:get', () => getStatus());
     try {
       applyAutostart(loadSettings(dir));
     } catch (fehler) {
@@ -64,6 +69,10 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     registerIpc();
     trayHandle = tray.createTray();
+    // Bis Task 5 Hardware erkennt: vorläufig Prozessor + schnelle Stufe.
+    setup.ensureSetup({ backend: 'cpu', tier: 'schnell' }).catch((fehler) => {
+      console.error('Einrichtung fehlgeschlagen:', fehler);
+    });
     if (testMode) {
       // Test-Brücke für electronApp.evaluate (wird in späteren Tasks erweitert).
       global.__letterflow = {
@@ -71,6 +80,7 @@ if (!app.requestSingleInstanceLock()) {
         openAbout: () => windows.openAbout(),
         openSettings: () => windows.openSettings(),
         loginItemCalls: () => loginItemCalls,
+        status: () => getStatus(),
       };
     }
   });

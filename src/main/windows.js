@@ -62,4 +62,19 @@ function openSettings() {
   });
 }
 
-module.exports = { openAbout, openSettings };
+function openSetup() {
+  return openSingle('setup', 'setup.html', {
+    width: 520,
+    height: 400,
+    resizable: false,
+    maximizable: false,
+    title: 'Letterflow – Einrichtung',
+  });
+}
+
+function closeSetup() {
+  const win = offen.get('setup');
+  if (win && !win.isDestroyed()) win.close();
+}
+
+module.exports = { openAbout, openSettings, openSetup, closeSetup };

@@ -10,6 +10,12 @@ contextBridge.exposeInMainWorld('letterflow', {
       ipcRenderer.on('settings:changed', (_event, settings) => cb(settings));
     },
   },
+  setup: {
+    plan: () => ipcRenderer.invoke('setup:plan'),
+    retry: () => ipcRenderer.invoke('setup:retry'),
+    onProgress: (cb) => ipcRenderer.on('setup:progress', (_event, p) => cb(p)),
+    onError: (cb) => ipcRenderer.on('setup:error', (_event, e) => cb(e)),
+  },
   status: {
     get: () => ipcRenderer.invoke('status:get'),
   },

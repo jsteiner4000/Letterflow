@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'"
+    />
+    <title>Letterflow – Einrichtung</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="setup.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Willkommen bei Letterflow</h1>
+      <p id="intro">Letterflow lädt einmalig die Sprachmodelle herunter …</p>
+      <progress id="balken" max="100" value="0" aria-label="Gesamtfortschritt"></progress>
+      <p id="fortschritt-text" aria-live="off">Wird vorbereitet …</p>
+      <p id="fehler" class="fehler" role="alert" hidden></p>
+      <button id="erneut" type="button" hidden>Erneut versuchen</button>
+    </main>
+    <script src="setup.js"></script>
+  </body>
+</html>
