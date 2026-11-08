@@ -1,5 +1,5 @@
-// Messung auf dem Entwickler-Laptop: Spracherkennung (whisper-server) und Glättung (llama-server).
-// Aufruf: node scripts/bench.js [--runs 5] [--backends cpu,vulkan] [--models a.gguf,b.gguf] [--only whisper|llama] [--out datei.json]
+// Messung auf dem Entwickler-Laptop: Glättung (llama-server). Spracherkennung misst scripts/bench-parakeet.js.
+// Aufruf: node scripts/bench.js [--runs 5] [--backends cpu,vulkan] [--models a.gguf,b.gguf] [--out datei.json]
 // Ergebnis: Tabelle auf der Konsole und test-results/bench.json
 const fs = require('fs')
 const os = require('os')
@@ -14,15 +14,12 @@ const arg = (name, def) => {
 }
 const RUNS = Number(arg('runs', 5))
 const BACKENDS = arg('backends', 'cpu,vulkan').split(',')
-const ONLY = arg('only', '')
 const THREADS = Number(arg('threads', 8)) // Ryzen 7 7730U: 8 physische Kerne
 const modelDir = path.join(process.env.LOCALAPPDATA, 'Letterflow', 'models')
-const WHISPER_MODEL = path.join(modelDir, 'ggml-large-v3-turbo-q5_0.bin')
 const LLAMA_MODELS = arg(
   'models',
   'Qwen3-4B-Instruct-2507-Q4_K_M.gguf,Qwen3-1.7B-Q4_K_M.gguf,Qwen3.5-4B-Q4_K_M.gguf,Qwen3.5-2B-Q4_K_M.gguf'
 ).split(',')
-const WAV = path.resolve(root, arg('wav', path.join('testdata', 'bench-10s.wav')))
 const engines = JSON.parse(fs.readFileSync(path.join(root, 'engines.json'), 'utf8'))
 
 const SYSTEM_PROMPT =
@@ -114,41 +111,6 @@ async function startServer(exe, args, label) {
   }
 }
 
-async function benchWhisper(backend, results) {
-  const entry = engines[backend] && engines[backend].whisper
-  if (!entry) return console.log(`whisper/${backend}: kein Engine-Eintrag, übersprungen`)
-  const exe = path.join(root, 'resources', 'engines', backend, 'whisper', entry.exe)
-  const port = await freePort()
-  const args = ['-m', WHISPER_MODEL, '--host', '127.0.0.1', '--port', String(port), '-t', String(THREADS), '-l', 'de', '-nt', '--prompt', 'Ich schick dir das Meeting-Recap später.']
-  if (backend === 'cpu') args.push('-ng')
-  if (arg('extra', '')) args.push(...arg('extra', '').split(' '))
-  const srv = await startServer(exe, args, `whisper-${backend}`)
-  try {
-    const wav = fs.readFileSync(WAV)
-    const times = []
-    let text = ''
-    for (let i = 0; i < RUNS + 1; i++) {
-      const fd = new FormData()
-      fd.append('file', new Blob([wav], { type: 'audio/wav' }), 'a.wav')
-      fd.append('temperature', '0.0')
-      fd.append('response_format', 'json')
-      const t0 = performance.now()
-      const r = await fetch(`http://127.0.0.1:${srv.port}/inference`, { method: 'POST', body: fd })
-      const j = await r.json()
-      const dt = performance.now() - t0
-      text = j.text
-      if (i > 0) times.push(dt)
-      else console.log(`  Aufwärmlauf ${r1(dt)} ms`)
-    }
-    const s = procStats(srv.child.pid)
-    const row = { engine: 'whisper', backend, model: 'large-v3-turbo-q5_0', readyMs: r1(srv.readyMs), medianMs: r1(median(times)), runsMs: times.map(r1), text: text.trim(), ...s }
-    results.push(row)
-    console.log(row)
-  } finally {
-    srv.stop()
-  }
-}
-
 async function benchLlama(backend, model, results) {
   const entry = engines[backend] && engines[backend].llama
   if (!entry) return
@@ -199,18 +161,9 @@ async function main() {
   const results = []
   console.log(`CPU: ${os.cpus()[0].model}, RAM: ${Math.round(os.totalmem() / 2 ** 30)} GiB, Läufe: ${RUNS}, Threads: ${THREADS}`)
   for (const backend of BACKENDS) {
-    if (ONLY !== 'llama') {
-      console.log(`== whisper ${backend}`)
-      await benchWhisper(backend, results).catch((e) => {
-        console.log('FEHLER', e.message)
-        results.push({ engine: 'whisper', backend, error: e.message })
-      })
-    }
-    if (ONLY !== 'whisper') {
-      for (const m of LLAMA_MODELS) {
-        console.log(`== llama ${backend} ${m}`)
-        await benchLlama(backend, m, results)
-      }
+    for (const m of LLAMA_MODELS) {
+      console.log(`== llama ${backend} ${m}`)
+      await benchLlama(backend, m, results)
     }
   }
   fs.mkdirSync(path.join(root, 'test-results'), { recursive: true })

@@ -1,7 +1,7 @@
 {
   "name": "letterflow",
   "productName": "Letterflow",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Lokale Diktier-App für Windows",
   "main": "src/main/main.js",
   "author": "Julius Steiner",
@@ -18,5 +18,8 @@
     "electron": "^45.2.3",
     "electron-builder": "^26.18.0",
     "prettier": "^3.9.10"
+  },
+  "dependencies": {
+    "sherpa-onnx-node": "2.0.1"
   }
 }

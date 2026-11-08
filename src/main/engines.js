@@ -1,0 +1,463 @@
+// Engine-Verwaltung: ASR-Worker (Parakeet über sherpa-onnx im utilityProcess) und optional
+// llama-server für die gründliche Glättung. Überwacht beide, startet sie nach Abstürzen neu
+// und räumt verwaiste llama-server-Prozesse einer früheren Sitzung ab.
+const { EventEmitter } = require('node:events');
+const { execFile, spawn } = require('node:child_process');
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const net = require('node:net');
+const os = require('node:os');
+const path = require('node:path');
+const { promisify } = require('node:util');
+
+const MODELS = require('../../models.json');
+const { bundledEnginesDir } = require('./hardware');
+
+const PARAKEET_ORDNER = 'sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8';
+const LLAMA_EXE = 'llama-server.exe';
+const NEUSTART_VERZOEGERUNG_MS = [1000, 3000, 10000];
+const ABSTURZ_FENSTER_MS = 60000;
+const MAX_ABSTUERZE = 3;
+const TRANSCRIBE_TIMEOUT_MS = 30000;
+const BEREIT_TIMEOUT_MS = 180000; // Modell laden dauert Sekunden, auf langsamen Platten länger
+const HEALTH_INTERVALL_MS = 200;
+const BEENDEN_TIMEOUT_MS = 5000;
+
+const fakeModus = () => process.env.LETTERFLOW_FAKE_ENGINES === '1';
+const FAKES = path.join(__dirname, '..', '..', 'tests', 'fakes');
+
+const standardThreads = () => Math.min(8, Math.max(2, Math.floor(os.availableParallelism() / 2)));
+// Physische Kerne für llama-server (Annahme: 2 Threads je Kern, wie bei Ryzen/Core mit SMT).
+const physischeKerne = () => Math.max(1, Math.floor(os.availableParallelism() / 2));
+
+function freierPort() {
+  return new Promise((resolve, reject) => {
+    const s = net.createServer();
+    s.once('error', reject);
+    s.listen(0, '127.0.0.1', () => {
+      const { port } = s.address();
+      s.close(() => resolve(port));
+    });
+  });
+}
+
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
+class EngineManager extends EventEmitter {
+  constructor({ dataDir, backend, tier, threads, prepare, restartDelaysMs, transcribeTimeoutMs }) {
+    super();
+    this.dataDir = dataDir;
+    this.backend = backend;
+    this.tier = tier;
+    this.threads = threads ?? standardThreads();
+    this._prepare = prepare; // async ({ backend, tier }): Dateien für die Stufe nachladen
+    this._verzoegerungen = restartDelaysMs || NEUSTART_VERZOEGERUNG_MS;
+    this._transcribeTimeoutMs = transcribeTimeoutMs || TRANSCRIBE_TIMEOUT_MS;
+    this._fake = fakeModus();
+    this._status = 'startet';
+    this._worker = null;
+    this._asrReady = false;
+    this._llama = null; // { child, port, key, args, ready }
+    this._fehler = false;
+    this._beenden = false;
+    this._absturzZeiten = { worker: [], llama: [] };
+    this._abstuerze = 0;
+    this._fallback = false;
+    this._timer = new Set();
+    this._offen = new Map(); // id -> { resolve, reject, timer }
+    this._seq = 0;
+  }
+
+  get status() {
+    return this._status;
+  }
+  get llamaUrl() {
+    return this.tier === 'gruendlich' && this._llama
+      ? `http://127.0.0.1:${this._llama.port}`
+      : null;
+  }
+  get llamaKey() {
+    return this.tier === 'gruendlich' && this._llama ? this._llama.key : null;
+  }
+  get llamaArgs() {
+    return this._llama ? this._llama.args : null;
+  }
+  // Wie oft eine Komponente seit dem Anlegen abgestürzt ist.
+  get abstuerze() {
+    return this._abstuerze;
+  }
+  // true, wenn llama von Vulkan auf den Prozessor zurückgefallen ist.
+  get fallback() {
+    return this._fallback;
+  }
+
+  _setStatus(neu) {
+    if (neu === this._status) return;
+    this._status = neu;
+    this.emit('status', neu);
+  }
+
+  _aktualisieren() {
+    let neu = 'startet';
+    if (this._fehler) neu = 'fehler';
+    else if (!this._beenden && this._asrReady && (this.tier !== 'gruendlich' || this._llama?.ready))
+      neu = 'bereit';
+    this._setStatus(neu);
+  }
+
+  _spaeter(ms, fn) {
+    const t = setTimeout(() => {
+      this._timer.delete(t);
+      fn();
+    }, ms);
+    this._timer.add(t);
+    return t;
+  }
+
+  _warteAufEnde() {
+    return new Promise((resolve) => {
+      const pruefen = () => {
+        if (this._status === 'startet') return;
+        this.off('status', pruefen);
+        resolve();
+      };
+      this.on('status', pruefen);
+      pruefen();
+    });
+  }
+
+  // --- Start und Stopp -----------------------------------------------------
+
+  async start() {
+    this._beenden = false;
+    this._fehler = false;
+    this._absturzZeiten = { worker: [], llama: [] };
+    await this._verwaisteBeenden();
+    this._setStatus('startet');
+    this._workerStarten();
+    if (this.tier === 'gruendlich') this._llamaStarten();
+    await this._warteAufEnde();
+    if (this._status === 'fehler') throw new Error('Die Engines konnten nicht gestartet werden.');
+  }
+
+  async stop() {
+    this._beenden = true;
+    for (const t of this._timer) clearTimeout(t);
+    this._timer.clear();
+    for (const [, o] of this._offen) {
+      clearTimeout(o.timer);
+      o.reject(new Error('Spracherkennung wurde beendet.'));
+    }
+    this._offen.clear();
+    await Promise.all([this._workerBeenden(), this._llamaBeenden()]);
+    this._asrReady = false;
+    this._setStatus('startet');
+  }
+
+  async setTier(tier) {
+    if (tier === this.tier) return;
+    if (tier === 'gruendlich') {
+      if (this._prepare) await this._prepare({ backend: this.backend, tier });
+      this.tier = tier;
+      this._fehler = false;
+      this._absturzZeiten.llama = [];
+      this._aktualisieren();
+      this._llamaStarten();
+      await this._warteAufEnde();
+      if (this._status === 'fehler')
+        throw new Error('Der llama-server konnte nicht gestartet werden.');
+    } else {
+      this.tier = tier;
+      await this._llamaBeenden();
+      this._aktualisieren();
+    }
+  }
+
+  // --- Absturzbehandlung -----------------------------------------------------
+
+  _abgestuerzt(art) {
+    if (this._beenden) return;
+    this._abstuerze += 1;
+    const jetzt = Date.now();
+    const liste = (this._absturzZeiten[art] = this._absturzZeiten[art].filter(
+      (t) => jetzt - t < ABSTURZ_FENSTER_MS,
+    ));
+    liste.push(jetzt);
+    if (liste.length >= MAX_ABSTUERZE) {
+      if (art === 'llama' && this.backend === 'vulkan') {
+        console.error('llama-server stürzt auf Vulkan ab, Rückfall auf den Prozessor.');
+        this.backend = 'cpu';
+        this._fallback = true;
+        liste.length = 0;
+      } else {
+        console.error(`${art} ist ${MAX_ABSTUERZE}-mal abgestürzt, gebe auf.`);
+        this._fehler = true;
+        this._aktualisieren();
+        return;
+      }
+    }
+    this._aktualisieren();
+    const nr = Math.max(1, Math.min(liste.length, this._verzoegerungen.length));
+    const wartezeit = this._verzoegerungen[nr - 1];
+    this._spaeter(wartezeit, () => {
+      if (art === 'worker') this._workerStarten();
+      else if (this.tier === 'gruendlich') this._llamaStarten();
+    });
+  }
+
+  // --- ASR-Worker -------------------------------------------------------------
+
+  _workerStarten() {
+    const { utilityProcess } = require('electron');
+    const skript = this._fake
+      ? path.join(FAKES, 'fake-asr-worker.js')
+      : path.join(__dirname, '..', 'asr', 'worker.js');
+    const w = utilityProcess.fork(skript, [], {
+      env: { ...process.env },
+      serviceName: 'Letterflow Spracherkennung',
+    });
+    this._worker = w;
+    this._asrReady = false;
+    const wache = this._spaeter(BEREIT_TIMEOUT_MS, () => {
+      console.error('Spracherkennung wurde nicht rechtzeitig bereit.');
+      w.kill();
+    });
+    w.on('message', (m) => {
+      if (w !== this._worker) return;
+      if (m.type === 'ready') {
+        clearTimeout(wache);
+        this._asrReady = true;
+        this._aktualisieren();
+      } else if (m.type === 'result') {
+        this._abschliessen(m.id, null, m.text);
+      } else if (m.type === 'error') {
+        if (m.id !== undefined) this._abschliessen(m.id, new Error(m.message));
+        else {
+          console.error('Spracherkennung konnte nicht geladen werden:', m.message);
+          w.kill();
+        }
+      }
+    });
+    w.once('exit', () => {
+      clearTimeout(wache);
+      this._timer.delete(wache);
+      if (w !== this._worker) return;
+      this._worker = null;
+      this._asrReady = false;
+      for (const id of [...this._offen.keys()])
+        this._abschliessen(id, new Error('Spracherkennung wurde unerwartet beendet.'));
+      this._abgestuerzt('worker');
+    });
+    w.postMessage({
+      type: 'init',
+      modelDir: path.join(this.dataDir, 'models', PARAKEET_ORDNER),
+      numThreads: this.threads,
+    });
+  }
+
+  async _workerBeenden() {
+    const w = this._worker;
+    this._worker = null;
+    if (!w) return;
+    const ende = new Promise((r) => w.once('exit', r));
+    w.kill();
+    await Promise.race([ende, pause(BEENDEN_TIMEOUT_MS)]);
+  }
+
+  _abschliessen(id, fehler, text) {
+    const o = this._offen.get(id);
+    if (!o) return;
+    this._offen.delete(id);
+    clearTimeout(o.timer);
+    if (fehler) o.reject(fehler);
+    else o.resolve(text);
+  }
+
+  transcribe(samples) {
+    if (!this._worker || !this._asrReady)
+      return Promise.reject(new Error('Die Spracherkennung ist nicht bereit.'));
+    const id = ++this._seq;
+    const w = this._worker;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this._abschliessen(id, new Error('Zeitüberschreitung bei der Spracherkennung.'));
+        w.kill(); // hängt vermutlich: neu starten, sonst staut sich alles dahinter
+      }, this._transcribeTimeoutMs);
+      this._offen.set(id, { resolve, reject, timer });
+      w.postMessage({ type: 'transcribe', id, samples });
+    });
+  }
+
+  // --- llama-server -----------------------------------------------------------
+
+  _llamaExe() {
+    return this.backend === 'cuda'
+      ? path.join(this.dataDir, 'engines', 'cuda', 'llama', LLAMA_EXE)
+      : path.join(bundledEnginesDir(), this.backend, 'llama', LLAMA_EXE);
+  }
+
+  async _llamaStarten() {
+    let port;
+    try {
+      port = await freierPort();
+    } catch (e) {
+      console.error('Kein freier Port:', e);
+      return this._abgestuerzt('llama');
+    }
+    if (this._beenden || this.tier !== 'gruendlich' || this._llama) return;
+    const key = crypto.randomBytes(24).toString('hex');
+    const modell = MODELS.find((m) => m.id === 'llama-gruendlich');
+    const args = [
+      '-m',
+      path.join(this.dataDir, 'models', ...modell.file.split('/')),
+      '--host',
+      '127.0.0.1',
+      '--port',
+      String(port),
+      '-t',
+      String(physischeKerne()),
+      '-c',
+      '4096',
+      '--api-key',
+      key,
+    ];
+    if (this.backend !== 'cpu') args.push('-ngl', '99');
+
+    let exe = this._llamaExe();
+    let vollArgs = args;
+    const env = { ...process.env };
+    if (this._fake) {
+      exe = process.execPath;
+      vollArgs = [path.join(FAKES, 'fake-llama.js'), ...args];
+      env.ELECTRON_RUN_AS_NODE = '1';
+    }
+    let logFd = 'ignore';
+    try {
+      fs.mkdirSync(path.join(this.dataDir, 'logs'), { recursive: true });
+      logFd = fs.openSync(path.join(this.dataDir, 'logs', 'llama-server.log'), 'w');
+    } catch {}
+    const child = spawn(exe, vollArgs, {
+      cwd: this._fake ? undefined : path.dirname(exe),
+      env,
+      windowsHide: true,
+      stdio: ['ignore', logFd, logFd],
+    });
+    if (typeof logFd === 'number') fs.closeSync(logFd);
+    const llama = { child, port, key, args, ready: false, absichtlich: false };
+    this._llama = llama;
+    if (child.pid) this._pidSchreiben(child.pid);
+
+    let beendet = false;
+    const wache = this._spaeter(BEREIT_TIMEOUT_MS, () => {
+      console.error('llama-server wurde nicht rechtzeitig bereit.');
+      child.kill();
+    });
+    const ende = () => {
+      if (beendet) return;
+      beendet = true;
+      clearTimeout(wache);
+      this._timer.delete(wache);
+      this._pidLoeschen();
+      if (this._llama === llama) this._llama = null;
+      if (!llama.absichtlich) this._abgestuerzt('llama');
+    };
+    child.once('exit', ende);
+    child.once('error', (e) => {
+      console.error('llama-server nicht gestartet:', e.message);
+      ende();
+    });
+
+    // Bereit = GET /health liefert 200.
+    while (!beendet && !llama.ready) {
+      try {
+        const r = await fetch(`http://127.0.0.1:${port}/health`, {
+          signal: AbortSignal.timeout(1000),
+        });
+        if (r.status === 200) {
+          if (!beendet) {
+            llama.ready = true;
+            clearTimeout(wache);
+            this._aktualisieren();
+          }
+          break;
+        }
+      } catch {}
+      await pause(HEALTH_INTERVALL_MS);
+    }
+  }
+
+  async _llamaBeenden() {
+    const llama = this._llama;
+    this._llama = null;
+    if (!llama) return;
+    llama.absichtlich = true;
+    const { child } = llama;
+    if (child.exitCode === null && child.signalCode === null) {
+      const ende = new Promise((r) => child.once('exit', r));
+      child.kill();
+      const rest = await Promise.race([ende.then(() => true), pause(BEENDEN_TIMEOUT_MS)]);
+      if (rest !== true) await this._prozessBeenden(child.pid);
+    }
+    this._pidLoeschen();
+  }
+
+  // --- PID-Datei und verwaiste Prozesse -----------------------------------------
+
+  get _pidDatei() {
+    return path.join(this.dataDir, 'engines.pid');
+  }
+  _pidSchreiben(pid) {
+    try {
+      fs.writeFileSync(this._pidDatei, String(pid));
+    } catch (e) {
+      console.error('PID-Datei nicht geschrieben:', e.message);
+    }
+  }
+  _pidLoeschen() {
+    try {
+      fs.rmSync(this._pidDatei, { force: true });
+    } catch {}
+  }
+
+  async _prozessName(pid) {
+    try {
+      const { stdout } = await promisify(execFile)(
+        'tasklist',
+        ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'],
+        { windowsHide: true },
+      );
+      const m = /^"([^"]+)"/.exec(stdout.trim());
+      return m ? m[1].toLowerCase() : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async _prozessBeenden(pid) {
+    try {
+      await promisify(execFile)('taskkill', ['/PID', String(pid), '/T', '/F'], {
+        windowsHide: true,
+      });
+    } catch {}
+  }
+
+  // Beendet in engines.pid gelistete, noch laufende llama-server-Prozesse einer früheren Sitzung.
+  async _verwaisteBeenden() {
+    let text;
+    try {
+      text = fs.readFileSync(this._pidDatei, 'utf8');
+    } catch {
+      return;
+    }
+    // Im Test läuft der Ersatz-llama unter dem Namen der Electron-Datei.
+    const erwartet = this._fake ? path.basename(process.execPath).toLowerCase() : LLAMA_EXE;
+    for (const zeile of text.split(/\r?\n/)) {
+      const pid = Number(zeile.trim());
+      if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) continue;
+      if ((await this._prozessName(pid)) === erwartet) await this._prozessBeenden(pid);
+    }
+    this._pidLoeschen();
+  }
+}
+
+module.exports = { EngineManager };

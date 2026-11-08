@@ -14,6 +14,9 @@ const windows = require('./windows');
 const tray = require('./tray');
 const { loadSettings, saveSettings } = require('./settings');
 const setup = require('./setup');
+const { detectHardware, chooseSmoothingTier } = require('./hardware');
+const { EngineManager } = require('./engines');
+const { getDataDir } = require('./catalog');
 
 if (!app.requestSingleInstanceLock()) {
   // Zweite Instanz: sofort beenden, die erste öffnet die Einstellungen.
@@ -32,9 +35,47 @@ if (!app.requestSingleInstanceLock()) {
     app.setLoginItemSettings({ openAtLogin: settings.autostart });
   }
 
-  // Platzhalter bis Task 5 Backend und Stufe ermittelt; Engines gelten nach der Einrichtung als bereit.
+  let hardware = null; // Ergebnis von detectHardware
+  let engines = null; // EngineManager, sobald die Einrichtung abgeschlossen ist
+  let beendet = false;
+  let tierKette = Promise.resolve(); // Stufenwechsel nacheinander ausführen
+
+  // engines: 'fehlt' (Einrichtung offen), 'startet', 'bereit' oder 'fehler'.
   function getStatus() {
-    return { backend: null, tier: null, engines: setup.isComplete() ? 'bereit' : 'fehlt' };
+    return {
+      backend: engines ? engines.backend : hardware ? hardware.backend : null,
+      tier: engines ? engines.tier : hardware ? hardware.tier : null,
+      engines: !setup.isComplete() ? 'fehlt' : engines ? engines.status : 'startet',
+      rueckfall: engines ? engines.fallback : false,
+    };
+  }
+
+  // Hardware erkennen, Dateien nachladen, Engines starten.
+  async function enginesStarten(dir) {
+    const dataDir = getDataDir();
+    hardware = await detectHardware(loadSettings(dir).smoothingModel, { dataDir });
+    await setup.ensureSetup({ backend: hardware.backend, tier: hardware.tier });
+    const manager = new EngineManager({
+      dataDir,
+      backend: hardware.backend,
+      tier: hardware.tier,
+      prepare: ({ backend, tier }) => setup.ensureSetup({ backend, tier }),
+    });
+    engines = manager;
+    await manager.start();
+  }
+
+  // Ändert sich die Stufe durch die Einstellung "smoothingModel", Engines anpassen.
+  function stufePruefen(settings) {
+    if (!hardware || !engines) return;
+    const neu = chooseSmoothingTier(
+      hardware.devices,
+      hardware.dedicatedVramMiB,
+      settings.smoothingModel,
+    );
+    tierKette = tierKette
+      .then(() => (neu !== engines.tier ? engines.setTier(neu) : undefined))
+      .catch((fehler) => console.error('Stufenwechsel fehlgeschlagen:', fehler));
   }
 
   function registerIpc() {
@@ -51,6 +92,7 @@ if (!app.requestSingleInstanceLock()) {
       for (const win of BrowserWindow.getAllWindows()) {
         if (!win.isDestroyed()) win.webContents.send('settings:changed', settings);
       }
+      stufePruefen(settings);
       try {
         applyAutostart(settings);
       } catch (fehler) {
@@ -69,9 +111,14 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     registerIpc();
     trayHandle = tray.createTray();
-    // Bis Task 5 Hardware erkennt: vorläufig Prozessor + schnelle Stufe.
-    setup.ensureSetup({ backend: 'cpu', tier: 'schnell' }).catch((fehler) => {
-      console.error('Einrichtung fehlgeschlagen:', fehler);
+    enginesStarten(app.getPath('userData')).catch((fehler) => {
+      console.error('Engines nicht gestartet:', fehler);
+    });
+    app.on('before-quit', (event) => {
+      if (beendet || !engines) return;
+      event.preventDefault();
+      beendet = true;
+      engines.stop().finally(() => app.quit());
     });
     if (testMode) {
       // Test-Brücke für electronApp.evaluate (wird in späteren Tasks erweitert).
@@ -83,6 +130,7 @@ if (!app.requestSingleInstanceLock()) {
         status: () => getStatus(),
         ensureSetup: (optionen) => setup.ensureSetup(optionen),
         setupAusfallNaechstes: () => setup.testAusfallNaechstes(),
+        engines: require('./engines-testbruecke'),
       };
     }
   });

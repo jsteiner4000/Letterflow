@@ -304,3 +304,9 @@ Beurteilung:
 - Gemessen wurde nur CPU; GPU/NPU nicht.
 
 Reproduzieren: `node scripts/bench-parakeet.js parakeet --threads 8` (mit `SHERPA_NODE_DIR` auf einen Ordner mit `node_modules/sherpa-onnx-node`), `node scripts/bench-parakeet.js whisper --lang de|auto --runs 3`, `node scripts/bench-parakeet.js score`; Testclips mit `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-testset.ps1`. Rohdaten: `test-results/spike-*.json` (nicht eingecheckt).
+
+## 10. Step 0 (Task 5): sherpa-onnx-node im Electron-utilityProcess
+
+Geprüft am 2026-11-08 mit Electron 45.2.3 und `sherpa-onnx-node` 2.0.1: `utilityProcess.fork(src/asr/worker.js)` lädt das N-API-Addon (ohne `electron-rebuild`), der Worker meldet `ready` nach **2,7 s** (Modell laden, 4 Threads), und `testdata/testset/de2.wav` (3,6 s) ergibt in **218 ms** „Wir treffen uns am Dienstag um 10 Uhr im Büro." – identisch mit dem Ergebnis unter Node (Abschnitt 9.4). Damit ist die Rückfalloption (b) aus 9.5 nicht nötig. Der Float32Array-Transfer per `postMessage` funktioniert.
+
+Gleiche Prüfung mit dem echten `EngineManager` (Vulkan, Qwen3-4B, `-ngl 99`): beide Engines bereit nach 5,2 s, Erkennung 299 ms, `llama-server` antwortet mit Schlüssel (200), ohne Schlüssel 401, PID-Datei nach `stop()` weg.

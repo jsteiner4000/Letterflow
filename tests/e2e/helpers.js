@@ -11,8 +11,16 @@ async function launchApp({ dataDir, env } = {}) {
   const dir = dataDir || fs.mkdtempSync(path.join(os.tmpdir(), 'letterflow-test-'));
   const app = await electron.launch({
     args: [ROOT],
-    env: { ...process.env, LETTERFLOW_TEST: '1', LETTERFLOW_DATA_DIR: dir, ...env },
+    env: {
+      ...process.env,
+      LETTERFLOW_TEST: '1',
+      LETTERFLOW_FAKE_ENGINES: '1', // Tests starten nie echte Engines
+      LETTERFLOW_DATA_DIR: dir,
+      ...env,
+    },
   });
+  // Die Test-Brücke entsteht im ready-Handler der App: darauf warten statt zu raten.
+  await app.evaluate(({ app: electronApp }) => electronApp.whenReady());
   return { app, dataDir: dir };
 }
 
@@ -20,7 +28,12 @@ async function launchApp({ dataDir, env } = {}) {
 // endende Zweitinstanz nicht anhängen). Liefert den ChildProcess.
 function spawnInstance(dataDir) {
   return spawn(require('electron'), [ROOT], {
-    env: { ...process.env, LETTERFLOW_TEST: '1', LETTERFLOW_DATA_DIR: dataDir },
+    env: {
+      ...process.env,
+      LETTERFLOW_TEST: '1',
+      LETTERFLOW_FAKE_ENGINES: '1',
+      LETTERFLOW_DATA_DIR: dataDir,
+    },
     stdio: 'ignore',
   });
 }

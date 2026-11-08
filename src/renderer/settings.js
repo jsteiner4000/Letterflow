@@ -151,7 +151,7 @@ async function mikrofoneMitNamen() {
 const ENGINE_TEXT = {
   bereit: 'Bereit',
   startet: 'Startet …',
-  fehler: 'Fehler – wird neu gestartet',
+  fehler: 'Fehler – bitte Letterflow neu starten',
   fehlt: 'Einrichtung nicht abgeschlossen',
 };
 const BACKEND_TEXT = {
@@ -163,7 +163,7 @@ const BACKEND_TEXT = {
 function statusAnzeigen(st) {
   $('status-glaettung').textContent =
     st.tier === 'gruendlich'
-      ? `Glättung: Gründlich auf ${BACKEND_TEXT[st.backend] || 'Prozessor'}`
+      ? `Glättung: Gründlich auf ${BACKEND_TEXT[st.backend] || 'Prozessor'}${st.rueckfall ? ' (Rückfall, Grafikkarte nicht nutzbar)' : ''}`
       : 'Glättung: Schnell (Regeln)';
   $('status-engine').textContent = ENGINE_TEXT[st.engines] || ENGINE_TEXT.fehlt;
 }

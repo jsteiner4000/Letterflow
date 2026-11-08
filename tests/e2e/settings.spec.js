@@ -59,7 +59,7 @@ test('Autostart wird gespeichert, ohne im Testmodus zu registrieren', async () =
   expect(await app.evaluate(() => global.__letterflow.loginItemCalls())).toBe(0);
 });
 
-test('System-Abschnitt zeigt Platzhalter-Status', async () => {
+test('System-Abschnitt zeigt offene Einrichtung', async () => {
   const { win } = await einstellungenOeffnen();
   await expect(win.getByText('Einrichtung nicht abgeschlossen')).toBeVisible();
   await expect(win.getByText('Spracherkennung: Prozessor')).toBeVisible();
