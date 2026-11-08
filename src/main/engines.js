@@ -66,6 +66,9 @@ class EngineManager extends EventEmitter {
     this._timer = new Set();
     this._offen = new Map(); // id -> { resolve, reject, timer }
     this._seq = 0;
+    this._llamaLauf = 0; // Zähler gegen überholte llama-Starts
+    this._warter = new Set(); // wartende _warteAufEnde()
+    this._gewuenscht = tier; // zuletzt über setTier angeforderte Stufe
   }
 
   get status() {
@@ -114,13 +117,23 @@ class EngineManager extends EventEmitter {
     return t;
   }
 
+  // Wartet, bis der Status nicht mehr 'startet' ist. stop() lässt sie mit Fehler enden,
+  // eine neuere Stufenumschaltung (abbrechen()) lässt sie still enden.
   _warteAufEnde() {
-    return new Promise((resolve) => {
-      const pruefen = () => {
-        if (this._status === 'startet') return;
+    return new Promise((resolve, reject) => {
+      const warter = {};
+      const fertig = (fehler) => {
         this.off('status', pruefen);
-        resolve();
+        this._warter.delete(warter);
+        if (fehler) reject(fehler);
+        else resolve();
       };
+      const pruefen = () => {
+        if (this._status !== 'startet') fertig();
+      };
+      warter.abbrechen = () => fertig();
+      warter.stoppen = () => fertig(new Error('Die Engines wurden gestoppt.'));
+      this._warter.add(warter);
       this.on('status', pruefen);
       pruefen();
     });
@@ -142,6 +155,7 @@ class EngineManager extends EventEmitter {
 
   async stop() {
     this._beenden = true;
+    for (const w of [...this._warter]) w.stoppen();
     for (const t of this._timer) clearTimeout(t);
     this._timer.clear();
     for (const [, o] of this._offen) {
@@ -154,16 +168,21 @@ class EngineManager extends EventEmitter {
     this._setStatus('startet');
   }
 
+  // Der letzte Aufruf gewinnt: ältere, noch wartende Umschaltungen enden sofort.
   async setTier(tier) {
+    this._gewuenscht = tier;
+    for (const w of [...this._warter]) w.abbrechen();
     if (tier === this.tier) return;
     if (tier === 'gruendlich') {
       if (this._prepare) await this._prepare({ backend: this.backend, tier });
+      if (this._gewuenscht !== tier || this._beenden) return; // inzwischen überholt
       this.tier = tier;
       this._fehler = false;
       this._absturzZeiten.llama = [];
       this._aktualisieren();
       this._llamaStarten();
       await this._warteAufEnde();
+      if (this._gewuenscht !== tier) return;
       if (this._status === 'fehler')
         throw new Error('Der llama-server konnte nicht gestartet werden.');
     } else {
@@ -297,6 +316,7 @@ class EngineManager extends EventEmitter {
   }
 
   async _llamaStarten() {
+    const lauf = ++this._llamaLauf;
     let port;
     try {
       port = await freierPort();
@@ -304,7 +324,9 @@ class EngineManager extends EventEmitter {
       console.error('Kein freier Port:', e);
       return this._abgestuerzt('llama');
     }
-    if (this._beenden || this.tier !== 'gruendlich' || this._llama) return;
+    // Wurde inzwischen beendet oder umgeschaltet (_llamaBeenden zählt den Lauf hoch), nichts starten.
+    if (lauf !== this._llamaLauf || this._beenden || this.tier !== 'gruendlich' || this._llama)
+      return;
     const key = crypto.randomBytes(24).toString('hex');
     const modell = MODELS.find((m) => m.id === 'llama-gruendlich');
     const args = [
@@ -343,6 +365,11 @@ class EngineManager extends EventEmitter {
       stdio: ['ignore', logFd, logFd],
     });
     if (typeof logFd === 'number') fs.closeSync(logFd);
+    // Das Starten dauert einen Moment; wurde währenddessen beendet oder umgeschaltet, wieder abräumen.
+    if (lauf !== this._llamaLauf || this._beenden || this.tier !== 'gruendlich') {
+      child.kill();
+      return;
+    }
     const llama = { child, port, key, args, ready: false, absichtlich: false };
     this._llama = llama;
     if (child.pid) this._pidSchreiben(child.pid);
@@ -387,6 +414,7 @@ class EngineManager extends EventEmitter {
   }
 
   async _llamaBeenden() {
+    this._llamaLauf += 1;
     const llama = this._llama;
     this._llama = null;
     if (!llama) return;

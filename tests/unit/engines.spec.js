@@ -188,3 +188,25 @@ test('Zeitüberschreitung bei der Erkennung ergibt einen Fehler', async () => {
   const meldung = await E((_e, i) => global.__letterflow.engines.transcribeHaengt(i), id);
   expect(meldung).toMatch(/Zeit/);
 });
+
+test('stop während des Starts beendet das wartende start()', async () => {
+  await app.close();
+  ({ app, dataDir } = await launchApp({ env: { LETTERFLOW_FAKE_ASR_NIE_BEREIT: '1' } }));
+  const id = await erzeugen('schnell');
+  await E((_e, i) => global.__letterflow.engines.startAsync(i), id);
+  await expect.poll(() => status(id)).toBe('startet');
+  await E((_e, i) => global.__letterflow.engines.stop(i), id);
+  expect(await E((_e, i) => global.__letterflow.engines.ergebnis(i), id)).toMatch(/gestoppt/);
+});
+
+test('schnelles Zurückschalten auf schnell überholt das wartende gründlich', async () => {
+  const id = await erzeugen('schnell');
+  await E((_e, i) => global.__letterflow.engines.start(i), id);
+  await E((_e, i) => global.__letterflow.engines.setTierAsync(i, 'gruendlich'), id);
+  await E((_e, i) => global.__letterflow.engines.setTier(i, 'schnell'), id);
+  expect(await E((_e, i) => global.__letterflow.engines.ergebnis(i), id)).toBe('ok');
+  expect(await E((_e, i) => global.__letterflow.engines.tier(i), id)).toBe('schnell');
+  expect(await E((_e, i) => global.__letterflow.engines.llamaUrl(i), id)).toBeNull();
+  expect(await status(id)).toBe('bereit');
+  expect(await E((_e, i) => global.__letterflow.engines.llamaLaeuft(i), id)).toBe(false);
+});

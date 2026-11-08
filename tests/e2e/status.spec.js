@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { launchApp } = require('./helpers');
+const { startFileServer } = require('../fakes/file-server');
 
 // Alle Dateien liegen schon da (kleine Testdateien mit echten Prüfsummen): Einrichtung ist sofort
 // fertig, danach starten die Ersatz-Engines.
@@ -16,12 +17,14 @@ const DATEIEN = {
 };
 
 const geoeffnet = [];
+const server = [];
 test.afterEach(async () => {
   while (geoeffnet.length)
     await geoeffnet
       .pop()
       .close()
       .catch(() => {});
+  while (server.length) await server.pop().stoppen();
 });
 
 async function fertigeEinrichtung() {
@@ -70,4 +73,55 @@ test('Wechsel auf Gründlich startet llama-server und zeigt es an', async () => 
   await win.getByRole('radio', { name: /^Schnell/ }).check();
   await expect.poll(() => app.evaluate(() => global.__letterflow.status().tier)).toBe('schnell');
   await expect(win.getByText('Glättung: Schnell (Regeln)')).toBeVisible();
+});
+
+test('gescheiterter Engine-Start zeigt Fehler, ein späterer Erfolg löscht ihn', async () => {
+  const { app, win } = await fertigeEinrichtung();
+  await expect.poll(() => app.evaluate(() => global.__letterflow.status().engines)).toBe('bereit');
+  await app.evaluate(() => global.__letterflow.enginesNeustart(true));
+  await expect.poll(() => app.evaluate(() => global.__letterflow.status().engines)).toBe('fehler');
+  await expect(win.locator('#status-engine')).toContainText('Fehler');
+  await app.evaluate(() => global.__letterflow.enginesNeustart(false));
+  await expect.poll(() => app.evaluate(() => global.__letterflow.status().engines)).toBe('bereit');
+});
+
+test('Stufenwechsel während der Einrichtung geht nicht verloren', async () => {
+  const dateien = Object.fromEntries(
+    Object.keys(DATEIEN).map((id) => [id, crypto.randomBytes(40000)]),
+  );
+  const s = await startFileServer({
+    files: Object.fromEntries(Object.keys(dateien).map((id) => [`/${id}`, dateien[id]])),
+    optionen: { blockGroesse: 4000, blockPauseMs: 60 },
+  });
+  server.push(s);
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'letterflow-status-'));
+  const katalog = path.join(dataDir, 'testkatalog.json');
+  fs.writeFileSync(
+    katalog,
+    JSON.stringify(
+      Object.fromEntries(
+        Object.keys(dateien).map((id) => [
+          id,
+          { sha256: crypto.createHash('sha256').update(dateien[id]).digest('hex'), bytes: 40000 },
+        ]),
+      ),
+    ),
+  );
+  const { app } = await launchApp({
+    dataDir,
+    env: { LETTERFLOW_CATALOG_URL_BASE: s.url, LETTERFLOW_CATALOG_FILE: katalog },
+  });
+  geoeffnet.push(app);
+  await app.evaluate(({ BrowserWindow }) => global.__letterflow.openSettings());
+  await expect.poll(() => app.windows().some((w) => w.url().includes('settings.html'))).toBe(true);
+  const win = app.windows().find((w) => w.url().includes('settings.html'));
+  // Einrichtung läuft noch (Parakeet wird geladen), jetzt auf Gründlich umstellen.
+  expect(await app.evaluate(() => global.__letterflow.status().engines)).toBe('fehlt');
+  await win.getByRole('radio', { name: /^Gründlich Mit/ }).check();
+  await expect
+    .poll(() => app.evaluate(() => global.__letterflow.status().engines), {
+      timeout: 20000,
+    })
+    .toBe('bereit');
+  expect(await app.evaluate(() => global.__letterflow.status().tier)).toBe('gruendlich');
 });

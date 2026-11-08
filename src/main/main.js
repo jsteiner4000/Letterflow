@@ -38,23 +38,42 @@ if (!app.requestSingleInstanceLock()) {
   let hardware = null; // Ergebnis von detectHardware
   let engines = null; // EngineManager, sobald die Einrichtung abgeschlossen ist
   let beendet = false;
-  let tierKette = Promise.resolve(); // Stufenwechsel nacheinander ausführen
+  let startFehler = false; // Start der Engines ist gescheitert (bis zum nächsten Erfolg)
 
   // engines: 'fehlt' (Einrichtung offen), 'startet', 'bereit' oder 'fehler'.
   function getStatus() {
     return {
       backend: engines ? engines.backend : hardware ? hardware.backend : null,
       tier: engines ? engines.tier : hardware ? hardware.tier : null,
-      engines: !setup.isComplete() ? 'fehlt' : engines ? engines.status : 'startet',
+      engines: startFehler
+        ? 'fehler'
+        : !setup.isComplete()
+          ? 'fehlt'
+          : engines
+            ? engines.status
+            : 'startet',
       rueckfall: engines ? engines.fallback : false,
     };
   }
 
-  // Hardware erkennen, Dateien nachladen, Engines starten.
-  async function enginesStarten(dir) {
+  const aktuelleStufe = (dir) =>
+    chooseSmoothingTier(
+      hardware.devices,
+      hardware.dedicatedVramMiB,
+      loadSettings(dir).smoothingModel,
+    );
+
+  // Hardware erkennen, Dateien nachladen, Engines starten. Die Stufe wird nach der
+  // Einrichtung (die Minuten dauern kann) neu aus den aktuellen Einstellungen bestimmt.
+  async function enginesStarten(dir, { testFehler = false } = {}) {
     const dataDir = getDataDir();
     hardware = await detectHardware(loadSettings(dir).smoothingModel, { dataDir });
-    await setup.ensureSetup({ backend: hardware.backend, tier: hardware.tier });
+    if (testFehler) throw new Error('Testfehler beim Start');
+    for (;;) {
+      hardware.tier = aktuelleStufe(dir);
+      await setup.ensureSetup({ backend: hardware.backend, tier: hardware.tier });
+      if (aktuelleStufe(dir) === hardware.tier) break;
+    }
     const manager = new EngineManager({
       dataDir,
       backend: hardware.backend,
@@ -65,17 +84,32 @@ if (!app.requestSingleInstanceLock()) {
     await manager.start();
   }
 
+  // Start mit Fehlerstatus: scheitert er, zeigt der Status 'fehler', ein späterer Erfolg löscht ihn.
+  async function enginesAnstossen(dir, optionen) {
+    try {
+      await enginesStarten(dir, optionen);
+      startFehler = false;
+    } catch (fehler) {
+      startFehler = true;
+      console.error('Engines nicht gestartet:', fehler);
+    }
+  }
+
   // Ändert sich die Stufe durch die Einstellung "smoothingModel", Engines anpassen.
+  // Solange der Manager noch nicht existiert, übernimmt enginesStarten die neue Stufe.
   function stufePruefen(settings) {
-    if (!hardware || !engines) return;
+    if (!hardware) return;
     const neu = chooseSmoothingTier(
       hardware.devices,
       hardware.dedicatedVramMiB,
       settings.smoothingModel,
     );
-    tierKette = tierKette
-      .then(() => (neu !== engines.tier ? engines.setTier(neu) : undefined))
-      .catch((fehler) => console.error('Stufenwechsel fehlgeschlagen:', fehler));
+    if (!engines) {
+      hardware.tier = neu;
+      return;
+    }
+    // setTier lässt eine noch wartende ältere Umschaltung fallen: der letzte Wunsch gewinnt.
+    engines.setTier(neu).catch((fehler) => console.error('Stufenwechsel fehlgeschlagen:', fehler));
   }
 
   function registerIpc() {
@@ -111,9 +145,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     registerIpc();
     trayHandle = tray.createTray();
-    enginesStarten(app.getPath('userData')).catch((fehler) => {
-      console.error('Engines nicht gestartet:', fehler);
-    });
+    enginesAnstossen(app.getPath('userData'));
     app.on('before-quit', (event) => {
       if (beendet || !engines) return;
       event.preventDefault();
@@ -130,6 +162,12 @@ if (!app.requestSingleInstanceLock()) {
         status: () => getStatus(),
         ensureSetup: (optionen) => setup.ensureSetup(optionen),
         setupAusfallNaechstes: () => setup.testAusfallNaechstes(),
+        // Test: Engine-Start erneut anstoßen, wahlweise mit erzwungenem Fehler.
+        enginesNeustart: async (testFehler = false) => {
+          if (engines) await engines.stop();
+          engines = null;
+          await enginesAnstossen(app.getPath('userData'), { testFehler });
+        },
         engines: require('./engines-testbruecke'),
       };
     }

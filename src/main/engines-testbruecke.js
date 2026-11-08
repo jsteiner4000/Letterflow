@@ -3,6 +3,7 @@ const { EngineManager } = require('./engines');
 
 const manager = new Map();
 let zaehler = 0;
+const ergebnisse = new Map();
 const m = (id) => manager.get(id);
 
 module.exports = {
@@ -17,9 +18,35 @@ module.exports = {
   },
   start: (id) => m(id).start(),
   stop: (id) => m(id).stop(),
+  // Start/Umschaltung ohne zu warten; das Ergebnis (Text) holt man mit ergebnis().
+  startAsync: (id) => {
+    ergebnisse.set(
+      id,
+      m(id)
+        .start()
+        .then(
+          () => 'ok',
+          (e) => e.message,
+        ),
+    );
+  },
+  setTierAsync: (id, tier) => {
+    ergebnisse.set(
+      id,
+      m(id)
+        .setTier(tier)
+        .then(
+          () => 'ok',
+          (e) => e.message,
+        ),
+    );
+  },
+  ergebnis: (id) => ergebnisse.get(id),
   setTier: (id, tier) => m(id).setTier(tier),
   status: (id) => m(id).status,
   backend: (id) => m(id).backend,
+  tier: (id) => m(id).tier,
+  llamaLaeuft: (id) => m(id)._llama !== null,
   fallback: (id) => m(id).fallback,
   abstuerze: (id) => m(id).abstuerze,
   llamaUrl: (id) => m(id).llamaUrl,
