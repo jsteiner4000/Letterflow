@@ -1,0 +1,9 @@
+node_modules/
+dist/
+resources/engines/
+resources/bin/
+test-results/
+playwright-report/
+testdata/testset/*.wav
+.superpowers/
+CLAUDE.md.txt
