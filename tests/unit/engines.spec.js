@@ -9,9 +9,13 @@ const { launchApp } = require('../e2e/helpers');
 let app;
 let dataDir;
 const fremde = [];
+const LOG = path.join(require('node:os').tmpdir(), `fake-llama-${process.pid}.log`);
 
 test.beforeEach(async () => {
-  ({ app, dataDir } = await launchApp({ env: { LETTERFLOW_FAKE_ASR_TEXT: 'Hallo Welt' } }));
+  fs.rmSync(LOG, { force: true });
+  ({ app, dataDir } = await launchApp({
+    env: { LETTERFLOW_FAKE_ASR_TEXT: 'Hallo Welt', LETTERFLOW_FAKE_LLAMA_LOG: LOG },
+  }));
   await expect.poll(() => app.evaluate(() => Boolean(global.__letterflow?.engines))).toBe(true);
 });
 test.afterEach(async () => {
@@ -41,6 +45,8 @@ test('Engines werden bereit und transkribieren', async () => {
   const id = await erzeugen('gruendlich', 'vulkan');
   await E((_e, i) => global.__letterflow.engines.start(i), id);
   expect(await status(id)).toBe('bereit');
+  // vor „bereit“ wurde die Aufwärm-Anfrage gestellt
+  expect(fs.readFileSync(LOG, 'utf8')).toContain('Hallo');
   const text = await E((_e, i) => global.__letterflow.engines.transcribe(i, 16000), id);
   expect(text).toBe('Hallo Welt');
   const { url, key } = await E((_e, i) => global.__letterflow.engines.llama(i), id);

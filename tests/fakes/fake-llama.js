@@ -2,6 +2,7 @@
 // --api-key und beantwortet GET /health mit 200. Alles andere verlangt den Schlüssel.
 // Chat-Antworten hängen vom Text im <diktat>-Block ab, so lassen sich Glättung, Verzögerung und Fehler steuern.
 const http = require('node:http');
+const fs = require('node:fs');
 
 const arg = (name) => {
   const i = process.argv.indexOf(name);
@@ -16,6 +17,7 @@ const ANTWORTEN = {
   'ähm also wir treffen uns montag nein dienstag': 'Wir treffen uns Dienstag.',
   'langsame eingabe': 'Langsame Eingabe.',
   'kaputte eingabe': FEHLER,
+  'abgeschnittene eingabe': 'Abgeschnittene eingabe',
 };
 
 http
@@ -36,7 +38,11 @@ http
         const user = JSON.parse(body).messages.at(-1).content;
         input = /<diktat>\n([\s\S]*)\n<\/diktat>/.exec(user)?.[1] ?? '';
       } catch {}
+      // Protokoll der Anfragen, damit Tests z. B. das Aufwärmen nachweisen können.
+      if (process.env.LETTERFLOW_FAKE_LLAMA_LOG)
+        fs.appendFileSync(process.env.LETTERFLOW_FAKE_LLAMA_LOG, `${input || body}\n`);
       const antwort = ANTWORTEN[input] ?? 'Testantwort';
+      const abgeschnitten = input === 'abgeschnittene eingabe';
       setTimeout(
         () => {
           if (antwort === FEHLER) {
@@ -44,7 +50,8 @@ http
             return res.end();
           }
           res.writeHead(200, { 'content-type': 'application/json' });
-          res.end(JSON.stringify({ choices: [{ message: { content: antwort } }] }));
+          const finish_reason = abgeschnitten ? 'length' : 'stop';
+          res.end(JSON.stringify({ choices: [{ message: { content: antwort }, finish_reason }] }));
         },
         input === 'langsame eingabe' ? 3000 : 0,
       );

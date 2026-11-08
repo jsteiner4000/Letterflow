@@ -422,6 +422,8 @@ class EngineManager extends EventEmitter {
           signal: AbortSignal.timeout(1000),
         });
         if (r.status === 200) {
+          // Aufwärmen: die erste Anfrage verarbeitet den Systemprompt und dauert sonst mehrere Sekunden.
+          await this._llamaAufwaermen(port, key);
           if (!beendet) {
             llama.ready = true;
             clearTimeout(wache);
@@ -431,6 +433,24 @@ class EngineManager extends EventEmitter {
         }
       } catch {}
       await pause(HEALTH_INTERVALL_MS);
+    }
+  }
+
+  // Eine winzige Anfrage vor „bereit“; ein Fehler hier verhindert den Start nicht.
+  async _llamaAufwaermen(port, key) {
+    try {
+      await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
+        method: 'POST',
+        signal: AbortSignal.timeout(30000),
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: 'Hallo' }],
+          max_tokens: 1,
+          chat_template_kwargs: { enable_thinking: false },
+        }),
+      });
+    } catch (e) {
+      console.error('Aufwärmen von llama-server fehlgeschlagen:', e.message);
     }
   }
 
