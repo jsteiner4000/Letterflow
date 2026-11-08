@@ -106,3 +106,25 @@ test('Sprache über Raumrauschen (RMS 0.006) ergibt weiter zwei Abschnitte', () 
   const { teile, rest } = laufen(gemischt);
   expect(teile.length + (rest ? 1 : 0)).toBe(2);
 });
+
+test('zusammenhängende Sprache (11 s, letztes Wort leise) verliert keine Wörter', () => {
+  const pcm = fixtureWav('sprache-lang');
+  // Referenz: erster bis letzter Wert über einer einfachen festen Schwelle (Rahmen à 30 ms).
+  const rahmen = 480;
+  let erster = -1;
+  let letzter = -1;
+  for (let i = 0; i + rahmen <= pcm.length; i += rahmen) {
+    let summe = 0;
+    for (let j = 0; j < rahmen; j++) summe += pcm[i + j] ** 2;
+    if (Math.sqrt(summe / rahmen) > 0.005) {
+      if (erster < 0) erster = i;
+      letzter = i + rahmen;
+    }
+  }
+  const { teile, rest } = laufen(pcm);
+  const alle = rest ? [...teile, rest] : teile;
+  const summe = alle.reduce((n, t) => n + t.length, 0);
+  expect(summe).toBeGreaterThanOrEqual(0.98 * (letzter - erster));
+  expect(alle.length).toBeGreaterThanOrEqual(1);
+  expect(summe).toBeLessThanOrEqual(pcm.length);
+});

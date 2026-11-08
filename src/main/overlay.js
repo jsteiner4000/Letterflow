@@ -133,7 +133,7 @@ function createOverlay() {
           // showInactive: kein Fokusklau; der Renderer blendet den fertigen Inhalt weich ein.
           if (!win.isVisible()) win.showInactive();
         })
-        .catch(() => {}); // Pille bleibt aus, wenn das Fenster nicht lädt
+        .catch((fehler) => console.error('Aufnahme-Pille nicht angezeigt:', fehler.message));
     },
     level(n) {
       senden('overlay:level', Math.max(0, Math.min(1, Number(n) || 0)));

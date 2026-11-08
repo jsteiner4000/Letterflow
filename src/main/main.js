@@ -182,6 +182,12 @@ if (!app.requestSingleInstanceLock()) {
         trayTooltip: () => tray.TOOLTIP,
         openAbout: () => windows.openAbout(),
         openSettings: () => windows.openSettings(),
+        // Test: Einrichtungsfenster öffnen und sofort (mehrfach) schließen, während es noch lädt.
+        setupFensterSchnellSchliessen: () => {
+          windows.openSetup();
+          windows.closeSetup();
+          windows.closeSetup();
+        },
         loginItemCalls: () => loginItemCalls,
         status: () => getStatus(),
         ensureSetup: (optionen) => setup.ensureSetup(optionen),

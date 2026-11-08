@@ -149,3 +149,14 @@ test('nach einem unerwarteten Fehler startet ein neuer Aufruf erneut', async () 
     true,
   );
 });
+
+test('Einrichtungsfenster schließt sicher, auch bei sofortigem Mehrfach-Schließen', async () => {
+  const { app } = await launchApp();
+  geoeffnet.push(app);
+  await app.evaluate(() => global.__letterflow.setupFensterSchnellSchliessen());
+  await expect
+    .poll(() => app.windows().some((w) => w.url().endsWith('setup.html')), { timeout: 10000 })
+    .toBe(false);
+  // App lebt noch
+  expect(await app.evaluate(() => global.__letterflow.trayTooltip())).toBeTruthy();
+});

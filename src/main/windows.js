@@ -72,13 +72,27 @@ function openSetup() {
   });
 }
 
+const schliesstGerade = new WeakSet(); // verhindert doppelte Wartezeiten bei mehrfachem Aufruf
+
 function closeSetup() {
   const win = offen.get('setup');
   if (!win || win.isDestroyed()) return;
-  // Ein Fenster, das noch lädt, abzuräumen stürzt Electron ab: erst nach dem Laden schließen.
-  if (win.webContents.isLoadingMainFrame()) {
-    win.webContents.once('did-finish-load', () => !win.isDestroyed() && win.close());
-  } else win.close();
+  // Ein Fenster, das noch lädt, abzuräumen stürzt Electron ab: erst nach dem Laden (oder dem
+  // Fehlschlag, oder nach 5 s) schließen.
+  if (!win.webContents.isLoadingMainFrame()) return win.close();
+  if (schliesstGerade.has(win)) return;
+  schliesstGerade.add(win);
+  const wc = win.webContents;
+  let timer = null;
+  const schliessen = () => {
+    clearTimeout(timer);
+    wc.removeListener('did-finish-load', schliessen);
+    wc.removeListener('did-fail-load', schliessen);
+    if (!win.isDestroyed()) win.close();
+  };
+  wc.once('did-finish-load', schliessen);
+  wc.once('did-fail-load', schliessen);
+  timer = setTimeout(schliessen, 5000);
 }
 
 module.exports = { openAbout, openSettings, openSetup, closeSetup };
