@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain, session } = require('electron');
+const { app, BrowserWindow, ipcMain, session, clipboard } = require('electron');
+const path = require('node:path');
 
 const testMode = process.env.LETTERFLOW_TEST === '1';
 let loginItemCalls = 0; // Zähler für Tests: echte Registrierungen
@@ -12,6 +13,12 @@ if (testMode && process.env.LETTERFLOW_DATA_DIR) {
 
 // Testmodus: Chromium liefert ein künstliches Mikrofon (periodischer Ton), kein echtes Gerät nötig.
 if (testMode) app.commandLine.appendSwitch('use-fake-device-for-media-stream');
+// Testmodus: eine WAV-Datei als Mikrofon (läuft in Schleife).
+if (testMode && process.env.LETTERFLOW_FAKE_AUDIO_FILE)
+  app.commandLine.appendSwitch(
+    'use-file-for-fake-audio-capture',
+    process.env.LETTERFLOW_FAKE_AUDIO_FILE,
+  );
 
 const windows = require('./windows');
 const { setupPermissions } = require('./permissions');
@@ -19,9 +26,12 @@ const { createOverlay } = require('./overlay');
 const tray = require('./tray');
 const { loadSettings, saveSettings } = require('./settings');
 const setup = require('./setup');
-const { detectHardware, chooseSmoothingTier } = require('./hardware');
+const { detectHardware, chooseSmoothingTier, bundledEnginesDir } = require('./hardware');
 const { EngineManager } = require('./engines');
 const { getDataDir } = require('./catalog');
+const { Helper } = require('./helper');
+const { Dictation } = require('./dictation');
+const { createLog } = require('./log');
 
 if (!app.requestSingleInstanceLock()) {
   // Zweite Instanz: sofort beenden, die erste öffnet die Einstellungen.
@@ -44,6 +54,9 @@ if (!app.requestSingleInstanceLock()) {
   let engines = null; // EngineManager, sobald die Einrichtung abgeschlossen ist
   let beendet = false;
   let startFehler = false; // Start der Engines ist gescheitert (bis zum nächsten Erfolg)
+  let neustart = null; // laufender Neustart der Engines
+  let helper = null; // Tastaturhelfer
+  let letzteEinstellungen = {}; // zuletzt gelesene Einstellungen (falls die Datei kurz gesperrt ist)
 
   // engines: 'fehlt' (Einrichtung offen), 'startet', 'bereit' oder 'fehler'.
   function getStatus() {
@@ -100,6 +113,25 @@ if (!app.requestSingleInstanceLock()) {
     }
   }
 
+  // Engines neu starten (z. B. Kürzel bei Status 'fehler'); läuft schon einer, wird er mitgenutzt.
+  function enginesNeustarten(optionen) {
+    neustart ??= (async () => {
+      if (engines) await engines.stop();
+      engines = null;
+      await enginesAnstossen(app.getPath('userData'), optionen);
+    })().finally(() => (neustart = null));
+    return neustart;
+  }
+
+  function einstellungen() {
+    try {
+      letzteEinstellungen = loadSettings(app.getPath('userData'));
+    } catch (fehler) {
+      console.error('Einstellungen nicht lesbar:', fehler);
+    }
+    return letzteEinstellungen;
+  }
+
   // Ändert sich die Stufe durch die Einstellung "smoothingModel", Engines anpassen.
   // Solange der Manager noch nicht existiert, übernimmt enginesStarten die neue Stufe.
   function stufePruefen(settings) {
@@ -132,6 +164,8 @@ if (!app.requestSingleInstanceLock()) {
         if (!win.isDestroyed()) win.webContents.send('settings:changed', settings);
       }
       stufePruefen(settings);
+      // Neues Kürzel gilt sofort, ohne Neustart.
+      if (helper && settings.hotkey !== helper.preset) helper.setPreset(settings.hotkey);
       try {
         applyAutostart(settings);
       } catch (fehler) {
@@ -152,6 +186,36 @@ if (!app.requestSingleInstanceLock()) {
     registerIpc();
     trayHandle = tray.createTray();
     enginesAnstossen(app.getPath('userData'));
+    const overlay = createOverlay();
+    helper = new Helper();
+    helper.setPreset(einstellungen().hotkey || 'ctrl+win');
+    if (testMode) {
+      // Tests drücken nie echte Tasten: Ersatz-Helfer mit gleichem Protokoll.
+      const fake = path.join(__dirname, '..', '..', 'tests', 'fakes', 'fake-helper.js');
+      helper.start(process.execPath, [fake], { ...process.env, ELECTRON_RUN_AS_NODE: '1' });
+    } else {
+      helper.start(path.join(bundledEnginesDir(), '..', 'bin', 'letterflow-helper.exe'));
+    }
+    app.on('will-quit', () => helper.stop());
+    const pastes = []; // nur Tests: alle Einfüge-Versuche
+    if (testMode) {
+      const paste = helper.paste.bind(helper);
+      helper.paste = async (hwnd) => {
+        pastes.push({ text: await clipboard.readText(), hwnd });
+        return paste(hwnd);
+      };
+    }
+    new Dictation({
+      helper,
+      overlay,
+      getEngines: () => engines,
+      getStatus,
+      getSettings: einstellungen,
+      showSetup: () => setup.showSetup(),
+      restartEngines: () =>
+        enginesNeustarten().catch((fehler) => console.error('Neustart fehlgeschlagen:', fehler)),
+      log: createLog(path.join(getDataDir(), 'logs')),
+    });
     app.on('before-quit', (event) => {
       if (beendet || !engines) return;
       event.preventDefault();
@@ -159,8 +223,7 @@ if (!app.requestSingleInstanceLock()) {
       engines.stop().finally(() => app.quit());
     });
     if (testMode) {
-      // Test-Brücke für electronApp.evaluate (wird in späteren Tasks erweitert).
-      const overlay = createOverlay();
+      // Test-Brücke für electronApp.evaluate.
       const aufnahme = { pakete: [] };
       overlay.on('pcm', (pcm) => aufnahme.pakete.push(pcm));
       overlay.on('recorder-error', (e) => (aufnahme.fehler = e.name));
@@ -193,12 +256,18 @@ if (!app.requestSingleInstanceLock()) {
         ensureSetup: (optionen) => setup.ensureSetup(optionen),
         setupAusfallNaechstes: () => setup.testAusfallNaechstes(),
         // Test: Engine-Start erneut anstoßen, wahlweise mit erzwungenem Fehler.
-        enginesNeustart: async (testFehler = false) => {
-          if (engines) await engines.stop();
-          engines = null;
-          await enginesAnstossen(app.getPath('userData'), { testFehler });
-        },
+        enginesNeustart: (testFehler = false) => enginesNeustarten({ testFehler }),
         engines: require('./engines-testbruecke'),
+        helper,
+        pastes,
+        get lastPaste() {
+          return pastes.at(-1) ?? null;
+        },
+        // Test: Mikrofon-Zugriff verweigern, als wäre er in Windows gesperrt.
+        mikrofonSperren: () =>
+          session.defaultSession.setPermissionRequestHandler((_wc, _p, callback) =>
+            callback(false),
+          ),
       };
     }
   });

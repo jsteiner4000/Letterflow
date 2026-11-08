@@ -26,9 +26,11 @@ class Helper extends EventEmitter {
     this.failures = [];
   }
 
-  start(cmd, args = []) {
+  // env: optional (Tests starten den Ersatz-Helfer mit ELECTRON_RUN_AS_NODE).
+  start(cmd, args = [], env = undefined) {
     this.cmd = cmd;
     this.args = args;
+    this.env = env;
     this.stopped = false;
     this.failures = [];
     this._spawn();
@@ -36,6 +38,7 @@ class Helper extends EventEmitter {
 
   _spawn() {
     const proc = spawn(this.cmd, this.args, {
+      env: this.env,
       stdio: ['pipe', 'pipe', 'ignore'],
       windowsHide: true,
     });

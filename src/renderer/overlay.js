@@ -43,6 +43,7 @@ async function aufnahmeStarten(deviceId) {
         autoGainControl: false,
       },
     });
+    strom.getAudioTracks().forEach((t) => t.addEventListener('ended', () => spurBeendet(strom)));
     ctx = new AudioContext({ sampleRate: 16000 });
     if (ctx.sampleRate !== 16000) {
       // Falsche Abtastrate würde unbemerkt falsche Daten liefern: lieber melden.
@@ -71,6 +72,13 @@ async function aufnahmeStarten(deviceId) {
     if (ctx) await ctx.close().catch(() => {});
     window.letterflow.overlay.recorderError({ name: fehler && fehler.name });
   }
+}
+
+// Gerät mitten in der Aufnahme abgezogen: Rest herausgeben, aufräumen und melden.
+async function spurBeendet(strom) {
+  if (!aufnahme || aufnahme.strom !== strom) return;
+  await aufnahmeBeenden(false);
+  window.letterflow.overlay.recorderError({ name: 'TrackEndedError' });
 }
 
 // Letztes Paket herausgeben, dann Mikrofon und Audiokontext freigeben.
