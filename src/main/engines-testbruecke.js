@@ -7,12 +7,19 @@ const ergebnisse = new Map();
 const m = (id) => manager.get(id);
 
 module.exports = {
-  erzeugen: ({ tier, backend, restartDelaysMs, transcribeTimeoutMs }) => {
+  erzeugen: ({ tier, backend, restartDelaysMs, transcribeTimeoutMs, aufraeumVerzoegerungMs }) => {
     const id = ++zaehler;
     const dataDir = require('./catalog').getDataDir();
     manager.set(
       id,
-      new EngineManager({ dataDir, backend, tier, restartDelaysMs, transcribeTimeoutMs }),
+      new EngineManager({
+        dataDir,
+        backend,
+        tier,
+        restartDelaysMs,
+        transcribeTimeoutMs,
+        aufraeumVerzoegerungMs,
+      }),
     );
     return id;
   },
@@ -46,6 +53,8 @@ module.exports = {
   status: (id) => m(id).status,
   backend: (id) => m(id).backend,
   tier: (id) => m(id).tier,
+  llamaPid: (id) => (m(id)._llama ? m(id)._llama.child.pid : null),
+  pidListe: (id) => m(id)._pidListe(),
   llamaLaeuft: (id) => m(id)._llama !== null,
   fallback: (id) => m(id).fallback,
   abstuerze: (id) => m(id).abstuerze,

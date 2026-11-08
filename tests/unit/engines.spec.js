@@ -210,3 +210,45 @@ test('schnelles Zurückschalten auf schnell überholt das wartende gründlich', 
   expect(await status(id)).toBe('bereit');
   expect(await E((_e, i) => global.__letterflow.engines.llamaLaeuft(i), id)).toBe(false);
 });
+
+test('stop während des Aufräumens verwaister Prozesse geht nicht verloren', async () => {
+  const id = await erzeugen('schnell', 'cpu', { aufraeumVerzoegerungMs: 800 });
+  await E((_e, i) => global.__letterflow.engines.startAsync(i), id);
+  await E((_e, i) => global.__letterflow.engines.stop(i), id);
+  expect(await E((_e, i) => global.__letterflow.engines.ergebnis(i), id)).toMatch(/gestoppt/);
+  // Es wurde nichts mehr gestartet: kein Worker, also keine Erkennung möglich.
+  await expect(E((_e, i) => global.__letterflow.engines.transcribe(i, 16000), id)).rejects.toThrow(
+    /nicht bereit/,
+  );
+});
+
+test('PID-Datei enthält nach schnellem Umschalten genau den laufenden llama-server', async () => {
+  const id = await erzeugen('schnell');
+  await E((_e, i) => global.__letterflow.engines.start(i), id);
+  await E((_e, i) => global.__letterflow.engines.setTierAsync(i, 'gruendlich'), id);
+  await E((_e, i) => global.__letterflow.engines.setTier(i, 'schnell'), id);
+  await E((_e, i) => global.__letterflow.engines.setTier(i, 'gruendlich'), id);
+  expect(await status(id)).toBe('bereit');
+  const pid = await E((_e, i) => global.__letterflow.engines.llamaPid(i), id);
+  expect(pid).toBeGreaterThan(0);
+  // Der alte Prozess meldet sein Ende womöglich erst jetzt: warten, bis nur noch der neue gelistet ist.
+  await expect.poll(() => E((_e, i) => global.__letterflow.engines.pidListe(i), id)).toEqual([pid]);
+  expect(fs.readFileSync(path.join(dataDir, 'engines.pid'), 'utf8').trim()).toBe(String(pid));
+});
+
+test('nach gescheitertem gründlich-Start ist schnell wieder bereit', async () => {
+  const id = await erzeugen('gruendlich', 'cpu', { restartDelaysMs: [10, 10, 10] });
+  await E((_e, i) => global.__letterflow.engines.start(i), id);
+  await abstuerzen(id, 'llama', 3);
+  await expect.poll(() => status(id)).toBe('fehler');
+  await E((_e, i) => global.__letterflow.engines.setTier(i, 'schnell'), id);
+  expect(await status(id)).toBe('bereit');
+});
+
+test('start() endet erst bei finalem Status, auch wenn währenddessen umgeschaltet wird', async () => {
+  const id = await erzeugen('schnell');
+  await E((_e, i) => global.__letterflow.engines.startAsync(i), id);
+  await E((_e, i) => global.__letterflow.engines.setTier(i, 'gruendlich'), id);
+  expect(await E((_e, i) => global.__letterflow.engines.ergebnis(i), id)).toBe('ok');
+  expect(await status(id)).toBe('bereit');
+});

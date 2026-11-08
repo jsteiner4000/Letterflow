@@ -44,7 +44,16 @@ function freierPort() {
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
 class EngineManager extends EventEmitter {
-  constructor({ dataDir, backend, tier, threads, prepare, restartDelaysMs, transcribeTimeoutMs }) {
+  constructor({
+    dataDir,
+    backend,
+    tier,
+    threads,
+    prepare,
+    restartDelaysMs,
+    transcribeTimeoutMs,
+    aufraeumVerzoegerungMs,
+  }) {
     super();
     this.dataDir = dataDir;
     this.backend = backend;
@@ -66,6 +75,9 @@ class EngineManager extends EventEmitter {
     this._timer = new Set();
     this._offen = new Map(); // id -> { resolve, reject, timer }
     this._seq = 0;
+    this._stopNr = 0; // zählt stop()-Aufrufe, damit ein laufendes start() sie bemerkt
+    this._fehlerArt = null; // 'worker' | 'llama': was zuletzt endgültig ausgefallen ist
+    this._aufraeumVerzoegerungMs = aufraeumVerzoegerungMs || 0; // nur Tests
     this._llamaLauf = 0; // Zähler gegen überholte llama-Starts
     this._warter = new Set(); // wartende _warteAufEnde()
     this._gewuenscht = tier; // zuletzt über setTier angeforderte Stufe
@@ -119,9 +131,11 @@ class EngineManager extends EventEmitter {
 
   // Wartet, bis der Status nicht mehr 'startet' ist. stop() lässt sie mit Fehler enden,
   // eine neuere Stufenumschaltung (abbrechen()) lässt sie still enden.
-  _warteAufEnde() {
+  // `tier`: nur setTier-Warter tragen eine Stufe und können von einer anderen Stufe überholt werden;
+  // der Warter von start() hat keine und endet erst bei finalem Status.
+  _warteAufEnde(tier = null) {
     return new Promise((resolve, reject) => {
-      const warter = {};
+      const warter = { tier };
       const fertig = (fehler) => {
         this.off('status', pruefen);
         this._warter.delete(warter);
@@ -142,10 +156,13 @@ class EngineManager extends EventEmitter {
   // --- Start und Stopp -----------------------------------------------------
 
   async start() {
+    const stopNr = this._stopNr;
     this._beenden = false;
     this._fehler = false;
     this._absturzZeiten = { worker: [], llama: [] };
     await this._verwaisteBeenden();
+    // stop() während des Aufräumens: nichts mehr starten.
+    if (stopNr !== this._stopNr) throw new Error('Die Engines wurden gestoppt.');
     this._setStatus('startet');
     this._workerStarten();
     if (this.tier === 'gruendlich') this._llamaStarten();
@@ -154,6 +171,7 @@ class EngineManager extends EventEmitter {
   }
 
   async stop() {
+    this._stopNr += 1;
     this._beenden = true;
     for (const w of [...this._warter]) w.stoppen();
     for (const t of this._timer) clearTimeout(t);
@@ -171,7 +189,7 @@ class EngineManager extends EventEmitter {
   // Der letzte Aufruf gewinnt: ältere, noch wartende Umschaltungen enden sofort.
   async setTier(tier) {
     this._gewuenscht = tier;
-    for (const w of [...this._warter]) w.abbrechen();
+    for (const w of [...this._warter]) if (w.tier && w.tier !== tier) w.abbrechen();
     if (tier === this.tier) return;
     if (tier === 'gruendlich') {
       if (this._prepare) await this._prepare({ backend: this.backend, tier });
@@ -181,13 +199,15 @@ class EngineManager extends EventEmitter {
       this._absturzZeiten.llama = [];
       this._aktualisieren();
       this._llamaStarten();
-      await this._warteAufEnde();
+      await this._warteAufEnde(tier);
       if (this._gewuenscht !== tier) return;
       if (this._status === 'fehler')
         throw new Error('Der llama-server konnte nicht gestartet werden.');
     } else {
       this.tier = tier;
       await this._llamaBeenden();
+      // Ein endgültig ausgefallener llama-server zählt ohne gründliche Stufe nicht mehr.
+      if (this._fehlerArt === 'llama') this._fehler = false;
       this._aktualisieren();
     }
   }
@@ -211,6 +231,7 @@ class EngineManager extends EventEmitter {
       } else {
         console.error(`${art} ist ${MAX_ABSTUERZE}-mal abgestürzt, gebe auf.`);
         this._fehler = true;
+        this._fehlerArt = art;
         this._aktualisieren();
         return;
       }
@@ -384,7 +405,7 @@ class EngineManager extends EventEmitter {
       beendet = true;
       clearTimeout(wache);
       this._timer.delete(wache);
-      this._pidLoeschen();
+      this._pidEntfernen(child.pid);
       if (this._llama === llama) this._llama = null;
       if (!llama.absichtlich) this._abgestuerzt('llama');
     };
@@ -426,7 +447,7 @@ class EngineManager extends EventEmitter {
       const rest = await Promise.race([ende.then(() => true), pause(BEENDEN_TIMEOUT_MS)]);
       if (rest !== true) await this._prozessBeenden(child.pid);
     }
-    this._pidLoeschen();
+    this._pidEntfernen(child.pid);
   }
 
   // --- PID-Datei und verwaiste Prozesse -----------------------------------------
@@ -434,17 +455,31 @@ class EngineManager extends EventEmitter {
   get _pidDatei() {
     return path.join(this.dataDir, 'engines.pid');
   }
-  _pidSchreiben(pid) {
+  _pidListe() {
     try {
-      fs.writeFileSync(this._pidDatei, String(pid));
+      return fs
+        .readFileSync(this._pidDatei, 'utf8')
+        .split(/\r?\n/)
+        .map((z) => Number(z.trim()))
+        .filter((p) => Number.isInteger(p) && p > 0);
+    } catch {
+      return [];
+    }
+  }
+  _pidListeSchreiben(liste) {
+    try {
+      if (liste.length) fs.writeFileSync(this._pidDatei, liste.join(String.fromCharCode(10)));
+      else fs.rmSync(this._pidDatei, { force: true });
     } catch (e) {
       console.error('PID-Datei nicht geschrieben:', e.message);
     }
   }
-  _pidLoeschen() {
-    try {
-      fs.rmSync(this._pidDatei, { force: true });
-    } catch {}
+  _pidSchreiben(pid) {
+    this._pidListeSchreiben([...new Set([...this._pidListe(), pid])]);
+  }
+  // Entfernt nur den Eintrag des beendeten Prozesses, nie die ganze Datei.
+  _pidEntfernen(pid) {
+    this._pidListeSchreiben(this._pidListe().filter((p) => p !== pid));
   }
 
   async _prozessName(pid) {
@@ -471,21 +506,15 @@ class EngineManager extends EventEmitter {
 
   // Beendet in engines.pid gelistete, noch laufende llama-server-Prozesse einer früheren Sitzung.
   async _verwaisteBeenden() {
-    let text;
-    try {
-      text = fs.readFileSync(this._pidDatei, 'utf8');
-    } catch {
-      return;
-    }
+    const liste = this._pidListe();
+    if (this._aufraeumVerzoegerungMs) await pause(this._aufraeumVerzoegerungMs);
     // Im Test läuft der Ersatz-llama unter dem Namen der Electron-Datei.
     const erwartet = this._fake ? path.basename(process.execPath).toLowerCase() : LLAMA_EXE;
-    for (const zeile of text.split(/\r?\n/)) {
-      const pid = Number(zeile.trim());
-      if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) continue;
-      if ((await this._prozessName(pid)) === erwartet) await this._prozessBeenden(pid);
+    for (const pid of liste) {
+      if (pid !== process.pid && (await this._prozessName(pid)) === erwartet)
+        await this._prozessBeenden(pid);
+      this._pidEntfernen(pid);
     }
-    this._pidLoeschen();
   }
 }
-
 module.exports = { EngineManager };

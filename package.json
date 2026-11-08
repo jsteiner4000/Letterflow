@@ -1,7 +1,7 @@
 {
   "name": "letterflow",
   "productName": "Letterflow",
-  "version": "0.4.1",
+  "version": "0.5.1",
   "description": "Lokale Diktier-App für Windows",
   "main": "src/main/main.js",
   "author": "Julius Steiner",
@@ -11,7 +11,8 @@
     "start": "electron .",
     "test": "playwright test",
     "format": "prettier --write .",
-    "engines": "node scripts/fetch-engines.js"
+    "engines": "node scripts/fetch-engines.js",
+    "helper": "node scripts/build-helper.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",
