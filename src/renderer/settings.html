@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'"
+    />
+    <title>Letterflow – Einstellungen</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Einstellungen</h1>
+
+      <section aria-labelledby="h-hotkey">
+        <h2 id="h-hotkey">Tastenkürzel</h2>
+        <div class="optionen" role="radiogroup" aria-labelledby="h-hotkey">
+          <label class="option"
+            ><input type="radio" name="hotkey" value="ctrl+win" /><span
+              >Strg + Win (Standard)</span
+            ></label
+          >
+          <label class="option"
+            ><input type="radio" name="hotkey" value="rctrl" /><span>Rechte Strg</span></label
+          >
+          <label class="option"
+            ><input type="radio" name="hotkey" value="ctrl+shift" /><span
+              >Strg + Umschalt</span
+            ></label
+          >
+        </div>
+        <p class="hinweis">Gedrückt halten zum Diktieren</p>
+      </section>
+
+      <section aria-labelledby="h-mikrofon">
+        <h2 id="h-mikrofon">Mikrofon</h2>
+        <select id="mikrofon" aria-labelledby="h-mikrofon"></select>
+      </section>
+
+      <section aria-labelledby="h-glaettung">
+        <h2 id="h-glaettung">Glättung</h2>
+        <label class="schalter">
+          <input type="checkbox" id="glaettung" />
+          <span class="regler" aria-hidden="true"></span>
+          <span>Text glätten (Füllwörter, Satzzeichen, Schreibweisen)</span>
+        </label>
+        <div class="optionen" role="radiogroup" aria-label="Glättungsmodell" id="modelle">
+          <label class="option"
+            ><input type="radio" name="smoothingModel" value="auto" />
+            <span>Automatisch</span>
+            <small>Gründlich auf starken Grafikkarten, sonst Schnell</small></label
+          >
+          <label class="option"
+            ><input type="radio" name="smoothingModel" value="schnell" />
+            <span>Schnell</span>
+            <small>Sofort, ohne Selbstkorrekturen</small></label
+          >
+          <label class="option"
+            ><input type="radio" name="smoothingModel" value="gruendlich" />
+            <span>Gründlich</span>
+            <small
+              >Mit Sprachmodell, wendet Selbstkorrekturen an – auf schwächeren PCs einige Sekunden,
+              lädt einmalig ca. 2,5 GB</small
+            ></label
+          >
+        </div>
+      </section>
+
+      <section aria-labelledby="h-woerterbuch">
+        <h2 id="h-woerterbuch">Wörterbuch</h2>
+        <form id="woerterbuch-form">
+          <input type="text" id="neuer-eintrag" aria-label="Neuer Eintrag" autocomplete="off" />
+          <button type="submit">Hinzufügen</button>
+        </form>
+        <p class="hinweis">Namen und Fachbegriffe, die genau so geschrieben werden sollen</p>
+        <ul id="eintraege"></ul>
+      </section>
+
+      <section aria-labelledby="h-allgemein">
+        <h2 id="h-allgemein">Allgemein</h2>
+        <label class="schalter">
+          <input type="checkbox" id="autostart" />
+          <span class="regler" aria-hidden="true"></span>
+          <span>Mit Windows starten</span>
+        </label>
+      </section>
+
+      <section aria-labelledby="h-system">
+        <h2 id="h-system">System</h2>
+        <ul class="status">
+          <li id="status-erkennung">Spracherkennung: Prozessor</li>
+          <li id="status-glaettung"></li>
+          <li id="status-engine"></li>
+        </ul>
+      </section>
+    </main>
+    <script src="settings.js"></script>
+  </body>
+</html>

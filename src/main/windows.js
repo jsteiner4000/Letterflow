@@ -52,7 +52,14 @@ function openAbout() {
   });
 }
 
-// Platzhalter, wird in Task 3 durch das Einstellungsfenster ersetzt.
-function openSettings() {}
+function openSettings() {
+  return openSingle('settings', 'settings.html', {
+    width: 960,
+    height: 720,
+    minWidth: 900,
+    minHeight: 520,
+    title: 'Letterflow – Einstellungen',
+  });
+}
 
 module.exports = { openAbout, openSettings };
