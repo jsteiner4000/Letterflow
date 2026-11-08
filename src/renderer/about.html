@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'"
+    />
+    <title>Über Letterflow</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      main {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 36px 28px;
+        text-align: center;
+      }
+      img {
+        width: 96px;
+        height: 96px;
+      }
+      h1 {
+        margin: 8px 0 0;
+        font-size: 24px;
+        font-weight: 600;
+      }
+      p {
+        margin: 0;
+        color: var(--text-leise);
+      }
+      #version {
+        color: var(--akzent);
+        font-weight: 600;
+      }
+      details {
+        margin-top: 18px;
+        width: 100%;
+        border-top: 1px solid var(--linie);
+        padding-top: 12px;
+      }
+      summary {
+        cursor: pointer;
+        color: var(--akzent);
+      }
+      details p {
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="../../assets/icon.png" alt="" />
+      <h1>Letterflow</h1>
+      <p id="version">Version …</p>
+      <p>© 2026 Julius Steiner. Alle Rechte vorbehalten.</p>
+      <details>
+        <summary>Drittanbieter-Lizenzen</summary>
+        <p>folgt</p>
+      </details>
+    </main>
+    <script src="about.js"></script>
+  </body>
+</html>

@@ -1,0 +1,49 @@
+:root {
+  --akzent: #0f766e;
+  --akzent-text: #ffffff;
+  --hintergrund: #f6f7f8;
+  --text: #1c1f23;
+  --text-leise: #5a6168;
+  --linie: #dde1e4;
+  --fade: 180ms ease-out;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --akzent: #3cc4ae;
+    --akzent-text: #0e1a18;
+    --hintergrund: #1b1e21;
+    --text: #eceef0;
+    --text-leise: #9aa2a9;
+    --linie: #32373c;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--hintergrund);
+  color: var(--text);
+  font-family: 'Segoe UI Variable', 'Segoe UI', sans-serif;
+  font-size: 14px;
+  animation: einblenden var(--fade) both;
+  user-select: none;
+}
+
+a,
+button {
+  color: var(--akzent);
+}
+
+@keyframes einblenden {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

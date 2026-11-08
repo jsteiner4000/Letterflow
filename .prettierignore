@@ -1,0 +1,13 @@
+node_modules/
+dist/
+resources/
+test-results/
+playwright-report/
+.superpowers/
+docs/
+branding/
+testdata/
+package-lock.json
+*.md
+*.json
+scripts/
