@@ -5,7 +5,7 @@ const readline = require('node:readline');
 const { createHotkeyMachine } = require('./hotkey-machine');
 
 const TIMEOUT_MS = 1000;
-// Wartezeiten vor Neustarts nach Abstürzen; nach mehr als MAX_FAILURES Ausfällen binnen einer Minute Aufgabe
+// Wartezeiten vor Neustarts nach Abstürzen; bei MAX_FAILURES Ausfällen binnen einer Minute Aufgabe
 const BACKOFF_MS = [300, 1000, 3000, 10000];
 const MAX_FAILURES = 5;
 const FAILURE_WINDOW_MS = 60000;
@@ -30,6 +30,7 @@ class Helper extends EventEmitter {
     this.cmd = cmd;
     this.args = args;
     this.stopped = false;
+    this.failures = [];
     this._spawn();
   }
 

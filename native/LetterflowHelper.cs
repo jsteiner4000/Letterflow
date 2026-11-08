@@ -230,14 +230,16 @@ namespace Letterflow
                                     heldKeys.Remove(k.vkCode);
                                     if (isWin && latchedWin.Remove(k.vkCode)) reinject = true;
                                 }
+                                // Im Lock, damit die Reihenfolge down/up zum Abfrage-Timer stimmt (Emit reiht nur ein)
+                                Emit("{\"ev\":\"key\",\"key\":\"" + name + "\",\"down\":" + (down ? "true" : "false") + "}");
                             }
-                            Emit("{\"ev\":\"key\",\"key\":\"" + name + "\",\"down\":" + (down ? "true" : "false") + "}");
                             if (reinject)
                             {
                                 // Startmenü unterdrücken: WIN-Loslassen zurückhalten und in fester Reihenfolge
                                 // neu senden: unbelegte Taste, dann WIN hoch. Nichts geht verloren.
-                                SendKeys(KeyInput(VK_UNASSIGNED, false), KeyInput(VK_UNASSIGNED, true), KeyInput((int)k.vkCode, true));
-                                return (IntPtr)1;
+                                // Schlägt SendInput fehl (z. B. UIPI bei erhöhtem Fenster), geht das echte WIN-Loslassen durch.
+                                if (SendKeys(KeyInput(VK_UNASSIGNED, false), KeyInput(VK_UNASSIGNED, true), KeyInput((int)k.vkCode, true)))
+                                    return (IntPtr)1;
                             }
                         }
                         else if (down)

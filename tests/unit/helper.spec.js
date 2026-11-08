@@ -115,18 +115,29 @@ test('nach Absturz ohne gehaltenes Kürzel kein cancel und Maske wird nicht erne
 
 test('ständig ausfallender Helfer: Wartezeit steigt, nach 5 Ausfällen Aufgabe mit failed', async () => {
   helper = new Helper();
-  helper.backoffMs = [10, 20, 30, 40];
+  helper.backoffMs = [30, 120, 250, 400];
   Object.assign(process.env, { FAKE_HELPER_SILENT: '', FAKE_HELPER_DIE: '1' });
   let starts = 0;
+  const times = [];
   const spawnOrig = helper._spawn.bind(helper);
   helper._spawn = () => {
     starts++;
+    times.push(Date.now());
     spawnOrig();
   };
   const failed = waitEvent(helper, 'failed');
   helper.start(process.execPath, [FAKE]);
   await failed;
   expect(starts).toBe(5);
-  await new Promise((r) => setTimeout(r, 200));
+  const gaps = times.slice(1).map((t, i) => t - times[i]);
+  expect(gaps[3]).toBeGreaterThan(gaps[0]);
+  expect(gaps[2]).toBeGreaterThan(gaps[0]);
+  await new Promise((r) => setTimeout(r, 600));
   expect(starts).toBe(5);
+
+  // Expliziter Neustart setzt die Zählung zurück
+  const failed2 = waitEvent(helper, 'failed');
+  helper.start(process.execPath, [FAKE]);
+  await failed2;
+  expect(starts).toBe(10);
 });
