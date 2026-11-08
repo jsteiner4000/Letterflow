@@ -7,6 +7,9 @@ let focus = { hwnd: 42, editable: 'no', elevated: false };
 const silent = process.env.FAKE_HELPER_SILENT === '1';
 const out = (o) => process.stdout.write(JSON.stringify(o) + '\n');
 
+// FAKE_HELPER_DIE=1: beendet sich sofort, ohne bereit zu melden (Hook-Installation fehlgeschlagen)
+if (process.env.FAKE_HELPER_DIE === '1') process.exit(2);
+
 out({ ev: 'ready' });
 
 readline.createInterface({ input: process.stdin }).on('line', (line) => {

@@ -75,3 +75,27 @@ test('einzelnes Strg löst bei ctrl+win nichts aus', () => {
   const m = createHotkeyMachine('ctrl+win');
   expect(feedAll(m, [key('lctrl', true), key('lctrl', false)])).toEqual([null, null]);
 });
+
+test('verpasstes Loslassen (Sperrbildschirm): künstliche key-up-Ereignisse stellen die Maschine wieder her', () => {
+  const m = createHotkeyMachine('ctrl+win');
+  // Win+L: das Loslassen geht auf dem sicheren Desktop verloren
+  expect(feedAll(m, [key('lctrl', true), key('lwin', true)])).toEqual([null, 'down']);
+  // der Helfer meldet später künstlich, dass beide Tasten nicht mehr gehalten werden
+  expect(feedAll(m, [key('lwin', false), key('lctrl', false)])).toEqual(['up', null]);
+  expect(feedAll(m, [key('lctrl', true), key('lwin', true)])).toEqual([null, 'down']);
+});
+
+test('verpasstes Loslassen nach Abbruch: künstliche key-up-Ereignisse geben das Kürzel wieder frei', () => {
+  const m = createHotkeyMachine('ctrl+win');
+  feedAll(m, [key('lctrl', true), { ev: 'other' }, key('lwin', true)]);
+  feedAll(m, [key('lctrl', false), key('lwin', false)]);
+  expect(feedAll(m, [key('lctrl', true), key('lwin', true)])).toEqual([null, 'down']);
+});
+
+test('reset meldet cancel nur bei gehaltenem Kürzel', () => {
+  const m = createHotkeyMachine('ctrl+win');
+  expect(m.reset()).toBe(null);
+  feedAll(m, [key('lctrl', true), key('lwin', true)]);
+  expect(m.reset()).toBe('cancel');
+  expect(feedAll(m, [key('lctrl', true), key('lwin', true)])).toEqual([null, 'down']);
+});

@@ -12,7 +12,7 @@ test.afterEach(() => {
 
 function startFake(env) {
   helper = new Helper();
-  Object.assign(process.env, { FAKE_HELPER_SILENT: '', ...env });
+  Object.assign(process.env, { FAKE_HELPER_SILENT: '', FAKE_HELPER_DIE: '', ...env });
   helper.start(process.execPath, [FAKE]);
   return helper;
 }
@@ -84,4 +84,49 @@ test('__setFocus ändert die Antwort', async () => {
   await waitEvent(h, 'ready');
   h.send({ cmd: '__setFocus', focus: { hwnd: 7, editable: 'yes', elevated: true } });
   expect(await h.focus()).toEqual({ hwnd: 7, editable: 'yes', elevated: true });
+});
+
+test('Absturz bei gehaltenem Kürzel meldet hotkey-cancel', async () => {
+  const h = startFake({});
+  await waitEvent(h, 'ready');
+  const seen = [];
+  h.on('hotkey-down', () => seen.push('down'));
+  h.on('hotkey-cancel', () => seen.push('cancel'));
+  h.on('hotkey-up', () => seen.push('up'));
+  h.send({ cmd: '__emit', msg: { ev: 'key', key: 'lctrl', down: true } });
+  h.send({ cmd: '__emit', msg: { ev: 'key', key: 'lwin', down: true } });
+  await expect.poll(() => seen).toEqual(['down']);
+  h.send({ cmd: '__exit' });
+  await expect.poll(() => seen).toEqual(['down', 'cancel']);
+});
+
+test('nach Absturz ohne gehaltenes Kürzel kein cancel und Maske wird nicht erneuert', async () => {
+  const h = startFake({});
+  await waitEvent(h, 'ready');
+  h.setMask(true);
+  const seen = [];
+  h.on('hotkey-cancel', () => seen.push('cancel'));
+  const again = waitEvent(h, 'ready');
+  h.send({ cmd: '__exit' });
+  await again;
+  expect(seen).toEqual([]);
+  expect(h.mask).toBe(false);
+});
+
+test('ständig ausfallender Helfer: Wartezeit steigt, nach 5 Ausfällen Aufgabe mit failed', async () => {
+  helper = new Helper();
+  helper.backoffMs = [10, 20, 30, 40];
+  Object.assign(process.env, { FAKE_HELPER_SILENT: '', FAKE_HELPER_DIE: '1' });
+  let starts = 0;
+  const spawnOrig = helper._spawn.bind(helper);
+  helper._spawn = () => {
+    starts++;
+    spawnOrig();
+  };
+  const failed = waitEvent(helper, 'failed');
+  helper.start(process.execPath, [FAKE]);
+  await failed;
+  expect(starts).toBe(5);
+  await new Promise((r) => setTimeout(r, 200));
+  expect(starts).toBe(5);
 });

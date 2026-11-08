@@ -65,7 +65,15 @@ function createHotkeyMachine(preset) {
     return null;
   }
 
-  return { feed };
+  // Zurücksetzen (z. B. Helfer abgestürzt): meldet 'cancel', falls das Kürzel gerade gehalten wurde
+  function reset() {
+    const wasActive = state === 'active';
+    pressed.clear();
+    state = 'idle';
+    return wasActive ? 'cancel' : null;
+  }
+
+  return { feed, reset };
 }
 
 module.exports = { createHotkeyMachine };

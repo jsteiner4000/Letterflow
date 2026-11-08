@@ -4,6 +4,7 @@
 // Nur C# 5 (Compiler aus .NET Framework 4).
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -106,6 +107,7 @@ namespace Letterflow
         const int WM_KEYDOWN = 0x0100, WM_KEYUP = 0x0101, WM_SYSKEYDOWN = 0x0104, WM_SYSKEYUP = 0x0105;
         const uint LLKHF_INJECTED = 0x10;
         const uint KEYEVENTF_KEYUP = 0x2;
+        const uint KEYEVENTF_EXTENDEDKEY = 0x1;
         const int VK_UNASSIGNED = 0xE8;
         // Markierung eigener SendInput-Ereignisse, damit der Hook sie ignoriert
         static readonly UIntPtr OwnMark = new UIntPtr(0x4C46);
@@ -114,6 +116,13 @@ namespace Letterflow
         static StreamWriter stdout;
         static readonly BlockingCollection<string> Queue = new BlockingCollection<string>();
         static volatile bool maskOn;
+        // Zustand der gehaltenen Modifier-Tasten und der Win-Tasten, bei denen die Maske gilt (unter StateLock)
+        static readonly object StateLock = new object();
+        static readonly HashSet<uint> heldKeys = new HashSet<uint>();
+        static readonly HashSet<uint> latchedWin = new HashSet<uint>();
+        static Timer pollTimer;
+        static bool pollScheduled;
+        const int PollMs = 250;
         static Native.HookProc hookProc;
 
         static void Main()
@@ -126,6 +135,8 @@ namespace Letterflow
             writer.IsBackground = true;
             writer.Start();
 
+            pollTimer = new Timer(PollHeld, null, Timeout.Infinite, Timeout.Infinite);
+
             Thread hook = new Thread(HookThread);
             hook.IsBackground = true;
             hook.Start();
@@ -135,8 +146,10 @@ namespace Letterflow
             while ((line = stdin.ReadLine()) != null)
             {
                 string l = line;
-                // Befehle in eigenen Threads, damit mask/Hook nie auf focus/paste warten
-                ThreadPool.QueueUserWorkItem(delegate { HandleCommand(l); });
+                // mask wird sofort und in Reihenfolge verarbeitet (on/off dürfen sich nie überholen);
+                // focus/paste laufen in eigenen Threads, damit sie nichts blockieren
+                if (Regex.IsMatch(l, "\"cmd\"\\s*:\\s*\"mask\"")) HandleCommand(l);
+                else ThreadPool.QueueUserWorkItem(delegate { HandleCommand(l); });
             }
             // stdin zu: Elternprozess ist weg
             Environment.Exit(0);
@@ -202,9 +215,30 @@ namespace Letterflow
                         string name = KeyName(k.vkCode);
                         if (name != null)
                         {
-                            // Startmenü unterdrücken: vor dem WIN-Loslassen eine unbelegte Taste einschieben
-                            if (up && maskOn && (k.vkCode == 0x5B || k.vkCode == 0x5C)) SendKeyTap(VK_UNASSIGNED);
+                            bool isWin = k.vkCode == 0x5B || k.vkCode == 0x5C;
+                            bool reinject = false;
+                            lock (StateLock)
+                            {
+                                if (down)
+                                {
+                                    heldKeys.Add(k.vkCode);
+                                    if (isWin && maskOn) latchedWin.Add(k.vkCode);
+                                    SchedulePoll();
+                                }
+                                else if (up)
+                                {
+                                    heldKeys.Remove(k.vkCode);
+                                    if (isWin && latchedWin.Remove(k.vkCode)) reinject = true;
+                                }
+                            }
                             Emit("{\"ev\":\"key\",\"key\":\"" + name + "\",\"down\":" + (down ? "true" : "false") + "}");
+                            if (reinject)
+                            {
+                                // Startmenü unterdrücken: WIN-Loslassen zurückhalten und in fester Reihenfolge
+                                // neu senden: unbelegte Taste, dann WIN hoch. Nichts geht verloren.
+                                SendKeys(KeyInput(VK_UNASSIGNED, false), KeyInput(VK_UNASSIGNED, true), KeyInput((int)k.vkCode, true));
+                                return (IntPtr)1;
+                            }
                         }
                         else if (down)
                         {
@@ -224,19 +258,43 @@ namespace Letterflow
             Native.INPUT i = new Native.INPUT();
             i.type = 1;
             i.u.ki.wVk = (ushort)vk;
-            i.u.ki.dwFlags = up ? KEYEVENTF_KEYUP : 0;
+            i.u.ki.dwFlags = (up ? KEYEVENTF_KEYUP : 0) | ((vk == 0x5B || vk == 0x5C) ? KEYEVENTF_EXTENDEDKEY : 0);
             i.u.ki.dwExtraInfo = OwnMark;
             return i;
         }
 
-        static void SendKeys(params Native.INPUT[] inputs)
+        static bool SendKeys(params Native.INPUT[] inputs)
         {
-            Native.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(Native.INPUT)));
+            return Native.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(Native.INPUT))) == (uint)inputs.Length;
         }
 
-        static void SendKeyTap(int vk)
+        // Läuft nur, solange Modifier-Tasten gehalten werden: erkennt verpasste Loslass-Ereignisse
+        // (z. B. Win+L oder Strg+Alt+Entf, das Loslassen geschieht auf dem sicheren Desktop)
+        static void SchedulePoll()
         {
-            SendKeys(KeyInput(vk, false), KeyInput(vk, true));
+            if (!pollScheduled)
+            {
+                pollScheduled = true;
+                pollTimer.Change(PollMs, Timeout.Infinite);
+            }
+        }
+
+        static void PollHeld(object state)
+        {
+            lock (StateLock)
+            {
+                List<uint> gone = new List<uint>();
+                foreach (uint vk in heldKeys)
+                    if (!IsDown((int)vk)) gone.Add(vk);
+                foreach (uint vk in gone)
+                {
+                    heldKeys.Remove(vk);
+                    latchedWin.Remove(vk);
+                    Emit("{\"ev\":\"key\",\"key\":\"" + KeyName(vk) + "\",\"down\":false}");
+                }
+                pollScheduled = false;
+                if (heldKeys.Count > 0) SchedulePoll();
+            }
         }
 
         // ---------- Befehle ----------
@@ -253,7 +311,17 @@ namespace Letterflow
 
                 if (cmd == "mask")
                 {
-                    maskOn = Regex.IsMatch(line, "\"on\"\\s*:\\s*true");
+                    bool on = Regex.IsMatch(line, "\"on\"\\s*:\\s*true");
+                    lock (StateLock)
+                    {
+                        maskOn = on;
+                        // Ist WIN schon gedrückt, gilt die Maske für diesen Tastendruck
+                        if (on)
+                        {
+                            if (heldKeys.Contains(0x5B)) latchedWin.Add(0x5B);
+                            if (heldKeys.Contains(0x5C)) latchedWin.Add(0x5C);
+                        }
+                    }
                 }
                 else if (cmd == "focus")
                 {
@@ -355,8 +423,8 @@ namespace Letterflow
                 Thread.Sleep(10);
             }
             if (Native.GetForegroundWindow().ToInt64() != hwnd) return "{\"ok\":false,\"reason\":\"fenster-gewechselt\"}";
-            SendKeys(KeyInput(0x11, false), KeyInput(0x56, false), KeyInput(0x56, true), KeyInput(0x11, true));
-            return "{\"ok\":true,\"reason\":null}";
+            bool sent = SendKeys(KeyInput(0x11, false), KeyInput(0x56, false), KeyInput(0x56, true), KeyInput(0x11, true));
+            return "{\"ok\":" + (sent ? "true" : "false") + ",\"reason\":null}";
         }
     }
 }

@@ -1,7 +1,7 @@
 {
   "name": "letterflow",
   "productName": "Letterflow",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Lokale Diktier-App für Windows",
   "main": "src/main/main.js",
   "author": "Julius Steiner",

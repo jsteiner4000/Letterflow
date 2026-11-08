@@ -5,7 +5,10 @@ const readline = require('node:readline');
 const { createHotkeyMachine } = require('./hotkey-machine');
 
 const TIMEOUT_MS = 1000;
-const RESTART_DELAY_MS = 300;
+// Wartezeiten vor Neustarts nach Abstürzen; nach mehr als MAX_FAILURES Ausfällen binnen einer Minute Aufgabe
+const BACKOFF_MS = [300, 1000, 3000, 10000];
+const MAX_FAILURES = 5;
+const FAILURE_WINDOW_MS = 60000;
 const FOCUS_FALLBACK = { hwnd: 0, editable: 'unknown', elevated: false };
 const PASTE_FALLBACK = { ok: false, reason: null };
 
@@ -19,6 +22,8 @@ class Helper extends EventEmitter {
     this.machine = createHotkeyMachine('ctrl+win');
     this.preset = 'ctrl+win';
     this.mask = false;
+    this.backoffMs = BACKOFF_MS;
+    this.failures = [];
   }
 
   start(cmd, args = []) {
@@ -41,12 +46,24 @@ class Helper extends EventEmitter {
       if (this.proc !== proc) return;
       this.proc = null;
       this._resolveAll();
+      // Stürzt der Helfer bei gehaltenem Kürzel ab, muss die App die Aufnahme abbrechen
+      const r = this.machine.reset();
       this.machine = createHotkeyMachine(this.preset);
-      if (!this.stopped) {
-        this.restartTimer = setTimeout(() => {
-          if (!this.stopped) this._spawn();
-        }, RESTART_DELAY_MS);
+      this.mask = false;
+      if (r) this.emit('hotkey-' + r);
+      if (this.stopped) return;
+      const now = Date.now();
+      this.failures = this.failures.filter((t) => now - t < FAILURE_WINDOW_MS);
+      this.failures.push(now);
+      if (this.failures.length >= MAX_FAILURES) {
+        this.stopped = true;
+        this.emit('failed', 'Tastaturhelfer fällt immer wieder aus');
+        return;
       }
+      const delay = this.backoffMs[Math.min(this.failures.length - 1, this.backoffMs.length - 1)];
+      this.restartTimer = setTimeout(() => {
+        if (!this.stopped) this._spawn();
+      }, delay);
     });
   }
 
@@ -74,8 +91,6 @@ class Helper extends EventEmitter {
       return;
     }
     if (m.ev === 'ready') {
-      // Nach einem Neustart den Maskenzustand erneut setzen
-      if (this.mask) this.send({ cmd: 'mask', on: true });
       this.emit('ready');
       return;
     }
