@@ -1,0 +1,41 @@
+{
+  "_hinweis": "Versionen: llama.cpp b12207, whisper.cpp b5454 (Release-Tag). vulkan.whisper ist null: whisper.cpp hat kein offizielles Windows-Vulkan-Asset (siehe docs/messungen.md). cuda wird nicht gebuendelt, sondern zur Laufzeit geladen (Task 4); cuda.llama.extra = CUDA-Laufzeit (cudart), noetig fuer llama-server mit CUDA.",
+  "cpu": {
+    "whisper": {
+      "url": "https://github.com/ggml-org/whisper.cpp/releases/download/b5454/whisper-bin-x64.zip",
+      "sha256": "6ba69e3482d7826214f90a6a9c84ca07782aec1e1d0c6a7c30c994fd5d816ccb",
+      "exe": "Release/whisper-server.exe"
+    },
+    "llama": {
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b12207/llama-b12207-bin-win-cpu-x64.zip",
+      "sha256": "24447c546dca02bc449c7369eba07608cf5b170a59042ef388712654356d0d4c",
+      "exe": "llama-server.exe"
+    }
+  },
+  "vulkan": {
+    "whisper": null,
+    "llama": {
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b12207/llama-b12207-bin-win-vulkan-x64.zip",
+      "sha256": "c8c84eff8b7eae83602d3cf2dd6defe16c47d1011b4a2514905c1817e3a909ca",
+      "exe": "llama-server.exe"
+    }
+  },
+  "cuda": {
+    "whisper": {
+      "url": "https://github.com/ggml-org/whisper.cpp/releases/download/b5454/whisper-bin-win-cuda-12.4.0-x64.zip",
+      "sha256": "afef0b881c500958921c3f5523b50e59ee2ec9b6f5cbd25b324c51ed308a957a",
+      "exe": "Release/whisper-server.exe"
+    },
+    "llama": {
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b12207/llama-b12207-bin-win-cuda-12.4-x64.zip",
+      "sha256": "ec970fa9ab5b39344fd16900d05a43abf5b37a2965f5f1a0846125f9ba0bed74",
+      "exe": "llama-server.exe",
+      "extra": [
+        {
+          "url": "https://github.com/ggml-org/llama.cpp/releases/download/b12207/cudart-llama-bin-win-cuda-12.4-x64.zip",
+          "sha256": "8c79a9b226de4b3cacfd1f83d24f962d0773be79f1e7b75c6af4ded7e32ae1d6"
+        }
+      ]
+    }
+  }
+}

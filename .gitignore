@@ -7,3 +7,5 @@ playwright-report/
 testdata/testset/*.wav
 .superpowers/
 CLAUDE.md.txt
+resources/_dl/
+testdata/bench-*.wav
