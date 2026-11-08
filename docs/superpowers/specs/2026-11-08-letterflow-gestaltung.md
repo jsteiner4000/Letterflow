@@ -1,0 +1,102 @@
+# Letterflow – Gestaltung (Redesign)
+
+Stand: 2026-11-08 · Urheber: Julius Steiner · Ergänzt `2026-11-08-letterflow-design.md` (Funktion bleibt unverändert).
+
+Entwürfe: `docs/design/` (`pille.png`, `pille-nah.png`, `pille-szenen.png`, `einstellungen-dunkel.png`, `einstellungen-hell.png`, dazu die HTML-Quellen `pille.html`, `einstellungen.html`). Bewertung: impeccable-Kritik vom 2026-11-08 (24/40), deren Punkte hier eingearbeitet sind.
+
+## Absicht
+
+Julius will eine **eigenständige Marke**: futuristisch, edel, schlicht, mit Glas-Look wie Apples „Liquid Glass“, der sich durch Pille, Taskleisten-Symbol und App zieht. Kein Effekt-Feuerwerk – **edles Glas statt Leuchten**. Leuchten ist ausschließlich Live-Zuständen vorbehalten (Pille beim Zuhören, Taskleisten-Symbol).
+
+## Entscheidungen (Julius)
+
+| Thema | Entscheidung |
+|---|---|
+| Richtung | Eigenständige Marke, Glas-Look |
+| Pille, Durchsicht | Transparentes, getöntes Electron-Fenster (Variante B, auf dem Laptop getestet). Kein Windows-Acrylic (eckiger Kasten mit Rand). Kein echtes Weichzeichnen des Hintergrunds. |
+| Pille, Farbe | **Immer dunkel** (liegt über fremden Programmen) |
+| App, Hell/Dunkel | Einstellungen, Einrichtung, Über-Dialog und Taskleisten-Symbol **folgen Windows** |
+| Glanz in der App | Ruhiges Glas mit Lichtkanten, **kein Glühen**, keine Verlaufs-Überschriften |
+| Leuchten | Nur Live: Pille beim Zuhören (Wellenform), Taskleisten-Symbol „hört zu“ |
+| Diktat-Ende | Loslassen beendet die Aufnahme und fügt ein (unverändert). Esc während des Haltens verwirft (bestehendes Verhalten), wird aber nicht prominent beworben. |
+
+## Pille
+
+Maße und Aufbau (siehe `docs/design/pille.html`, Klassen `.pill`):
+
+- Höhe 44 px, Radius 22 px, max. Breite 340 px, Innenabstand links 12 px, rechts 14 px.
+- **Glas:** Körper `linear-gradient(180deg, rgba(40,48,47,.72) 0%, rgba(20,26,25,.78) 55%, rgba(14,19,18,.84) 100%)`; Kante 1 px als Verlauf (oben `rgba(255,255,255,.55)`, Seiten ≈ .04–.10, unten `.18`); Reflex über volle Breite bis halbe Höhe (`rgba(255,255,255,.10)` → 0); Schatten `0 8px 24px rgba(0,0,0,.30)` + feine Kontaktschatten. **Kein äußeres Glühen.**
+- **Links:** Symbol des Zielprogramms 20×20 px (Radius 5). Ohne Symbol: Petrol-Monogramm „ℓ“ (Verlauf `#14B8A6 → #0F766E`).
+- **Text:** Abstand 10 px zum Symbol. Zeile 1 Programmname (Inter 600, 13 px, `#F4FBF9`), Zeile 2 Zustand (Inter 500, 12 px, `#C9DCD8`, volle Deckkraft). Lange Namen mit „…“ gekürzt.
+- **Rechts:** fester Platz 76 px (Abstand 14 px), damit die Breite beim Zustandswechsel nicht springt: Wellenform (16 Balken à 2,5 px, Abstand 2 px, Mint-Verlauf `#D9FFF7 → #2DD4BF`, ohne Glow), Ladekreis oder Häkchen.
+- Programmname kommt vom Windows-Helfer (Prozess-Datei → `FileDescription`, sonst Dateiname ohne `.exe`). Symbol per `app.getFileIcon(exePath, { size: 'small' })`. **Kein Fenstertitel** (Datenschutz).
+
+Zustände und Texte (exakt):
+
+| Zustand | Zeile 1 | Zeile 2 | Rechts | Kante |
+|---|---|---|---|---|
+| Zuhören | Programmname | „Ich höre zu …“ | Wellenform live | neutral |
+| Aufbereiten | Programmname | „Text wird aufbereitet …“ | Ladekreis | neutral |
+| Erfolg (0,7 s, dann wegschrumpfen) | „Eingefügt in {Programm}“ | „{n} Wörter“ (1 Wort: „1 Wort“) | Häkchen in Mint-Kreis | zart Mint |
+| Kein Textfeld / Fenster gewechselt (4 s) | „Kein Textfeld aktiv“ bzw. „Fenster gewechselt“ | „Mit [Strg] [V] einfügen“ (Tasten als kleine Kappen) | – | zart Orange; links orangenes „!“-Symbol statt Programmsymbol |
+| Fehler (z. B. Mikrofon) | bestehende Fehlertexte aus dem Diktat-Ablauf | – | – | zart Orange, „!“-Symbol |
+
+Bewegung (Apple-Prinzipien, kritisch gedämpfte Federn, keine Überschwinger):
+- Erscheinen: von 0,96 auf 1,0 skalieren + einblenden, ~220 ms, Ursprung unten Mitte; einmaliger, sehr dezenter Glanzstreifen über die Kante.
+- Zustandswechsel: Inhalte überblenden (~150 ms), Breite gleitet weich.
+- Verschwinden: auf 0,96 schrumpfen + ausblenden, ~160 ms (schneller als Erscheinen).
+- `prefers-reduced-motion`: nur Überblenden, keine Skalierung, kein Glanzstreifen; Wellenform als ruhiger Pegelbalken.
+- Windows „Transparenzeffekte“ aus (`prefers-reduced-transparency` bzw. Systemeinstellung): Glas voll deckend (`#151B1A`).
+- Hoher Kontrast (`forced-colors`): Systemfarben, sichtbarer Rand.
+- Bildschirmleser: Erfolg und Warnungen werden angesagt (Umsetzung dem Builder überlassen, z. B. Live-Region; da die Pille keinen Fokus nimmt, Wirkung mit der Windows-Sprachausgabe prüfen).
+
+## Taskleisten-Symbol
+
+Drei Zustände, je eine Variante für helle und dunkle Taskleiste (ICO, 16/20/24/32 px):
+- **Bereit:** ruhiges Logo-Zeichen (bestehende `tray-hell.ico` / `tray-dunkel.ico`).
+- **Hört zu:** Logo-Zeichen auf Mint/Petrol-Fläche – deutlich anders, auch bei 16 px (keine Verläufe/Glows, die bei 16 px verschwinden).
+- **Hinweis/Fehler:** Logo-Zeichen auf Orange.
+Tooltip passt sich an („Letterflow – bereit“, „… hört zu“, „… Hinweis“).
+
+## App-Fenster (Einstellungen, Einrichtung, Über)
+
+Tokens (`docs/design/einstellungen.html`, `:root` dunkel, `:root.light` hell) – als CSS-Variablen in `src/renderer/style.css`, **keine fest eingetragenen Farben in Komponenten**:
+
+| Token | Dunkel | Hell |
+|---|---|---|
+| `--bg` | `#0A0E0E` + Petrol-Hauch oben rechts | `#F3F6F5` + Petrol-Hauch |
+| `--surface` | `rgba(255,255,255,.045)` | `rgba(255,255,255,.78)` |
+| `--surface-2` | `rgba(255,255,255,.07)` | `#FFFFFF` |
+| `--edge-top` / `--edge` | `rgba(255,255,255,.16)` / `.07` | `#FFFFFF` / `rgba(11,31,29,.09)` |
+| `--ink` / `--ink-2` | `#EDF6F4` / `#A9BDB9` | `#0B1F1D` / `#4A5F5B` |
+| `--accent` / `--accent-ink` | `#3CC4AE` / `#04201C` | `#0F766E` / `#FFFFFF` |
+| `--focus` | `#5EEAD4` | `#0F766E` |
+| `--warm` | `#FDBA74` | `#C2410C` |
+
+- Glasflächen = `--surface` + Lichtkante oben (`inset 0 1px 0 --edge-top`) + 1-px-Rand (`--edge`). Radius 12 px (Karten), 8 px (Bedienelemente).
+- Schrift: **Outfit** (Überschriften, 600) und **Inter** (Text) – als Dateien mitgeliefert (SIL OFL, in `DRITTANBIETER.md`), nie aus dem Netz. Überschrift H1 22 px, Abschnitte 14 px, Text 12–13 px; Mindestgröße 11 px.
+- Fokus: 2 px Rahmen in `--focus`, Abstand 2 px, auf allen Bedienelementen.
+- Knöpfe/Karten: Hover hebt Fläche leicht an (Rand heller), Druck gibt nach (Skalierung 0,98, ~100 ms); ein dezenter Glanzstreifen beim Hover ist erlaubt, nie Dauerschleife.
+- Kontrast: Text ≥ 4,5:1, Rahmen/Bedienelemente ≥ 3:1 (gewählte Stufe hat zusätzlich einen gefüllten Auswahlkreis).
+- Fenster 880×600 (min. Breite bleibt bis 900 px prüfbar: Fenstergröße darf wachsen), Seitenleiste 200 px.
+
+Aufbau Einstellungen (Seitenleiste mit **drei** Bereichen):
+1. **Diktieren:** Tastenkürzel-Karte (Tasten als Kappen, „Gedrückt halten zum Diktieren“ / „Loslassen fügt den Text ein“, Knopf „Ändern“ öffnet die Auswahl der drei Tastenkürzel). Abschnitt „Text glätten“ mit Schalter im Kopf und Erklärung „Entfernt „ähm“, setzt Satzzeichen und deine Schreibweisen“; darunter drei Stufen-Kacheln mit Auswahlkreisen: Automatisch („Wählt nach deinem PC.“ + „Auf diesem PC: {Schnell|Gründlich}“), Schnell („Sofort, ohne Selbstkorrekturen.“), Gründlich („Wendet auch „Montag, nein, Dienstag“ an.“ + „Lädt einmalig 2,5 GB – fragt vorher“). Schalter aus → Kacheln blass und nicht wählbar. Abschnitt „Mikrofon“ mit Gerätewahl und kleiner Pegelanzeige.
+2. **Wörterbuch:** bestehende Funktion im neuen Stil.
+3. **Allgemein:** „Mit Windows starten“, Systemangaben (Spracherkennung, Glättung und wo sie läuft, Engine-Status), Version und Link zum Über-Dialog.
+- Unten in der Seitenleiste: Status-Zeile („Bereit · alles lokal“, „Startet …“, „Einrichtung nicht abgeschlossen“, „Fehler – wird neu gestartet“).
+- **Rückfrage vor „Gründlich“**, wenn das Modell noch fehlt: eigener App-Dialog „Gründliche Glättung laden? Einmalig 2,5 GB, danach offline.“ – „Laden“ / „Abbrechen“.
+
+Einrichtungsfenster und Über-Dialog übernehmen Tokens, Glasflächen, Schriften und Fokus; Inhalte bleiben.
+
+## Nicht-Ziele
+
+- Kein echtes Weichzeichnen des Desktops hinter der Pille.
+- Keine Dauer-Animationen, kein Glühen in der App, kein Violett.
+- Keine neuen Funktionen außer: Programmname/-symbol in der Pille, Erfolgs-Zustand, Warnung mit Strg+V-Hinweis, Rückfrage vor 2,5 GB, Pegelanzeige.
+
+## Dem Builder überlassen
+
+- Technik der Bildschirmleser-Ansage für die nicht fokussierbare Pille.
+- Genaue Federwerte innerhalb der genannten Zeiten.
+- Erzeugung der zusätzlichen Taskleisten-ICOs aus dem bestehenden Logo (`branding/`).

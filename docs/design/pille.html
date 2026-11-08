@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+ --glass-top:rgba(255,255,255,.14);--glass-mid:rgba(14,22,21,.84);--glass-bot:rgba(8,13,12,.90);
+ --rim:rgba(255,255,255,.16);--edge:rgba(255,255,255,.55);
+ --text:#F4FBF9;--text-2:#C9DCD8;--live:#5EEAD4;--live-2:#2DD4BF;--ok:#5EEAD4;--warn:#FDBA74;--warn-ink:#1F0F04;
+}
+*{box-sizing:border-box;margin:0}
+body{font-family:Inter,sans-serif;width:1400px;background:#05090a;color:#e9f4f2;padding:28px}
+h1{font:600 22px Outfit;letter-spacing:-.01em;margin:0 0 4px 4px}
+p.sub{color:#8fb0aa;font-size:13.5px;margin:0 0 18px 4px}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.scene{position:relative;height:200px;border-radius:14px;overflow:hidden;display:flex;align-items:flex-end;justify-content:center;padding-bottom:28px}
+.w-bunt{background:radial-gradient(circle at 20% 30%,#ff8a5c 0,transparent 42%),radial-gradient(circle at 78% 20%,#2dd4bf 0,transparent 44%),radial-gradient(circle at 60% 90%,#3b82f6 0,transparent 46%),#1e293b}
+.w-weiss{background:#fff;color:#222;font:13px/1.65 Georgia;padding:20px 26px 28px;align-items:flex-end}
+.w-weiss .doc{position:absolute;inset:16px 22px auto 22px;color:#333}
+.w-schwarz{background:#0b0b0c}
+.label{position:absolute;left:12px;top:10px;font:600 11px Inter;letter-spacing:.04em;text-transform:uppercase;color:rgba(255,255,255,.7)}
+.w-weiss .label{color:#6a7a7e}
+/* ===== Pille ===== */
+/* Edles Glas: rauchgetönter Körper, feine Kante mit Lichtverlauf, weicher Reflex über die ganze Breite, kein Leuchten */
+.pill{position:relative;isolation:isolate;display:flex;align-items:center;height:44px;max-width:340px;padding:0 14px 0 12px;border-radius:22px;color:var(--text);
+ background:linear-gradient(180deg,rgba(40,48,47,.72) 0%,rgba(20,26,25,.78) 55%,rgba(14,19,18,.84) 100%);
+ box-shadow:inset 0 -1px 2px rgba(0,0,0,.35),0 1px 1px rgba(0,0,0,.25),0 8px 24px rgba(0,0,0,.30);}
+/* Kante: 1px, oben hell, an den Seiten fast unsichtbar, unten ein schwacher Gegenreflex */
+.pill:after{content:'';position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;
+ background:linear-gradient(180deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,.10) 35%,rgba(255,255,255,.04) 65%,rgba(255,255,255,.18) 100%);
+ -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+/* Reflex: gleichmäßig über die volle Breite, endet weich auf halber Höhe */
+.pill:before{content:'';position:absolute;inset:1px 1px 50% 1px;border-radius:21px 21px 0 0;pointer-events:none;
+ background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,0))}
+.pill>*{position:relative;z-index:1}
+.app{flex:none;width:20px;height:20px;border-radius:5px;display:grid;place-items:center;font:700 11px Outfit;color:#fff;background:#185abd;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.app.ch{background:conic-gradient(#ea4335 0 33%,#fbbc05 0 66%,#34a853 0);border-radius:50%}
+.app.ch:after{content:'';width:8px;height:8px;border-radius:50%;background:#4285f4;box-shadow:0 0 0 1.5px #fff}
+.app.teams{background:#4b53bc}
+.app.fallback{background:linear-gradient(160deg,#14B8A6,#0F766E);font-size:12px}
+.meta{min-width:0;display:flex;flex-direction:column;line-height:1.2;margin-left:10px}
+.meta b,.meta span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta b{font:600 13px Inter;letter-spacing:.005em}
+.meta span{font:500 12px Inter;color:var(--text-2)}
+.slot{flex:none;width:76px;height:20px;margin-left:14px;display:flex;align-items:center;justify-content:flex-end}
+.wave{display:flex;align-items:center;gap:2px;height:20px}
+.wave i{display:block;width:2.5px;border-radius:2px;background:linear-gradient(180deg,#d9fff7,var(--live-2))}
+.spin{width:16px;height:16px;border-radius:50%;background:conic-gradient(from 0deg,transparent,var(--live));-webkit-mask:radial-gradient(circle,transparent 5.5px,#000 6.5px);margin-right:4px}
+.check{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:rgba(94,234,212,.16);box-shadow:inset 0 0 0 1px rgba(94,234,212,.5)}
+.check svg{width:12px;height:12px;stroke:var(--ok);stroke-width:2.6;fill:none}
+.icon-warn{flex:none;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--warn);color:var(--warn-ink);font:800 13px Inter}
+kbd{font:600 11px Inter;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.14);box-shadow:inset 0 0 0 1px rgba(255,255,255,.2);color:#fff}
+.pill.ok:after{background:linear-gradient(180deg,rgba(186,255,240,.65) 0%,rgba(94,234,212,.18) 40%,rgba(94,234,212,.10) 70%,rgba(94,234,212,.28) 100%)}
+.pill.warn:after{background:linear-gradient(180deg,rgba(255,226,196,.65) 0%,rgba(253,186,116,.18) 40%,rgba(253,186,116,.10) 70%,rgba(253,186,116,.28) 100%)}
+.note{grid-column:1/4;color:#9fbab5;font-size:12.5px;line-height:1.6;margin-top:6px}
+</style></head><body>
+<h1>Pille · überarbeitet nach impeccable</h1>
+<p class="sub">Immer dunkel · deckendes Textband · Glanz nur oben · 12-px-Zustandszeile · fester Platz rechts · max. 340 px · Erfolg und Warnung mit Handlung</p>
+<div class="grid" id="g"></div>
+<script>
+const w=(s)=>'<span class="wave">'+Array.from({length:16},(_,i)=>`<i style="height:${5+Math.round(15*Math.abs(Math.sin((i+s)*1.6)))}px"></i>`).join('')+'</span>';
+const P={
+ hoer:(app,name,s)=>`<div class="pill">${app}<span class="meta"><b>${name}</b><span>Ich höre zu …</span></span><span class="slot">${w(s)}</span></div>`,
+ verarb:(app,name)=>`<div class="pill">${app}<span class="meta"><b>${name}</b><span>Text wird aufbereitet …</span></span><span class="slot"><span class="spin"></span></span></div>`,
+ ok:(app,name)=>`<div class="pill ok">${app}<span class="meta"><b>Eingefügt in ${name}</b><span>12 Wörter</span></span><span class="slot"><span class="check"><svg viewBox="0 0 12 12"><path d="M2.5 6.3l2.3 2.3 4.7-5"/></svg></span></span></div>`,
+ warn:()=>`<div class="pill warn"><span class="icon-warn">!</span><span class="meta"><b>Kein Textfeld aktiv</b><span>Mit <kbd>Strg</kbd> <kbd>V</kbd> einfügen</span></span></div>`};
+const word='<span class="app">W</span>',ch='<span class="app ch"></span>',teams='<span class="app teams">T</span>',fb='<span class="app fallback">ℓ</span>';
+const S=[
+ ['w-bunt','Zuhören · buntes Hintergrundbild',P.hoer(word,'Word',1)],
+ ['w-weiss','Zuhören · weißes Dokument',P.hoer(ch,'Chrome',4)],
+ ['w-schwarz','Zuhören · schwarzer Hintergrund',P.hoer(teams,'Microsoft Teams (Arbeit oder Schule)',2)],
+ ['w-weiss','Aufbereiten',P.verarb(word,'Word')],
+ ['w-bunt','Erfolg · 0,7 s, dann schrumpft sie weg',P.ok(word,'Word')],
+ ['w-weiss','Warnung · bleibt 4 s',P.warn()],
+ ['w-schwarz','Programm ohne eigenes Symbol',P.hoer(fb,'Notizen-Tool',3)],
+];
+document.getElementById('g').innerHTML=S.map(([c,l,p])=>`<div class="scene ${c}">${c==='w-weiss'?'<div class="doc">Hallo Tim, ich schick dir das Meeting-Recap nach dem Standup. Lass uns morgen kurz drüber sprechen, ob wir das Feature noch in den Sprint nehmen.</div>':''}<span class="label">${l}</span>${p}</div>`).join('')+
+`<p class="note">Breite bleibt beim Wechsel Zuhören → Aufbereiten → Erfolg gleich (fester Platz rechts). Bei „Transparenzeffekte aus“ wird das Glas voll deckend, bei „Bewegung reduzieren“ entfallen Schimmer und Wellen-Animation (ruhiger Pegelbalken). Bildschirmleser bekommt „Eingefügt in Word“ bzw. die Warnung angesagt.</p>`;
+</script></body></html>

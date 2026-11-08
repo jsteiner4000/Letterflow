@@ -9,3 +9,4 @@ testdata/testset/*.wav
 CLAUDE.md.txt
 resources/_dl/
 testdata/bench-*.wav
+.impeccable/

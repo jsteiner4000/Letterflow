@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Tokens dunkel */
+:root{--bg:#0A0E0E;--bg-tint:rgba(15,118,110,.10);--surface:rgba(255,255,255,.045);--surface-2:rgba(255,255,255,.07);--edge-top:rgba(255,255,255,.16);--edge:rgba(255,255,255,.07);
+ --ink:#EDF6F4;--ink-2:#A9BDB9;--accent:#3CC4AE;--accent-ink:#04201C;--select:rgba(60,196,174,.10);--select-edge:rgba(60,196,174,.60);--warm:#FDBA74;--focus:#5EEAD4}
+:root.light{--bg:#F3F6F5;--bg-tint:rgba(15,118,110,.07);--surface:rgba(255,255,255,.78);--surface-2:#fff;--edge-top:#fff;--edge:rgba(11,31,29,.09);
+ --ink:#0B1F1D;--ink-2:#4A5F5B;--accent:#0F766E;--accent-ink:#fff;--select:rgba(15,118,110,.07);--select-edge:#0F766E;--warm:#C2410C;--focus:#0F766E}
+*{box-sizing:border-box;margin:0}
+body{font-family:Inter,sans-serif;color:var(--ink);width:880px;height:600px;overflow:hidden;background:radial-gradient(600px 300px at 100% 0,var(--bg-tint),transparent 70%),var(--bg);display:grid;grid-template-columns:200px 1fr}
+.surface{background:var(--surface);border-radius:12px;box-shadow:inset 0 1px 0 var(--edge-top),inset 0 0 0 1px var(--edge)}
+aside{padding:20px 10px;display:flex;flex-direction:column;border-right:1px solid var(--edge)}
+.brand{display:flex;align-items:center;gap:9px;margin:0 8px 22px}
+.brand .logo{width:24px;height:24px;border-radius:7px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font:700 14px Outfit}
+.brand b{font:600 16px Outfit;letter-spacing:-.01em}
+nav a{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;margin-bottom:2px;border-radius:8px;font:500 13px Inter;color:var(--ink-2);text-decoration:none}
+nav a.on{color:var(--ink);background:var(--surface-2);box-shadow:inset 0 1px 0 var(--edge-top),inset 0 0 0 1px var(--edge)}
+nav a.on svg{color:var(--accent)}
+nav a.focus{outline:2px solid var(--focus);outline-offset:2px}
+nav svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}
+.status{margin-top:auto;display:flex;align-items:center;gap:8px;padding:10px;font-size:12px;color:var(--ink-2)}
+.status i{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+main{padding:26px 30px;overflow:hidden}
+h1{font:600 22px Outfit;letter-spacing:-.015em;margin-bottom:4px}
+.lead{color:var(--ink-2);font-size:13px;margin-bottom:18px}
+.hero{display:flex;align-items:center;gap:16px;padding:14px 16px;margin-bottom:22px}
+kbd{font:600 13px Inter;min-width:46px;text-align:center;padding:7px 10px;border-radius:8px;color:var(--ink);background:var(--surface-2);box-shadow:inset 0 1px 0 var(--edge-top),inset 0 -2px 0 var(--edge),inset 0 0 0 1px var(--edge)}
+.keys{display:flex;gap:6px}
+.hero .t b{display:block;font:600 13.5px Inter}.hero .t span{color:var(--ink-2);font-size:12.5px}
+.btn{margin-left:auto;height:32px;padding:0 14px;display:grid;place-items:center;border-radius:8px;font:600 12.5px Inter;color:var(--ink);background:var(--surface-2);box-shadow:inset 0 1px 0 var(--edge-top),inset 0 0 0 1px var(--edge)}
+.sec{display:flex;align-items:center;justify-content:space-between;margin:0 0 10px}
+.sec h2{font:600 14px Outfit;letter-spacing:.005em}
+.sec .h{color:var(--ink-2);font-size:12px;margin-top:2px}
+.sw{width:40px;height:22px;border-radius:99px;position:relative;background:var(--accent);flex:none}
+.sw:after{content:'';position:absolute;right:2px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+.tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:22px}
+.tier{position:relative;padding:12px 12px 12px 36px}
+.tier .r{position:absolute;left:12px;top:13px;width:16px;height:16px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink-2)}
+.tier.on{background:var(--select);box-shadow:inset 0 1px 0 var(--edge-top),inset 0 0 0 1.5px var(--select-edge)}
+.tier.on .r{box-shadow:inset 0 0 0 1.5px var(--accent)}.tier.on .r:after{content:'';position:absolute;inset:4px;border-radius:50%;background:var(--accent)}
+.tier b{display:block;font:600 13px Inter;margin-bottom:3px}
+.tier p{color:var(--ink-2);font-size:12px;line-height:1.45}
+.tier .pc{display:inline-block;margin-top:6px;font:600 11.5px Inter;color:var(--accent)}
+.tier .dl{display:inline-block;margin-top:6px;font:500 11.5px Inter;color:var(--ink-2)}
+.row{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.row .t b{display:block;font:600 13px Inter}.row .t span{color:var(--ink-2);font-size:12px}
+.sel{margin-left:auto;min-width:220px;height:32px;padding:0 10px;border-radius:8px;display:flex;align-items:center;justify-content:space-between;font:500 12.5px Inter;background:var(--surface-2);box-shadow:inset 0 1px 0 var(--edge-top),inset 0 0 0 1px var(--edge)}
+.sel svg{width:14px;height:14px;stroke:var(--ink-2);fill:none;stroke-width:2}
+.meter{display:flex;gap:2px;align-items:center;margin-left:6px}.meter i{width:3px;height:10px;border-radius:2px;background:var(--edge)}.meter i.a{background:var(--accent)}
+</style></head><body>
+<aside>
+ <div class="brand"><span class="logo">ℓ</span><b>Letterflow</b></div>
+ <nav>
+  <a class="on" href="#"><svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3"/></svg>Diktieren</a>
+  <a href="#"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/></svg>Wörterbuch</a>
+  <a class="focus" href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Allgemein</a>
+ </nav>
+ <div class="status"><i></i>Bereit · alles lokal</div>
+</aside>
+<main>
+ <h1>Diktieren</h1>
+ <p class="lead">Halten, sprechen, loslassen – der Text erscheint dort, wo dein Cursor steht.</p>
+ <div class="hero surface"><div class="keys"><kbd>Strg</kbd><kbd>Win</kbd></div><div class="t"><b>Gedrückt halten zum Diktieren</b><span>Loslassen fügt den Text ein</span></div><span class="btn">Ändern</span></div>
+ <div class="sec"><div><h2>Text glätten</h2><div class="h">Entfernt „ähm“, setzt Satzzeichen und deine Schreibweisen</div></div><span class="sw"></span></div>
+ <div class="tiers">
+  <div class="tier surface on"><span class="r"></span><b>Automatisch</b><p>Wählt nach deinem PC.</p><span class="pc">Auf diesem PC: Schnell</span></div>
+  <div class="tier surface"><span class="r"></span><b>Schnell</b><p>Sofort, ohne Selbstkorrekturen.</p></div>
+  <div class="tier surface"><span class="r"></span><b>Gründlich</b><p>Wendet auch „Montag, nein, Dienstag“ an.</p><span class="dl">Lädt einmalig 2,5 GB – fragt vorher</span></div>
+ </div>
+ <div class="sec"><div><h2>Mikrofon</h2><div class="h">Wird nur während der Aufnahme geöffnet</div></div></div>
+ <div class="row surface"><div class="t"><b>Eingabegerät</b><span>Pegel testen: einfach sprechen</span></div><span class="meter"><i class="a"></i><i class="a"></i><i class="a"></i><i></i><i></i></span><span class="sel">Windows-Standard<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span></div>
+</main>
+</body></html>
