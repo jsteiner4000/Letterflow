@@ -18,7 +18,7 @@
 - Vor jedem Commit `npm run format`; vor dem Push `npm test` grün.
 - Instabile Tests auf den richtigen Zustand warten lassen, nie abschalten.
 - Einstellungsfenster bei 900, 1300 und 1700 px Breite sowie im Vollbild (ohne Kopfzeile) prüfen.
-- Eigene Meldungen im App-Stil, keine `dialog.showMessageBox`. Weiche Ein-/Ausblendungen (150–200 ms, `ease-out`), Akzentfarbe `#6D5EF5`, Schrift `"Segoe UI Variable", "Segoe UI", sans-serif`, hell/dunkel nach `nativeTheme`. Fenster erst nach `ready-to-show` zeigen (kein schwarzes Bild, kein Flackern).
+- Eigene Meldungen im App-Stil, keine `dialog.showMessageBox`. Weiche Ein-/Ausblendungen (150–200 ms, `ease-out`), Akzentfarbe Petrol `#0F766E` (hell; weiße Schrift darauf), im dunklen Design `#3CC4AE` (dunkle Schrift darauf) – siehe `branding/LOGO.md`, Schrift `"Segoe UI Variable", "Segoe UI", sans-serif`, hell/dunkel nach `nativeTheme`. Fenster erst nach `ready-to-show` zeigen (kein schwarzes Bild, kein Flackern).
 - Einstellungen werden sofort gespeichert (kein „Speichern“-Knopf, daher keine Rückfrage beim Schließen nötig).
 - Keine Admin-Rechte. Server nur auf `127.0.0.1`, zufälliger freier Port. Kein Netzwerkverkehr außer Modell-/Engine-Download.
 - Nur Modelle mit Apache-2.0- oder MIT-Lizenz.
@@ -66,14 +66,14 @@ Kein TDD – dieser Task liefert Fakten, die spätere Tasks als Werte übernehme
 ### Task 2: Projektgerüst, Taskleisten-Symbol, Über-Dialog
 
 **Files:**
-- Create: `package.json`, `.prettierrc`, `playwright.config.js`, `LICENSE`, `src/main/main.js`, `src/main/tray.js`, `src/main/windows.js`, `src/preload/preload.js`, `src/renderer/about.html`, `src/renderer/style.css`, `assets/icon.png` (256 px), `assets/tray.png` (32 px), `tests/e2e/helpers.js`, `tests/e2e/app.spec.js`
+- Create: `package.json`, `.prettierrc`, `playwright.config.js`, `LICENSE`, `src/main/main.js`, `src/main/tray.js`, `src/main/windows.js`, `src/preload/preload.js`, `src/renderer/about.html`, `src/renderer/style.css`, `tests/e2e/helpers.js`, `tests/e2e/app.spec.js`
 
 **Interfaces:**
 - Produces: `npm` scripts `start`, `test` (`playwright test`), `format` (`prettier --write .`), `engines` (`node scripts/fetch-engines.js`), `helper` (Task 6), `dist` (Task 12).
 - Produces: Testmodus über Umgebungsvariable `LETTERFLOW_TEST=1`: Daten-Ordner aus `LETTERFLOW_DATA_DIR` (statt `%LOCALAPPDATA%\Letterflow`), Test-Brücke `global.__letterflow` (Objekt, in späteren Tasks erweitert) für `electronApp.evaluate`.
 - Produces: `tests/e2e/helpers.js` → `launchApp({ dataDir?, env? }): Promise<{ app: ElectronApplication, dataDir: string }>` (legt frisches Temp-Verzeichnis an, setzt Testvariablen).
 - Produces: `windows.js` → `openAbout()`, `openSettings()` (Task 3), `openSetup()` (Task 4); jede Funktion gibt das bestehende Fenster nach vorn statt ein zweites zu öffnen.
-- Produces: `src/renderer/style.css` mit CSS-Variablen `--akzent: #6D5EF5`, hell/dunkel über `prefers-color-scheme`.
+- Produces: `src/renderer/style.css` mit CSS-Variablen `--akzent: #0F766E` (dunkel: `#3CC4AE`), hell/dunkel über `prefers-color-scheme`.
 
 - [ ] **Step 1: Failing test** `tests/e2e/app.spec.js`
 
@@ -93,7 +93,7 @@ test('Über-Dialog zeigt Urheber und Version', async () => {
 });
 ```
 - [ ] **Step 2:** `npm test` → FAIL (keine App).
-- [ ] **Step 3:** `npm init`, `npm i -D electron electron-builder @playwright/test prettier`; `version: "0.1.0"`, `main: "src/main/main.js"`, `productName: "Letterflow"`, `author: "Julius Steiner"`, `license: "UNLICENSED"`. `main.js`: `app.requestSingleInstanceLock()` (zweite Instanz beendet sich mit Code 0, erste öffnet die Einstellungen), kein Hauptfenster, `app.on('window-all-closed')` beendet die App **nicht**. `tray.js`: Tooltip `Letterflow`, Menü „Einstellungen“, „Über Letterflow“, Trennlinie, „Beenden“. Über-Dialog: Name, Version (`app.getVersion()`), „© 2026 Julius Steiner. Alle Rechte vorbehalten.“, Link auf `DRITTANBIETER.md`-Inhalt (Task 12). Icons: einfache Welle/Feder in Akzentfarbe, als PNG erzeugt (z. B. per einmaligem Skript mit `BrowserWindow.capturePage`).
+- [ ] **Step 3:** `npm init`, `npm i -D electron electron-builder @playwright/test prettier`; `version: "0.1.0"`, `main: "src/main/main.js"`, `productName: "Letterflow"`, `author: "Julius Steiner"`, `license: "UNLICENSED"`. `main.js`: `app.requestSingleInstanceLock()` (zweite Instanz beendet sich mit Code 0, erste öffnet die Einstellungen), kein Hauptfenster, `app.on('window-all-closed')` beendet die App **nicht**. `tray.js`: Tooltip `Letterflow`, Menü „Einstellungen“, „Über Letterflow“, Trennlinie, „Beenden“. Über-Dialog: Name, Version (`app.getVersion()`), „© 2026 Julius Steiner. Alle Rechte vorbehalten.“, Link auf `DRITTANBIETER.md`-Inhalt (Task 12). Icons liegen fertig in `assets/` (Logo „Schreibfluss“, Quelle `branding/`, nicht neu zeichnen): `assets/tray-hell.ico` (weiß, für dunkle Taskleiste) bzw. `assets/tray-dunkel.ico` (für helle Taskleiste) – Auswahl über `nativeTheme.shouldUseDarkColors`, bei `nativeTheme.on('updated')` per `tray.setImage()` wechseln; `assets/letterflow.ico` als Fenster-Symbol; `assets/icon.png` (256 px) im Über-Dialog.
 - [ ] **Step 4:** `npm test` → PASS.
 - [ ] **Step 5:** `npm run format`; Commit `Grundgerüst mit Taskleisten-Symbol und Über-Dialog; Version 0.1.0`.
 
@@ -460,7 +460,7 @@ test('Stille wird verworfen', async () => { /* Fake-Audio stumm → kein paste, 
 
 **Interfaces:**
 - Consumes: `resources/engines/{cpu,vulkan}`, `resources/bin/letterflow-helper.exe`.
-- Produces: `npm run dist` → `dist/Letterflow-Setup-<version>.exe` (NSIS, pro Benutzer, ohne Admin, Desktop- und Startmenü-Verknüpfung, `extraResources`: Engines + Helfer, `asar: true`).
+- Produces: `npm run dist` → `dist/Letterflow-Setup-<version>.exe` (NSIS, pro Benutzer, ohne Admin, Desktop- und Startmenü-Verknüpfung, `extraResources`: Engines + Helfer, `asar: true`, `win.icon` und Installer-Symbol: `assets/letterflow.ico`).
 - `auto-release.yml`: bei Push auf `main`; liest `version`; existiert Tag `v<version>` noch nicht → `windows-latest`: `npm ci`, `npm run engines`, `npm run helper`, `npm test`, `npm run dist`, Tag setzen, `gh release create v<version> dist/*.exe` mit `GITHUB_TOKEN` (Repo privat, Releases nur für Julius sichtbar). Kein electron-updater.
 - `LIESMICH.md`: Installieren (SmartScreen: „Weitere Informationen“ → „Trotzdem ausführen“), erster Start (einmaliger Download ~X GB), Benutzung (STRG+WIN halten, sprechen, loslassen), Einstellungen, Hilfe bei Problemen (Mikrofon-Datenschutz, Admin-Programme, Antivirus-Meldung wegen Tastatur-Hook), neue Version = neuen Installer ausführen, Deinstallation (Daten in `%LOCALAPPDATA%\Letterflow`).
 - `DRITTANBIETER.md`: Lizenztexte/Links für Electron, whisper.cpp (MIT), llama.cpp (MIT), Whisper-Modell (MIT), Glättungsmodelle (Apache 2.0); Über-Dialog zeigt die Datei.

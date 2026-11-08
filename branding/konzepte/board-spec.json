@@ -1,0 +1,29 @@
+{
+  "brand": "Letterflow",
+  "tagline": "Sprechen. Loslassen. Steht da.",
+  "brief": "Windows-Diktier-App, komplett lokal und kostenlos: STRG+WIN halten, sprechen, loslassen – geglätteter Text erscheint im aktiven Feld. Für Julius und Freunde; Deutsch/Englisch gemischt.",
+  "adjectives": ["fließend", "ruhig", "präzise", "privat"],
+  "criteria": "Erfolg: weg von Mikrofon, Sprechblase und Schallbalken; lesbar als 16-px-Symbol in der Taskleiste; funktioniert einfarbig, hell und dunkel.",
+  "industry": "software",
+  "mockups": ["app-icon", "readme", "sticker", "social", "business-card", "terminal"],
+  "nav": ["Installieren", "Anleitung", "Über"],
+  "brand_color": "#0F766E",
+  "greyscale": false,
+  "designer": "Julius Steiner",
+  "round": 2,
+  "concepts": [
+    {
+      "name": "Schreibfluss",
+      "symbol": "../symbol.svg",
+      "lockup": "../lockup-horizontal.svg",
+      "idea": "Ein handgeschriebenes l fließt in eine gerade Grundlinie – aus gesprochener Sprache wird sauberer Text.",
+      "rationale": [
+        "Letter + Flow in einem einzigen Strich",
+        "Eigener monoliner Schriftzug mit tt-Ligatur, gleiche Rundungen wie das Zeichen",
+        "Eigene Kleinversion für 16 px in der Taskleiste"
+      ]
+    }
+  ],
+  "recommendation": "Schreibfluss in Petrol #0F766E – ruhig, eigenständig in einer Kategorie voller Mikrofone und Schallbalken.",
+  "next_steps": ["Icons in die Electron-App einbauen", "Markenrecherche (DPMA/EUIPO) vor Weitergabe", "Pille-Animation: Schleife zeichnet sich beim Diktat"]
+}
