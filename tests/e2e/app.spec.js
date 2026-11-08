@@ -29,4 +29,9 @@ test('Über-Dialog zeigt Urheber und Version', async () => {
   const win = await app.firstWindow();
   await expect(win.getByText('Julius Steiner')).toBeVisible();
   await expect(win.getByText(/Version \d+\.\d+\.\d+/)).toBeVisible();
+  // Layout aus about.css wird wirklich angewendet, das Logo wird geladen.
+  const icon = win.locator('img');
+  await expect(icon).toHaveCSS('width', '96px');
+  await expect(win.locator('h1')).toHaveCSS('font-size', '24px');
+  await expect.poll(() => icon.evaluate((img) => img.naturalWidth)).toBeGreaterThan(0);
 });

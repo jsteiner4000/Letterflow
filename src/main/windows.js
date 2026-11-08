@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, nativeTheme } = require('electron');
 const path = require('node:path');
 
 const ASSETS = path.join(__dirname, '..', '..', 'assets');
@@ -22,7 +22,8 @@ function openSingle(key, datei, optionen) {
     show: false,
     autoHideMenuBar: true,
     icon: path.join(ASSETS, 'letterflow.ico'),
-    backgroundColor: '#00000000',
+    // Deckender Hintergrund passend zu style.css (--hintergrund), kein Schwarz vor dem ersten Paint.
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1b1e21' : '#f6f7f8',
     webPreferences: {
       preload: PRELOAD,
       contextIsolation: true,
