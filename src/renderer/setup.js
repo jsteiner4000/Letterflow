@@ -21,20 +21,20 @@ function fortschrittAnzeigen() {
   $('fortschritt-text').textContent = `${gb(geladen)} von ${gb(gesamt)} GB · ${prozent} %`;
 }
 
-function fehlerAnzeigen(code) {
+function fehlerAnzeigen(code, auto = false) {
   const meldung = code ? TEXTE[code] || TEXTE.network : '';
   $('fehler').textContent = meldung;
   $('fehler').hidden = !code;
   // Bei beschädigter Datei lädt die App von selbst neu, sonst entscheidet die Person.
-  $('erneut').hidden = !code || code === 'checksum';
-  if (code && code !== 'checksum') $('erneut').focus();
+  $('erneut').hidden = !code || auto;
+  if (code && !auto) $('erneut').focus();
 }
 
 api.setup.onProgress(({ id, received }) => {
   empfangen.set(id, received);
   fortschrittAnzeigen();
 });
-api.setup.onError(({ code }) => fehlerAnzeigen(code));
+api.setup.onError(({ code, auto }) => fehlerAnzeigen(code, auto));
 $('erneut').addEventListener('click', () => {
   $('erneut').hidden = true;
   api.setup.retry();
@@ -47,5 +47,5 @@ api.setup.plan().then((plan) => {
   $('intro').textContent =
     `Letterflow lädt einmalig die Sprachmodelle herunter (ca. ${gb(gesamt)} GB). Danach funktioniert alles offline.`;
   fortschrittAnzeigen();
-  if (plan.error) fehlerAnzeigen(plan.error);
+  if (plan.error) fehlerAnzeigen(plan.error.code, plan.error.auto);
 });

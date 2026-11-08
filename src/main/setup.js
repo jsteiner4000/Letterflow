@@ -16,6 +16,7 @@ const PROGRESS_INTERVALL_MS = 100;
 let phase = 'unbekannt'; // 'unbekannt' | 'laeuft' | 'fertig'
 let laufend = null; // Promise der laufenden Einrichtung
 let plan = null; // { files: [{ id, bytes, received }], totalBytes, error }
+let testAusfall = false; // nur Tests: der nächste Lauf scheitert unerwartet
 let wiederholen = null; // löst die Wartezeit nach einem Fehler auf
 
 // Sendet an alle Fenster (nur das Einrichtungsfenster hört zu).
@@ -24,9 +25,10 @@ function senden(kanal, daten) {
     if (!win.isDestroyed()) win.webContents.send(kanal, daten);
 }
 
-function fehlerMelden(code) {
-  if (plan) plan.error = code;
-  senden('setup:error', { code });
+// auto: die App versucht es von selbst weiter, der Knopf bleibt dann verborgen.
+function fehlerMelden(code, auto = false) {
+  if (plan) plan.error = code ? { code, auto } : null;
+  senden('setup:error', { code, auto });
 }
 
 ipcMain.handle('setup:plan', () => plan);
@@ -86,6 +88,10 @@ async function eintragLaden(eintrag) {
 }
 
 async function ausfuehren(fehlend) {
+  if (testAusfall) {
+    testAusfall = false;
+    throw new Error('Testausfall');
+  }
   const versuche = new Map();
   // Platz für alles Fehlende vorab prüfen (angefangene Teildateien zählen nicht doppelt).
   for (;;) {
@@ -106,10 +112,11 @@ async function ausfuehren(fehlend) {
       } catch (e) {
         const code = e instanceof DownloadError ? e.code : 'network';
         if (!(e instanceof DownloadError)) console.error('Einrichtung:', e);
-        fehlerMelden(code);
         const n = (versuche.get(eintrag.id) || 0) + 1;
         versuche.set(eintrag.id, n);
-        if (code === 'checksum' && n <= MAX_AUTO_WIEDERHOLUNGEN) {
+        const auto = code === 'checksum' && n <= MAX_AUTO_WIEDERHOLUNGEN;
+        fehlerMelden(code, auto);
+        if (auto) {
           await new Promise((r) => setTimeout(r, 1500)); // Meldung kurz lesbar lassen
         } else {
           await new Promise((r) => (wiederholen = r));
@@ -142,12 +149,16 @@ async function ensureSetup({ backend, tier }) {
     totalBytes: fehlend.reduce((summe, f) => summe + f.bytes, 0),
     error: null,
   };
-  laufend = ausfuehren(fehlend).then(() => {
-    phase = 'fertig';
-    laufend = null;
-    plan = null;
-    windows.closeSetup();
-  });
+  laufend = ausfuehren(fehlend)
+    .then(() => {
+      phase = 'fertig';
+    })
+    .finally(() => {
+      // Auch nach einem Fehler zurücksetzen, damit ein neuer Aufruf neu startet.
+      laufend = null;
+      plan = null;
+      windows.closeSetup();
+    });
   windows.openSetup();
   return laufend;
 }
@@ -157,6 +168,10 @@ function showSetup() {
   if (laufend) windows.openSetup();
 }
 
+const testAusfallNaechstes = () => {
+  testAusfall = true;
+};
+
 const isComplete = () => phase === 'fertig';
 
-module.exports = { ensureSetup, showSetup, isComplete };
+module.exports = { ensureSetup, showSetup, isComplete, testAusfallNaechstes };

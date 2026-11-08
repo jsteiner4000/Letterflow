@@ -38,8 +38,8 @@ progress::-webkit-progress-value {
 .fehler {
   color: var(--text);
   padding: 10px 12px;
-  border: 1px solid var(--linie);
-  border-left: 3px solid var(--akzent);
+  border: 1px solid color-mix(in srgb, var(--akzent) 35%, var(--linie));
+  background: color-mix(in srgb, var(--akzent) 8%, var(--hintergrund));
   border-radius: 6px;
   animation: einblenden var(--fade) both;
 }

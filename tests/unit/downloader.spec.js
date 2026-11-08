@@ -100,3 +100,22 @@ test('zu wenig Speicherplatz ergibt disk, ohne etwas zu laden', async () => {
   expect(fehler.code).toBe('disk');
   expect(server.anfragen).toHaveLength(0);
 });
+
+test('vollständige Teildatei wird ohne neue Anfrage geprüft und umbenannt', async () => {
+  server = await startFileServer({ files: { '/a.bin': DATEN } });
+  const dest = path.join(dir, 'a.bin');
+  fs.writeFileSync(dest + '.part', DATEN);
+  await download({ url: `${server.url}/a.bin`, sha256: sha(DATEN), dest, bytes: DATEN.length });
+  expect(server.anfragen).toHaveLength(0);
+  expect(fs.readFileSync(dest).equals(DATEN)).toBe(true);
+  expect(fs.existsSync(dest + '.part')).toBe(false);
+});
+
+test('vollständige, aber falsche Teildatei wird verworfen und neu geladen', async () => {
+  server = await startFileServer({ files: { '/a.bin': DATEN } });
+  const dest = path.join(dir, 'a.bin');
+  fs.writeFileSync(dest + '.part', Buffer.alloc(DATEN.length, 1));
+  await download({ url: `${server.url}/a.bin`, sha256: sha(DATEN), dest, bytes: DATEN.length });
+  expect(server.anfragen.at(-1).range).toBeNull();
+  expect(fs.readFileSync(dest).equals(DATEN)).toBe(true);
+});

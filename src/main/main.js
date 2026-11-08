@@ -81,6 +81,8 @@ if (!app.requestSingleInstanceLock()) {
         openSettings: () => windows.openSettings(),
         loginItemCalls: () => loginItemCalls,
         status: () => getStatus(),
+        ensureSetup: (optionen) => setup.ensureSetup(optionen),
+        setupAusfallNaechstes: () => setup.testAusfallNaechstes(),
       };
     }
   });

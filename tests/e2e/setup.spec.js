@@ -92,3 +92,57 @@ test('Netzwerkfehler zeigt Meldung mit "Erneut versuchen"', async () => {
   await expect.poll(() => fensterAnzahl(app)).toBe(0);
   expect(await app.evaluate(() => global.__letterflow.status().engines)).not.toBe('fehlt');
 });
+
+test('dauerhaft beschädigter Download bietet nach den Neuversuchen "Erneut versuchen" an', async () => {
+  // Server liefert immer andere Daten als im Katalog: Prüfsumme stimmt nie.
+  const falsch = Object.fromEntries(IDS.map((id) => [`/${id}`, crypto.randomBytes(40000)]));
+  const s = await startFileServer({ files: falsch });
+  server.push(s);
+  const { win } = await einrichtungStarten(s.url);
+  await expect(win.getByText('Datei beschädigt – wird neu geladen.')).toBeVisible();
+  await expect(win.getByRole('button', { name: 'Erneut versuchen' })).toBeVisible({
+    timeout: 15000,
+  });
+});
+
+test('nach einem unerwarteten Fehler startet ein neuer Aufruf erneut', async () => {
+  const s = await startFileServer({ files: serverDateien });
+  server.push(s);
+  // Alle Dateien liegen schon da: der Start-Lauf ist sofort fertig.
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'letterflow-setup-'));
+  const ordner = path.join(dataDir, 'models', 'sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8');
+  fs.mkdirSync(ordner, { recursive: true });
+  const namen = {
+    'parakeet-encoder': 'encoder.int8.onnx',
+    'parakeet-decoder': 'decoder.int8.onnx',
+    'parakeet-joiner': 'joiner.int8.onnx',
+    'parakeet-tokens': 'tokens.txt',
+  };
+  for (const id of IDS) fs.writeFileSync(path.join(ordner, namen[id]), dateien[id]);
+  const katalog = path.join(dataDir, 'testkatalog.json');
+  fs.writeFileSync(
+    katalog,
+    JSON.stringify(
+      Object.fromEntries(IDS.map((id) => [id, { sha256: sha(dateien[id]), bytes: 40000 }])),
+    ),
+  );
+  const { app } = await (async () => {
+    const instanz = await launchApp({
+      dataDir,
+      env: { LETTERFLOW_CATALOG_URL_BASE: s.url, LETTERFLOW_CATALOG_FILE: katalog },
+    });
+    geoeffnet.push(instanz.app);
+    return instanz;
+  })();
+  await expect.poll(() => app.evaluate(() => global.__letterflow?.status().engines)).toBe('bereit');
+
+  fs.rmSync(path.join(ordner, 'tokens.txt'));
+  const lauf = () =>
+    app.evaluate(() => global.__letterflow.ensureSetup({ backend: 'cpu', tier: 'schnell' }));
+  await app.evaluate(() => global.__letterflow.setupAusfallNaechstes());
+  await expect(lauf()).rejects.toThrow();
+  await lauf();
+  expect(fs.readFileSync(path.join(ordner, 'tokens.txt')).equals(dateien['parakeet-tokens'])).toBe(
+    true,
+  );
+});

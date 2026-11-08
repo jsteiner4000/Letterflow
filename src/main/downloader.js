@@ -80,6 +80,20 @@ async function download({ url, sha256, dest, bytes, onProgress }) {
     throw new DownloadError('disk', e.message, e);
   }
   let offset = groesse(part);
+  // Teildatei schon vollständig (Absturz vor Prüfung/Umbenennen): ohne Anfrage prüfen.
+  if (bytes && offset === bytes) {
+    if ((await sha256Datei(part)) === sha256) {
+      try {
+        fs.renameSync(part, dest);
+      } catch (e) {
+        throw new DownloadError('disk', e.message, e);
+      }
+      if (onProgress) onProgress(bytes, bytes);
+      return;
+    }
+    fs.rmSync(part, { force: true });
+    offset = 0;
+  }
   if (bytes) await checkDiskSpace(path.dirname(dest), Math.max(bytes - offset, 0));
 
   const res = await anfragen(url, offset);
