@@ -4,6 +4,11 @@ Stand: 2026-11-08 · Urheber: Julius Steiner · Ergänzt `2026-11-08-letterflow-
 
 Entwürfe: `docs/design/` (`pille.png`, `pille-nah.png`, `pille-szenen.png`, `einstellungen-dunkel.png`, `einstellungen-hell.png`, dazu die HTML-Quellen `pille.html`, `einstellungen.html`). Bewertung: impeccable-Kritik vom 2026-11-08 (24/40), deren Punkte hier eingearbeitet sind.
 
+## Gewählte Entwürfe (Julius, 2026-11-09) – verbindlich
+
+- **App-Fenster:** `docs/design/einstellungen-hell.png` / `einstellungen-hell.html` ist die Vorlage (wirkt „nicht nach KI“). Der dunkle Modus nutzt dieselbe Vorlage mit den dunklen Tokens unten; die App folgt weiter Windows.
+- **Pille:** `docs/design/pille-glas.png` / `pille-glas.html` ist die Vorlage: **leicht durchscheinendes Liquid-Glass** (heller Glanz oben links, Lichtkante, durchscheinender getönter Körper, Mint-Wellenform mit weichem Schein, Leuchtpunkt rechts). Sie ersetzt die Glas-Werte von `pille.png`/`pille.html` (rauchiges Glas). Übernommen bleiben aus der Überarbeitung: alle Zustände und Texte, fester Platz rechts, Kürzen langer Namen, Ersatz-Symbol, Barrierefreiheit, immer dunkel.
+
 ## Absicht
 
 Julius will eine **eigenständige Marke**: futuristisch, edel, schlicht, mit Glas-Look wie Apples „Liquid Glass“, der sich durch Pille, Taskleisten-Symbol und App zieht. Kein Effekt-Feuerwerk – **edles Glas statt Leuchten**. Leuchten ist ausschließlich Live-Zuständen vorbehalten (Pille beim Zuhören, Taskleisten-Symbol).
@@ -25,7 +30,7 @@ Julius will eine **eigenständige Marke**: futuristisch, edel, schlicht, mit Gla
 Maße und Aufbau (siehe `docs/design/pille.html`, Klassen `.pill`):
 
 - Höhe 44 px, Radius 22 px, max. Breite 340 px, Innenabstand links 12 px, rechts 14 px.
-- **Glas:** Körper `linear-gradient(180deg, rgba(40,48,47,.72) 0%, rgba(20,26,25,.78) 55%, rgba(14,19,18,.84) 100%)`; Kante 1 px als Verlauf (oben `rgba(255,255,255,.55)`, Seiten ≈ .04–.10, unten `.18`); Reflex über volle Breite bis halbe Höhe (`rgba(255,255,255,.10)` → 0); Schatten `0 8px 24px rgba(0,0,0,.30)` + feine Kontaktschatten. **Kein äußeres Glühen.**
+- **Glas (Vorlage `pille-glas.html`):** Körper `linear-gradient(180deg, rgba(255,255,255,.16), rgba(18,30,29,.42) 45%, rgba(6,14,13,.62))` – Hintergrund scheint leicht durch; Innenkanten `inset 0 1px 0 rgba(255,255,255,.55)`, `inset 0 -1px 0 rgba(255,255,255,.08)`, `inset 0 0 0 1px rgba(255,255,255,.14)`; Schatten `0 12px 32px rgba(0,0,0,.35)` + `0 0 0 .5px rgba(0,0,0,.4)`; Glanz `radial-gradient(120% 70% at 30% -20%, rgba(255,255,255,.45), transparent 55%)`; Schimmerstreifen `linear-gradient(105deg, transparent 30%, rgba(255,255,255,.22) 45%, transparent 60%)` **nur einmal beim Erscheinen** (läuft durch und verschwindet), sonst nicht sichtbar. Text mit `text-shadow: 0 1px 2px rgba(0,0,0,.35)` für Lesbarkeit über hellem Hintergrund. Wellenform Mint mit weichem Schein (`0 0 6px rgba(60,196,174,.7)`), Leuchtpunkt 8 px `#5EEAD4` rechts (Abstand 12 px) – beides nur in Live-Zuständen.
 - **Links:** Symbol des Zielprogramms 20×20 px (Radius 5). Ohne Symbol: Petrol-Monogramm „ℓ“ (Verlauf `#14B8A6 → #0F766E`).
 - **Text:** Abstand 10 px zum Symbol. Zeile 1 Programmname (Inter 600, 13 px, `#F4FBF9`), Zeile 2 Zustand (Inter 500, 12 px, `#C9DCD8`, volle Deckkraft). Lange Namen mit „…“ gekürzt.
 - **Rechts:** fester Platz 76 px (Abstand 14 px), damit die Breite beim Zustandswechsel nicht springt: Wellenform (16 Balken à 2,5 px, Abstand 2 px, Mint-Verlauf `#D9FFF7 → #2DD4BF`, ohne Glow), Ladekreis oder Häkchen.

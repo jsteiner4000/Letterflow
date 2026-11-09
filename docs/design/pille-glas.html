@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--glow:#3CC4AE;--glow2:#5EEAD4;--petrol:#0F766E;--warm:#FB923C;--ink:#E8F6F3}
+*{box-sizing:border-box;margin:0}
+body{font-family:Inter,sans-serif;width:1400px;background:#05090a;color:var(--ink);padding:28px}
+h1{font:600 22px Outfit;margin:0 0 4px 4px;letter-spacing:-.01em}
+p.sub{color:#8fb0aa;font-size:13.5px;margin:0 0 18px 4px}
+.scenes{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.scene{position:relative;height:330px;border-radius:16px;overflow:hidden}
+.scene.wall1{background:radial-gradient(circle at 20% 30%,#ff8a5c 0,transparent 40%),radial-gradient(circle at 75% 25%,#2dd4bf 0,transparent 42%),radial-gradient(circle at 60% 85%,#3b82f6 0,transparent 45%),#1e293b}
+.scene.wall2{background:linear-gradient(160deg,#f5f7f8,#dfe6e8)}
+.win{position:absolute;left:60px;top:34px;right:60px;height:210px;border-radius:10px;background:#fff;box-shadow:0 20px 50px rgba(0,0,0,.35);overflow:hidden;color:#222}
+.win .bar{height:30px;background:#2b579a;color:#fff;font:600 12px Inter;display:flex;align-items:center;padding:0 12px}
+.win .doc{padding:16px 24px;font:14px Georgia;line-height:1.7;color:#333}
+.win .doc .cur{display:inline-block;width:2px;height:16px;background:#111;vertical-align:-3px}
+.label{position:absolute;left:14px;bottom:10px;font:500 11.5px Inter;color:rgba(255,255,255,.75)}
+.wall2 .label{color:#53646a}
+/* ===== Liquid-Glass-Pille ===== */
+.pill{position:absolute;left:50%;bottom:34px;transform:translateX(-50%);display:flex;align-items:center;gap:0;height:44px;padding:0 16px 0 14px;border-radius:999px;
+ background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(18,30,29,.42) 45%,rgba(6,14,13,.62));
+ backdrop-filter:blur(18px) saturate(190%) brightness(.92);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -1px 0 rgba(255,255,255,.08),inset 0 0 0 1px rgba(255,255,255,.14),0 12px 32px rgba(0,0,0,.35),0 0 0 .5px rgba(0,0,0,.4);
+ color:#fff;font:500 14px Inter;letter-spacing:.01em;overflow:hidden}
+.pill:before{content:'';position:absolute;inset:0;border-radius:inherit;background:radial-gradient(120% 70% at 30% -20%,rgba(255,255,255,.45),transparent 55%);pointer-events:none}
+.pill:after{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.22) 45%,transparent 60%);pointer-events:none}
+.app{position:relative;flex:none;width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;background:#185abd;font:700 11px Outfit;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.35)}
+.app.vs{background:#0078d4}.app.ch{background:conic-gradient(#ea4335 0 33%,#fbbc05 0 66%,#34a853 0);border-radius:50%}
+.app.ch:after{content:'';width:8px;height:8px;border-radius:50%;background:#4285f4;box-shadow:0 0 0 1.5px #fff}
+.meta{position:relative;display:flex;flex-direction:column;line-height:1.2;margin-left:10px}
+.meta b{font:600 13px Inter;letter-spacing:.01em;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.meta span{font:500 11px Inter;letter-spacing:.02em;opacity:.8;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.wave{position:relative;display:flex;align-items:center;gap:2px;height:20px;margin-left:16px}
+.wave i{display:block;width:2.5px;border-radius:2px;background:linear-gradient(180deg,#b9fff1,var(--glow));box-shadow:0 0 6px rgba(60,196,174,.7)}
+.orb{position:relative;flex:none;width:8px;height:8px;margin-left:12px;border-radius:50%;background:var(--glow2);box-shadow:0 0 8px var(--glow2),0 0 18px rgba(94,234,212,.55)}
+.pill.warn .orb{margin-left:0;margin-right:2px}
+.spin{position:relative;margin-left:16px;width:16px;height:16px;border-radius:50%;background:conic-gradient(from 0deg,transparent,var(--glow2));-webkit-mask:radial-gradient(circle,transparent 6px,#000 7px)}
+.pill.warn .orb{background:var(--warm);box-shadow:0 0 10px var(--warm),0 0 22px rgba(251,146,60,.6)}
+/* Taskleiste */
+.taskbar{grid-column:1/3;height:64px;border-radius:14px;background:rgba(20,26,28,.92);display:flex;align-items:center;justify-content:flex-end;gap:18px;padding:0 22px;box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.tray{display:flex;gap:16px;align-items:center;color:#cfd8d6;font:500 12px Inter}
+.ti{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font:700 13px Outfit;color:#fff}
+.ti.idle{background:linear-gradient(160deg,#1c2b29,#0d1615);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
+.ti.rec{background:linear-gradient(160deg,#5eead4,#0f766e);box-shadow:0 0 12px rgba(94,234,212,.8),inset 0 1px 0 rgba(255,255,255,.6)}
+.ti.err{background:linear-gradient(160deg,#fdba74,#c2410c);box-shadow:0 0 10px rgba(251,146,60,.7)}
+.cap{color:#7f9b96;font-size:11.5px;margin-right:4px}
+</style></head><body>
+<h1>Liquid Glass · Pille mit Anwendung</h1>
+<p class="sub">Glas bricht den Hintergrund, Lichtkante oben, glänzender Schimmer-Streifen läuft beim Erscheinen einmal durch. Links: buntes Hintergrundbild, rechts: heller Desktop.</p>
+<div class="scenes" id="s"></div>
+<script>
+const w=(n,s)=>'<span class="wave">'+Array.from({length:n},(_,i)=>`<i style="height:${5+Math.round(17*Math.abs(Math.sin((i+s)*1.6)))}px"></i>`).join('')+'</span>';
+const win=(t)=>`<div class="win"><div class="bar">${t}</div><div class="doc">Hallo Tim, ich schick dir das Meeting-Recap nach dem Standup<span class="cur"></span></div></div>`;
+const S=[
+ ['wall1','Aufnahme · Word',`<div class="pill"><span class="app">W</span><span class="meta"><b>Word</b><span>Ich höre zu …</span></span>${w(16,1)}<span class="orb"></span></div>`,'Dokument1 – Word'],
+ ['wall2','Aufnahme · heller Desktop',`<div class="pill"><span class="app ch"></span><span class="meta"><b>Chrome</b><span>Ich höre zu …</span></span>${w(16,4)}<span class="orb"></span></div>`,'Gmail – Google Chrome'],
+ ['wall1','Verarbeitung',`<div class="pill"><span class="app vs">⌁</span><span class="meta"><b>Visual Studio Code</b><span>Schreibe …</span></span><span class="spin"></span></div>`,'main.js – Visual Studio Code'],
+ ['wall2','Warnung',`<div class="pill warn"><span class="orb"></span><span class="meta"><b>Kein Textfeld aktiv</b><span>Text liegt in der Zwischenablage</span></span></div>`,'Desktop'],
+];
+document.getElementById('s').innerHTML=S.map(([c,l,p,t])=>`<div class="scene ${c}">${win(t)}${p}<span class="label">${l}</span></div>`).join('')+
+`<div class="taskbar"><span class="cap">Taskleisten-Symbol:</span><div class="tray"><span class="ti idle">ℓ</span> bereit <span class="ti rec">ℓ</span> hört zu <span class="ti err">ℓ</span> Hinweis</div></div>`;
+</script></body></html>
