@@ -2,6 +2,45 @@ const api = window.letterflow;
 const $ = (id) => document.getElementById(id);
 
 let aktuell = null;
+let letzterStatus = null;
+
+const KAPPEN = {
+  'ctrl+win': ['Strg', 'Win'],
+  rctrl: ['Rechte Strg'],
+  'ctrl+shift': ['Strg', 'Umschalt'],
+};
+
+// --- Bereiche (Seitenleiste) ---------------------------------------------
+
+const tabs = [...document.querySelectorAll('[role="tab"]')];
+
+function bereichZeigen(tab, fokus = false) {
+  for (const t of tabs) {
+    const an = t === tab;
+    t.setAttribute('aria-selected', String(an));
+    t.tabIndex = an ? 0 : -1;
+    $(t.getAttribute('aria-controls')).hidden = !an;
+  }
+  if (fokus) tab.focus();
+  pegelPruefen();
+}
+
+for (const tab of tabs) {
+  tab.addEventListener('click', () => bereichZeigen(tab));
+  // Pfeiltasten wechseln den Bereich, Tab springt in den Inhalt.
+  tab.addEventListener('keydown', (e) => {
+    const i = tabs.indexOf(tab);
+    const ziel = {
+      ArrowDown: tabs[(i + 1) % tabs.length],
+      ArrowUp: tabs[(i - 1 + tabs.length) % tabs.length],
+      Home: tabs[0],
+      End: tabs.at(-1),
+    }[e.key];
+    if (!ziel) return;
+    e.preventDefault();
+    bereichZeigen(ziel, true);
+  });
+}
 
 // --- Anzeige -------------------------------------------------------------
 
@@ -13,7 +52,11 @@ function anzeigen(s) {
     r.checked = r.value === s.smoothingModel;
     r.disabled = !s.smoothing;
   }
-  $('modelle').classList.toggle('aus', !s.smoothing);
+  $('kappen').replaceChildren(
+    ...(KAPPEN[s.hotkey] || []).map((t) =>
+      Object.assign(document.createElement('kbd'), { textContent: t }),
+    ),
+  );
   $('glaettung').checked = s.smoothing;
   $('autostart').checked = s.autostart;
   $('mikrofon').value = s.micDeviceId ?? '';
@@ -21,6 +64,7 @@ function anzeigen(s) {
 }
 
 let eintraegeGezeigt = false;
+const KREUZ = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
 // Ändert nur die Chips, die sich wirklich geändert haben (kein Flackern, Fokus bleibt).
 function eintraegeAnzeigen(liste) {
@@ -45,7 +89,7 @@ function eintraegeAnzeigen(liste) {
       text.textContent = eintrag;
       const knopf = document.createElement('button');
       knopf.type = 'button';
-      knopf.textContent = 'Entfernen';
+      knopf.innerHTML = KREUZ;
       knopf.setAttribute('aria-label', `${eintrag} entfernen`);
       knopf.addEventListener('click', () =>
         speichern((s) => ({ dictionary: s.dictionary.filter((e) => e !== eintrag) })),
@@ -95,12 +139,40 @@ function speichern(patchOderFunktion) {
 for (const r of document.querySelectorAll('input[name="hotkey"]')) {
   r.addEventListener('change', () => speichern({ hotkey: r.value }));
 }
-for (const r of document.querySelectorAll('input[name="smoothingModel"]')) {
-  r.addEventListener('change', () => speichern({ smoothingModel: r.value }));
+// Würde die Wahl ein fehlendes Gründlich-Modell (2,5 GB) laden, vorher fragen.
+async function stufeWaehlen(wert) {
+  let st = letzterStatus;
+  try {
+    st = await api.status.get();
+  } catch {}
+  const gruendlich = wert === 'gruendlich' || (wert === 'auto' && st?.autoTier === 'gruendlich');
+  if (gruendlich && st?.gruendlichFehlt) {
+    const laden = await window.bestaetigen({
+      titel: 'Gründliche Glättung laden?',
+      text: 'Einmalig 2,5 GB, danach offline.',
+      ja: 'Laden',
+    });
+    if (!laden) return anzeigen(aktuell); // vorige Stufe wieder anzeigen
+  }
+  speichern({ smoothingModel: wert });
 }
+
+for (const r of document.querySelectorAll('input[name="smoothingModel"]')) {
+  r.addEventListener('change', () => stufeWaehlen(r.value));
+}
+$('kuerzel-aendern').addEventListener('click', (e) => {
+  const offen = $('kuerzel-wahl').hidden;
+  $('kuerzel-wahl').hidden = !offen;
+  e.currentTarget.setAttribute('aria-expanded', String(offen));
+  if (offen) $('kuerzel-wahl').querySelector('input:checked')?.focus();
+});
+$('ueber').addEventListener('click', () => api.about());
 $('glaettung').addEventListener('change', (e) => speichern({ smoothing: e.target.checked }));
 $('autostart').addEventListener('change', (e) => speichern({ autostart: e.target.checked }));
-$('mikrofon').addEventListener('change', (e) => speichern({ micDeviceId: e.target.value || null }));
+$('mikrofon').addEventListener('change', async (e) => {
+  await speichern({ micDeviceId: e.target.value || null });
+  pegelPruefen(true);
+});
 $('woerterbuch-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const eingabe = $('neuer-eintrag');
@@ -146,6 +218,59 @@ async function mikrofoneMitNamen() {
   }
 }
 
+// --- Pegel ---------------------------------------------------------------
+
+// Mikrofon nur offen, solange „Diktieren“ sichtbar ist; sonst sofort schließen.
+let pegel = null; // { strom, ctx, frame }
+
+function pegelStoppen() {
+  if (!pegel) return;
+  cancelAnimationFrame(pegel.frame);
+  pegel.strom?.getTracks().forEach((t) => t.stop());
+  pegel.ctx?.close().catch(() => {});
+  pegel = null;
+  for (const b of $('pegel').children) b.classList.remove('an');
+}
+
+async function pegelStarten() {
+  const lauf = (pegel = {});
+  const id = aktuell?.micDeviceId;
+  let strom;
+  try {
+    strom = await navigator.mediaDevices.getUserMedia({
+      audio: id ? { deviceId: { exact: id } } : true,
+    });
+  } catch {
+    if (pegel === lauf) pegel = null;
+    return;
+  }
+  if (pegel !== lauf) return strom.getTracks().forEach((t) => t.stop()); // inzwischen gestoppt
+  const ctx = new AudioContext();
+  const analyse = ctx.createAnalyser();
+  analyse.fftSize = 1024;
+  ctx.createMediaStreamSource(strom).connect(analyse);
+  const daten = new Float32Array(analyse.fftSize);
+  const balken = [...$('pegel').children];
+  Object.assign(lauf, { strom, ctx });
+  const zeichnen = () => {
+    analyse.getFloatTimeDomainData(daten);
+    const rms = Math.sqrt(daten.reduce((n, v) => n + v * v, 0) / daten.length);
+    // -60 dB → kein Balken, -10 dB → alle fünf
+    const n = Math.max(0, Math.min(5, Math.round((20 * Math.log10(rms + 1e-9) + 60) / 10)));
+    balken.forEach((b, i) => b.classList.toggle('an', i < n));
+    lauf.frame = requestAnimationFrame(zeichnen);
+  };
+  zeichnen();
+}
+
+function pegelPruefen(neu = false) {
+  const sichtbar = !$('seite-diktieren').hidden && document.visibilityState === 'visible';
+  if (!sichtbar || neu) pegelStoppen();
+  if (sichtbar && !pegel && aktuell) pegelStarten();
+}
+
+document.addEventListener('visibilitychange', () => pegelPruefen());
+
 // --- System --------------------------------------------------------------
 
 const ENGINE_TEXT = {
@@ -160,7 +285,22 @@ const BACKEND_TEXT = {
   cpu: 'Prozessor',
 };
 
+const STATUSZEILE = {
+  bereit: 'Bereit · alles lokal',
+  startet: 'Startet …',
+  fehler: 'Fehler – wird neu gestartet',
+  fehlt: 'Einrichtung nicht abgeschlossen',
+};
+const STUFE_TEXT = { schnell: 'Schnell', gruendlich: 'Gründlich' };
+
 function statusAnzeigen(st) {
+  letzterStatus = st;
+  const zustand = STATUSZEILE[st.engines] ? st.engines : 'fehlt';
+  $('statuszeile').dataset.zustand = zustand;
+  $('statuszeile-text').textContent = STATUSZEILE[zustand];
+  const pc = STUFE_TEXT[st.autoTier];
+  $('auf-diesem-pc').hidden = !pc;
+  $('auf-diesem-pc').textContent = pc ? `Auf diesem PC: ${pc}` : '';
   $('status-glaettung').textContent =
     st.tier === 'gruendlich'
       ? `Glättung: Gründlich auf ${BACKEND_TEXT[st.backend] || 'Prozessor'}${st.rueckfall ? ' (Rückfall, Grafikkarte nicht nutzbar)' : ''}`
@@ -190,6 +330,11 @@ api.settings.onChanged((s) => {
   }
   await mikrofoneLaden();
   anzeigen(aktuell);
+  pegelPruefen();
+  api
+    .info()
+    .then((info) => ($('version').textContent = `Version ${info.version}`))
+    .catch(() => {});
   statusAktualisieren();
   setInterval(statusAktualisieren, 3000);
   mikrofoneMitNamen().then(() => anzeigen(aktuell));

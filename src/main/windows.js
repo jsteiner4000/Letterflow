@@ -8,6 +8,9 @@ const PRELOAD = path.join(__dirname, '..', 'preload', 'preload.js');
 const offen = new Map();
 
 ipcMain.handle('app:info', () => ({ name: app.getName(), version: app.getVersion() }));
+ipcMain.handle('app:about', () => {
+  openAbout();
+});
 
 // Öffnet das Fenster zu `key` oder holt das bestehende nach vorn.
 function openSingle(key, datei, optionen) {
@@ -22,8 +25,8 @@ function openSingle(key, datei, optionen) {
     show: false,
     autoHideMenuBar: true,
     icon: path.join(ASSETS, 'letterflow.ico'),
-    // Deckender Hintergrund passend zu style.css (--hintergrund), kein Schwarz vor dem ersten Paint.
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1b1e21' : '#f6f7f8',
+    // Deckender Hintergrund passend zu style.css (--bg), kein Schwarz vor dem ersten Paint.
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0a0e0e' : '#f3f6f5',
     webPreferences: {
       preload: PRELOAD,
       contextIsolation: true,
@@ -54,10 +57,10 @@ function openAbout() {
 
 function openSettings() {
   return openSingle('settings', 'settings.html', {
-    width: 960,
-    height: 720,
-    minWidth: 900,
-    minHeight: 520,
+    width: 880,
+    height: 600,
+    minWidth: 880,
+    minHeight: 560,
     title: 'Letterflow – Einstellungen',
   });
 }

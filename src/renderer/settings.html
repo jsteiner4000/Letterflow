@@ -4,99 +4,219 @@
     <meta charset="utf-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'"
+      content="default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'"
     />
     <title>Letterflow – Einstellungen</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="settings.css" />
   </head>
   <body>
+    <aside>
+      <div class="marke"><span class="logo" aria-hidden="true">ℓ</span><b>Letterflow</b></div>
+      <nav role="tablist" aria-orientation="vertical" aria-label="Bereiche">
+        <button
+          role="tab"
+          id="tab-diktieren"
+          aria-controls="seite-diktieren"
+          aria-selected="true"
+          type="button"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z" />
+            <path d="M19 11a7 7 0 0 1-14 0M12 18v3" /></svg
+          >Diktieren
+        </button>
+        <button
+          role="tab"
+          id="tab-woerterbuch"
+          aria-controls="seite-woerterbuch"
+          aria-selected="false"
+          tabindex="-1"
+          type="button"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z" /></svg
+          >Wörterbuch
+        </button>
+        <button
+          role="tab"
+          id="tab-allgemein"
+          aria-controls="seite-allgemein"
+          aria-selected="false"
+          tabindex="-1"
+          type="button"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg
+          >Allgemein
+        </button>
+      </nav>
+      <p id="statuszeile" class="statuszeile" role="status">
+        <i aria-hidden="true"></i><span id="statuszeile-text">Startet …</span>
+      </p>
+    </aside>
+
     <main>
-      <h1>Einstellungen</h1>
-      <p id="fehler" class="fehler" role="alert" hidden></p>
+      <div class="inhalt">
+        <p id="fehler" class="fehler" role="alert" hidden></p>
 
-      <section aria-labelledby="h-hotkey">
-        <h2 id="h-hotkey">Tastenkürzel</h2>
-        <div class="optionen" role="radiogroup" aria-labelledby="h-hotkey">
-          <label class="option"
-            ><input type="radio" name="hotkey" value="ctrl+win" /><span
-              >Strg + Win (Standard)</span
-            ></label
-          >
-          <label class="option"
-            ><input type="radio" name="hotkey" value="rctrl" /><span>Rechte Strg</span></label
-          >
-          <label class="option"
-            ><input type="radio" name="hotkey" value="ctrl+shift" /><span
-              >Strg + Umschalt</span
-            ></label
-          >
-        </div>
-        <p class="hinweis">Gedrückt halten zum Diktieren</p>
-      </section>
+        <!-- Diktieren -->
+        <section id="seite-diktieren" role="tabpanel" aria-labelledby="tab-diktieren">
+          <h1>Diktieren</h1>
+          <p class="lead">
+            Halten, sprechen, loslassen – der Text erscheint dort, wo dein Cursor steht.
+          </p>
 
-      <section aria-labelledby="h-mikrofon">
-        <h2 id="h-mikrofon">Mikrofon</h2>
-        <select id="mikrofon" aria-labelledby="h-mikrofon"></select>
-      </section>
+          <div class="karte surface">
+            <div class="zeile">
+              <div id="kappen" class="kappen"></div>
+              <div class="text">
+                <b>Gedrückt halten zum Diktieren</b>
+                <span class="leise">Loslassen fügt den Text ein</span>
+              </div>
+              <button
+                id="kuerzel-aendern"
+                class="knopf rechts"
+                type="button"
+                aria-expanded="false"
+                aria-controls="kuerzel-wahl"
+              >
+                Ändern
+              </button>
+            </div>
+            <div
+              id="kuerzel-wahl"
+              class="kuerzel-wahl"
+              role="radiogroup"
+              aria-label="Tastenkürzel wählen"
+              hidden
+            >
+              <label class="wahl"
+                ><input type="radio" name="hotkey" value="ctrl+win" /><span
+                  >Strg + Win (Standard)</span
+                ></label
+              >
+              <label class="wahl"
+                ><input type="radio" name="hotkey" value="rctrl" /><span>Rechte Strg</span></label
+              >
+              <label class="wahl"
+                ><input type="radio" name="hotkey" value="ctrl+shift" /><span
+                  >Strg + Umschalt</span
+                ></label
+              >
+            </div>
+          </div>
 
-      <section aria-labelledby="h-glaettung">
-        <h2 id="h-glaettung">Glättung</h2>
-        <label class="schalter">
-          <input type="checkbox" id="glaettung" />
-          <span class="regler" aria-hidden="true"></span>
-          <span>Text glätten (Füllwörter, Satzzeichen, Schreibweisen)</span>
-        </label>
-        <div class="optionen" role="radiogroup" aria-label="Glättungsmodell" id="modelle">
-          <label class="option"
-            ><input type="radio" name="smoothingModel" value="auto" />
-            <span>Automatisch</span>
-            <small>Gründlich auf starken Grafikkarten, sonst Schnell</small></label
-          >
-          <label class="option"
-            ><input type="radio" name="smoothingModel" value="schnell" />
-            <span>Schnell</span>
-            <small>Sofort, ohne Selbstkorrekturen</small></label
-          >
-          <label class="option"
-            ><input type="radio" name="smoothingModel" value="gruendlich" />
-            <span>Gründlich</span>
-            <small
-              >Mit Sprachmodell, wendet Selbstkorrekturen an – auf schwächeren PCs einige Sekunden,
-              lädt einmalig ca. 2,5 GB</small
-            ></label
-          >
-        </div>
-      </section>
+          <div class="abschnitt">
+            <div>
+              <h2 id="h-glaetten">Text glätten</h2>
+              <p id="glaetten-hinweis" class="leise">
+                Entfernt „ähm“, setzt Satzzeichen und deine Schreibweisen
+              </p>
+            </div>
+            <label class="schalter">
+              <input
+                type="checkbox"
+                id="glaettung"
+                role="switch"
+                aria-labelledby="h-glaetten"
+                aria-describedby="glaetten-hinweis"
+              />
+              <span class="regler" aria-hidden="true"></span>
+            </label>
+          </div>
+          <div id="stufen" class="stufen" role="radiogroup" aria-label="Glättungsstufe">
+            <label class="stufe surface">
+              <input type="radio" name="smoothingModel" value="auto" />
+              <span class="kreis" aria-hidden="true"></span>
+              <b>Automatisch</b>
+              <span class="leise">Wählt nach deinem PC.</span>
+              <span id="auf-diesem-pc" class="kennung akzent" hidden></span>
+            </label>
+            <label class="stufe surface">
+              <input type="radio" name="smoothingModel" value="schnell" />
+              <span class="kreis" aria-hidden="true"></span>
+              <b>Schnell</b>
+              <span class="leise">Sofort, ohne Selbstkorrekturen.</span>
+            </label>
+            <label class="stufe surface">
+              <input type="radio" name="smoothingModel" value="gruendlich" />
+              <span class="kreis" aria-hidden="true"></span>
+              <b>Gründlich</b>
+              <span class="leise">Wendet auch „Montag, nein, Dienstag“ an.</span>
+              <span class="kennung">Lädt einmalig 2,5 GB – fragt vorher</span>
+            </label>
+          </div>
 
-      <section aria-labelledby="h-woerterbuch">
-        <h2 id="h-woerterbuch">Wörterbuch</h2>
-        <form id="woerterbuch-form">
-          <input type="text" id="neuer-eintrag" aria-label="Neuer Eintrag" autocomplete="off" />
-          <button type="submit">Hinzufügen</button>
-        </form>
-        <p class="hinweis">Namen und Fachbegriffe, die genau so geschrieben werden sollen</p>
-        <ul id="eintraege"></ul>
-      </section>
+          <div class="abschnitt">
+            <div>
+              <h2 id="h-mikrofon">Mikrofon</h2>
+              <p class="leise">Wird nur während der Aufnahme geöffnet</p>
+            </div>
+          </div>
+          <div class="karte surface zeile">
+            <div class="text">
+              <b id="l-mikrofon">Eingabegerät</b>
+              <span class="leise">Pegel testen: einfach sprechen</span>
+            </div>
+            <span id="pegel" class="pegel" aria-hidden="true"
+              ><i></i><i></i><i></i><i></i><i></i
+            ></span>
+            <span class="auswahl rechts">
+              <select id="mikrofon" aria-labelledby="l-mikrofon"></select>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+            </span>
+          </div>
+        </section>
 
-      <section aria-labelledby="h-allgemein">
-        <h2 id="h-allgemein">Allgemein</h2>
-        <label class="schalter">
-          <input type="checkbox" id="autostart" />
-          <span class="regler" aria-hidden="true"></span>
-          <span>Mit Windows starten</span>
-        </label>
-      </section>
+        <!-- Wörterbuch -->
+        <section id="seite-woerterbuch" role="tabpanel" aria-labelledby="tab-woerterbuch" hidden>
+          <h1>Wörterbuch</h1>
+          <p class="lead">Namen und Fachbegriffe, die genau so geschrieben werden sollen</p>
+          <form id="woerterbuch-form" class="karte surface zeile">
+            <input
+              type="text"
+              id="neuer-eintrag"
+              class="eingabe"
+              aria-label="Neuer Eintrag"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button type="submit" class="knopf haupt">Hinzufügen</button>
+          </form>
+          <ul id="eintraege" class="eintraege"></ul>
+        </section>
 
-      <section aria-labelledby="h-system">
-        <h2 id="h-system">System</h2>
-        <ul class="status">
-          <li id="status-erkennung">Spracherkennung: Prozessor</li>
-          <li id="status-glaettung"></li>
-          <li id="status-engine"></li>
-        </ul>
-      </section>
+        <!-- Allgemein -->
+        <section id="seite-allgemein" role="tabpanel" aria-labelledby="tab-allgemein" hidden>
+          <h1>Allgemein</h1>
+          <div class="karte surface zeile">
+            <div class="text"><b id="l-autostart">Mit Windows starten</b></div>
+            <label class="schalter rechts">
+              <input type="checkbox" id="autostart" role="switch" aria-labelledby="l-autostart" />
+              <span class="regler" aria-hidden="true"></span>
+            </label>
+          </div>
+
+          <div class="abschnitt"><h2>System</h2></div>
+          <ul class="karte surface system">
+            <li id="status-erkennung">Spracherkennung: Prozessor</li>
+            <li id="status-glaettung"></li>
+            <li id="status-engine"></li>
+          </ul>
+
+          <div class="karte surface zeile">
+            <div class="text">
+              <b>Letterflow</b>
+              <span id="version" class="leise">Version …</span>
+            </div>
+            <button id="ueber" class="knopf rechts" type="button">Über Letterflow</button>
+          </div>
+        </section>
+      </div>
     </main>
+    <script src="confirm.js"></script>
     <script src="settings.js"></script>
   </body>
 </html>

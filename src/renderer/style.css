@@ -1,22 +1,70 @@
-:root {
-  --akzent: #0f766e;
-  --akzent-text: #ffffff;
-  --hintergrund: #f6f7f8;
-  --text: #1c1f23;
-  --text-leise: #5a6168;
-  --linie: #dde1e4;
-  --fade: 180ms ease-out;
-  color-scheme: light dark;
+/* Gemeinsame Grundlage aller App-Fenster: Schriften, Farb-Tokens, Bedienelemente.
+   Nur die Skalen aus der Gestaltungs-Spec: Abstände 4/8/12/16/24/32, Radien 12/8/6/5. */
+
+@font-face {
+  font-family: 'Inter';
+  src: url('fonts/inter/InterVariable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Outfit';
+  src: url('fonts/outfit/Outfit-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
 }
 
+/* Hell (Vorlage einstellungen-hell) */
+:root {
+  --bg: #f3f6f5;
+  --bg-tint: rgba(15, 118, 110, 0.07);
+  --surface: rgba(255, 255, 255, 0.78);
+  --surface-2: #ffffff;
+  --edge-top: #ffffff;
+  --edge: rgba(11, 31, 29, 0.09);
+  --edge-strong: rgba(11, 31, 29, 0.2);
+  --ink: #0b1f1d;
+  --ink-2: #4a5f5b;
+  --accent: #0f766e;
+  --accent-ink: #ffffff;
+  --select: rgba(15, 118, 110, 0.07);
+  --select-edge: #0f766e;
+  --warm: #c2410c;
+  --warm-tint: rgba(194, 65, 12, 0.07);
+  --focus: #0f766e;
+  --knob: #ffffff;
+  --knob-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --scrim: rgba(11, 31, 29, 0.28);
+  --dialog-shadow: 0 16px 48px rgba(11, 31, 29, 0.18);
+  --fade: 180ms ease-out;
+  --press: 100ms ease-out;
+  color-scheme: light;
+}
+
+/* Dunkel (Vorlage einstellungen, :root) – folgt Windows */
 @media (prefers-color-scheme: dark) {
   :root {
-    --akzent: #3cc4ae;
-    --akzent-text: #0e1a18;
-    --hintergrund: #1b1e21;
-    --text: #eceef0;
-    --text-leise: #9aa2a9;
-    --linie: #32373c;
+    --bg: #0a0e0e;
+    --bg-tint: rgba(15, 118, 110, 0.1);
+    --surface: rgba(255, 255, 255, 0.045);
+    --surface-2: rgba(255, 255, 255, 0.07);
+    --edge-top: rgba(255, 255, 255, 0.16);
+    --edge: rgba(255, 255, 255, 0.07);
+    --edge-strong: rgba(255, 255, 255, 0.16);
+    --ink: #edf6f4;
+    --ink-2: #a9bdb9;
+    --accent: #3cc4ae;
+    --accent-ink: #04201c;
+    --select: rgba(60, 196, 174, 0.1);
+    --select-edge: rgba(60, 196, 174, 0.6);
+    --warm: #fdba74;
+    --warm-tint: rgba(253, 186, 116, 0.08);
+    --focus: #5eead4;
+    --scrim: rgba(0, 0, 0, 0.55);
+    --dialog-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
   }
 }
 
@@ -26,17 +74,186 @@
 
 body {
   margin: 0;
-  background: var(--hintergrund);
-  color: var(--text);
-  font-family: 'Segoe UI Variable', 'Segoe UI', sans-serif;
-  font-size: 14px;
+  background:
+    radial-gradient(600px 300px at 100% 0, var(--bg-tint), transparent 70%) fixed,
+    var(--bg);
+  color: var(--ink);
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 18px;
   animation: einblenden var(--fade) both;
   user-select: none;
 }
 
-a,
-button {
-  color: var(--akzent);
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+/* Seitentitel und Abschnitte (Outfit nur für Überschriften) */
+h1 {
+  font:
+    600 22px/28px 'Outfit',
+    sans-serif;
+  letter-spacing: -0.015em;
+}
+h2 {
+  font:
+    600 15px/20px 'Outfit',
+    sans-serif;
+  letter-spacing: -0.005em;
+}
+.leise {
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* Glasfläche: leichte Fläche, Lichtkante oben, 1-px-Rand */
+.surface {
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow:
+    inset 0 1px 0 var(--edge-top),
+    inset 0 0 0 1px var(--edge);
+}
+
+/* Wortmarke */
+.marke {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.marke b {
+  font:
+    600 16px/20px 'Outfit',
+    sans-serif;
+  letter-spacing: -0.01em;
+}
+.logo {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font:
+    700 14px/1 'Outfit',
+    sans-serif;
+}
+
+/* Knöpfe: Hover hebt an (Rand kräftiger), Druck gibt nach */
+.knopf {
+  height: 32px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  font:
+    600 13px/18px 'Inter',
+    sans-serif;
+  color: var(--ink);
+  background: var(--surface-2);
+  box-shadow:
+    inset 0 1px 0 var(--edge-top),
+    inset 0 0 0 1px var(--edge);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    box-shadow var(--fade),
+    transform var(--press);
+}
+.knopf:hover {
+  box-shadow:
+    inset 0 1px 0 var(--edge-top),
+    inset 0 0 0 1px var(--edge-strong);
+}
+.knopf:active {
+  transform: scale(0.98);
+}
+.knopf.haupt {
+  color: var(--accent-ink);
+  background: var(--accent);
+  box-shadow: none;
+}
+.knopf.haupt:hover {
+  filter: brightness(1.08);
+}
+
+/* Schalter: echtes Kontrollkästchen, darüber gelegt und unsichtbar */
+.schalter {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  cursor: pointer;
+}
+.schalter input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.regler {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--ink-2); /* aus: kräftig genug für 3:1 */
+  transition: background-color var(--fade);
+}
+.regler::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--knob);
+  box-shadow: var(--knob-shadow);
+  transition: transform var(--fade);
+}
+.schalter input:checked + .regler {
+  background: var(--accent);
+}
+.schalter input:checked + .regler::after {
+  transform: translateX(18px);
+}
+.schalter:active .regler::after {
+  transform: scale(0.98);
+}
+.schalter:active input:checked + .regler::after {
+  transform: translateX(18px) scale(0.98);
+}
+
+/* Fehlermeldung im App-Stil */
+.fehler {
+  padding: 12px 16px;
+  border-radius: 12px;
+  color: var(--ink);
+  background: var(--warm-tint);
+  box-shadow: inset 0 0 0 1px var(--warm);
+  animation: einblenden var(--fade) both;
+}
+
+/* Fokus: 2 px, Abstand 2 px, auf allen Bedienelementen */
+:focus-visible,
+.schalter input:focus-visible + .regler {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.schalter input:focus-visible {
+  outline: none;
+}
+
+[hidden] {
+  display: none !important;
 }
 
 @keyframes einblenden {
@@ -45,5 +262,37 @@ button {
   }
   to {
     opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+  .knopf:active,
+  .schalter:active .regler::after {
+    transform: none;
+  }
+}
+
+/* Hoher Kontrast: Schatten-Ränder verschwinden dort, daher echte Rahmen in Systemfarben */
+@media (forced-colors: active) {
+  .surface,
+  .knopf,
+  .regler {
+    border: 1px solid CanvasText;
+  }
+  .regler::after {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+  .schalter input:checked + .regler::after {
+    background: Highlight;
+  }
+  .logo {
+    border: 1px solid CanvasText;
   }
 }

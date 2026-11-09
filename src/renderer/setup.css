@@ -1,67 +1,50 @@
 main {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 40px 36px;
+  padding: 32px;
 }
-h1 {
-  margin: 0 0 4px;
-  font-size: 24px;
-  font-weight: 600;
+.marke {
+  margin-bottom: 24px;
 }
-p {
-  margin: 0;
-  color: var(--text-leise);
-  line-height: 1.5;
+.lead {
+  margin: 4px 0 24px;
+  color: var(--ink-2);
+}
+.karte {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
 }
 progress {
   appearance: none;
   width: 100%;
-  height: 10px;
-  margin-top: 8px;
+  height: 8px;
   border: 0;
-  border-radius: 5px;
+  border-radius: 8px;
   overflow: hidden;
-  background: var(--linie);
+  background: var(--edge);
 }
 progress::-webkit-progress-bar {
-  background: var(--linie);
+  background: var(--edge);
 }
 progress::-webkit-progress-value {
-  background: var(--akzent);
-  border-radius: 5px;
+  background: var(--accent);
+  border-radius: 8px;
   transition: width var(--fade);
 }
 #fortschritt-text {
   font-variant-numeric: tabular-nums;
 }
 .fehler {
-  color: var(--text);
-  padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--akzent) 35%, var(--linie));
-  background: color-mix(in srgb, var(--akzent) 8%, var(--hintergrund));
-  border-radius: 6px;
-  animation: einblenden var(--fade) both;
+  margin-top: 16px;
 }
-button {
+#erneut {
   align-self: flex-start;
-  padding: 8px 18px;
-  font: inherit;
-  font-weight: 600;
-  color: var(--akzent-text);
-  background: var(--akzent);
-  border: 0;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: opacity var(--fade);
+  margin-top: 16px;
 }
-button:hover {
-  opacity: 0.9;
-}
-button:focus-visible {
-  outline: 2px solid var(--akzent);
-  outline-offset: 2px;
-}
-[hidden] {
-  display: none !important;
+@media (forced-colors: active) {
+  progress {
+    border: 1px solid CanvasText;
+  }
 }

@@ -74,6 +74,11 @@ if (!app.requestSingleInstanceLock()) {
               ? engines.status
               : 'startet',
       rueckfall: engines ? engines.fallback : false,
+      // Für die Stufenwahl: was „Automatisch“ hier wählt und ob Gründlich erst laden müsste.
+      autoTier: hardware
+        ? chooseSmoothingTier(hardware.devices, hardware.dedicatedVramMiB, 'auto')
+        : null,
+      gruendlichFehlt: setup.gruendlichFehlt(hardware ? hardware.backend : 'cpu'),
     };
   }
 

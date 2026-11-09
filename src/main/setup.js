@@ -174,4 +174,16 @@ const testAusfallNaechstes = () => {
 
 const isComplete = () => phase === 'fertig';
 
-module.exports = { ensureSetup, showSetup, isComplete, testAusfallNaechstes };
+// Fehlen Dateien, die nur die Stufe „Gründlich“ braucht (Sprachmodell, ggf. CUDA-Engine)?
+function gruendlichFehlt(backend) {
+  const dataDir = getDataDir();
+  const liste = requiredFiles({ backend, tier: 'gruendlich', dataDir, ...katalogOptionen() });
+  return (
+    missingFiles(
+      dataDir,
+      liste.filter((e) => !e.id.startsWith('parakeet-')),
+    ).length > 0
+  );
+}
+
+module.exports = { ensureSetup, showSetup, isComplete, testAusfallNaechstes, gruendlichFehlt };

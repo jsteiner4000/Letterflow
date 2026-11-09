@@ -20,10 +20,10 @@ body {
   height: 44px;
   padding: 0 20px;
   border-radius: 22px;
-  background: var(--hintergrund);
-  border: 1px solid var(--linie);
+  background: var(--bg);
+  border: 1px solid var(--edge);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
-  color: var(--text);
+  color: var(--ink);
   font-size: 14px;
   white-space: nowrap;
   opacity: 0;
@@ -50,7 +50,7 @@ body {
   width: 4px;
   height: 22px;
   border-radius: 2px;
-  background: var(--akzent);
+  background: var(--accent);
   transform: scaleY(0.18);
   transition: transform 90ms ease-out;
 }
@@ -64,7 +64,7 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--akzent);
+  background: var(--accent);
 }
 
 .pille[data-kind='verarbeitung'] .punkt,
