@@ -1,4 +1,4 @@
-// Letterflow-Helfer: globale Tastenüberwachung, Fokus-Erkennung und Einfügen.
+// Letterflow-Helfer: globale Tastenüberwachung, Fokus-Erkennung, Einfügen, Mikrofon (WASAPI) und Vordergrund-Meldung.
 // Protokoll: eine JSON-Zeile je Nachricht (UTF-8) über stdin/stdout. Siehe src/main/helper.js.
 // Datenschutz: Es wird nie gemeldet, WELCHE normale Taste gedrückt wurde, nur dass eine gedrückt wurde.
 // Der Text direkt um die Schreibmarke (je höchstens 40 Zeichen) geht nur an die App, nie in ein Protokoll.
@@ -135,6 +135,95 @@ namespace Letterflow
         public static extern bool BitBlt(IntPtr dst, int x, int y, int w, int h, IntPtr src, int sx, int sy, uint rop);
         [DllImport("gdi32.dll")]
         public static extern int GetDIBits(IntPtr dc, IntPtr bmp, uint start, uint lines, byte[] bits, byte[] bmi, uint usage);
+
+        public delegate void WinEventProc(IntPtr hook, uint ev, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
+        [DllImport("user32.dll")]
+        public static extern IntPtr SetWinEventHook(uint min, uint max, IntPtr mod, WinEventProc proc, uint pid, uint tid, uint flags);
+        [DllImport("shell32.dll")]
+        public static extern int SHQueryUserNotificationState(out int state);
+        [StructLayout(LayoutKind.Sequential)]
+        public struct RECT { public int left, top, right, bottom; }
+        [StructLayout(LayoutKind.Sequential)]
+        public struct MONITORINFO { public int cbSize; public RECT rcMonitor; public RECT rcWork; public uint dwFlags; }
+        [DllImport("user32.dll")]
+        public static extern bool GetWindowRect(IntPtr hWnd, out RECT r);
+        [DllImport("user32.dll")]
+        public static extern IntPtr MonitorFromWindow(IntPtr hWnd, uint flags);
+        [DllImport("user32.dll")]
+        public static extern bool GetMonitorInfo(IntPtr mon, ref MONITORINFO mi);
+        [DllImport("user32.dll")]
+        public static extern int GetWindowLong(IntPtr hWnd, int index);
+        [DllImport("kernel32.dll")]
+        public static extern IntPtr CreateEvent(IntPtr attr, bool manual, bool initial, string name);
+        [DllImport("kernel32.dll")]
+        public static extern uint WaitForSingleObject(IntPtr h, uint ms);
+        [DllImport("ole32.dll")]
+        public static extern int PropVariantClear(ref PropVariant pv);
+    }
+
+    // ---------- Core Audio (WASAPI): nur die benötigten Methoden, in Vtable-Reihenfolge ----------
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct PropertyKey { public Guid fmtid; public int pid; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct PropVariant { public ushort vt, r1, r2, r3; public IntPtr p, p2; }
+
+    [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]
+    class MMDeviceEnumeratorKlasse { }
+
+    [ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IMMDeviceEnumerator
+    {
+        [PreserveSig] int EnumAudioEndpoints(int flow, int stateMask, out IMMDeviceCollection devices);
+        [PreserveSig] int GetDefaultAudioEndpoint(int flow, int role, out IMMDevice device);
+    }
+
+    [ComImport, Guid("0BD7A1BE-7A1A-44DB-8397-CC5392387B5E"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IMMDeviceCollection
+    {
+        [PreserveSig] int GetCount(out int count);
+        [PreserveSig] int Item(int index, out IMMDevice device);
+    }
+
+    [ComImport, Guid("D666063F-1587-4E43-81F1-B948E807363F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IMMDevice
+    {
+        [PreserveSig] int Activate(ref Guid iid, int clsCtx, IntPtr par, [MarshalAs(UnmanagedType.IUnknown)] out object iface);
+        [PreserveSig] int OpenPropertyStore(int access, out IPropertyStore props);
+    }
+
+    [ComImport, Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IPropertyStore
+    {
+        [PreserveSig] int GetCount(out int count);
+        [PreserveSig] int GetAt(int index, out PropertyKey key);
+        [PreserveSig] int GetValue(ref PropertyKey key, out PropVariant value);
+    }
+
+    [ComImport, Guid("1CB9AD4C-DBFA-4C32-B178-C2F568A703B2"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IAudioClient
+    {
+        [PreserveSig] int Initialize(int shareMode, int flags, long bufferDuration, long periodicity, IntPtr format, IntPtr session);
+        [PreserveSig] int GetBufferSize(out uint frames);
+        [PreserveSig] int GetStreamLatency(out long latency);
+        [PreserveSig] int GetCurrentPadding(out uint frames);
+        [PreserveSig] int IsFormatSupported(int shareMode, IntPtr format, out IntPtr closest);
+        [PreserveSig] int GetMixFormat(out IntPtr format);
+        [PreserveSig] int GetDevicePeriod(out long def, out long min);
+        [PreserveSig] int Start();
+        [PreserveSig] int Stop();
+        [PreserveSig] int Reset();
+        [PreserveSig] int SetEventHandle(IntPtr ev);
+        [PreserveSig] int GetService(ref Guid iid, [MarshalAs(UnmanagedType.IUnknown)] out object service);
+    }
+
+    [ComImport, Guid("C8ADBD64-E71E-48A0-A4DE-185C395CD317"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IAudioCaptureClient
+    {
+        [PreserveSig] int GetBuffer(out IntPtr data, out uint frames, out uint flags, out ulong devPos, out ulong qpcPos);
+        [PreserveSig] int ReleaseBuffer(uint frames);
+        [PreserveSig] int GetNextPacketSize(out uint frames);
     }
 
     static class Program
@@ -160,6 +249,10 @@ namespace Letterflow
         static bool pollScheduled;
         const int PollMs = 250;
         static Native.HookProc hookProc;
+        static Native.WinEventProc winEventProc;
+        static long vordergrundNr;
+        static Thread micThread;
+        static volatile bool micRun;
 
         static void Main()
         {
@@ -173,6 +266,11 @@ namespace Letterflow
 
             pollTimer = new Timer(PollHeld, null, Timeout.Infinite, Timeout.Infinite);
 
+            micThread = new Thread(MikrofonVorwaermen);
+            micThread.IsBackground = true;
+            micThread.SetApartmentState(ApartmentState.MTA);
+            micThread.Start();
+
             Thread hook = new Thread(HookThread);
             hook.IsBackground = true;
             hook.Start();
@@ -182,9 +280,9 @@ namespace Letterflow
             while ((line = stdin.ReadLine()) != null)
             {
                 string l = line;
-                // mask wird sofort und in Reihenfolge verarbeitet (on/off dürfen sich nie überholen);
-                // focus/paste/grab laufen in eigenen Threads, damit sie nichts blockieren
-                if (Regex.IsMatch(l, "\"cmd\"\\s*:\\s*\"mask\"")) HandleCommand(l);
+                // mask und mic werden sofort und in Reihenfolge verarbeitet (an/aus dürfen sich nie überholen);
+                // focus/paste/grab/vollbild laufen in eigenen Threads, damit sie nichts blockieren
+                if (Regex.IsMatch(l, "\"cmd\"\\s*:\\s*\"(mask|mic)\"")) HandleCommand(l);
                 else ThreadPool.QueueUserWorkItem(delegate { HandleCommand(l); });
             }
             // stdin zu: Elternprozess ist weg
@@ -217,6 +315,11 @@ namespace Letterflow
             IntPtr h = Native.SetWindowsHookEx(WH_KEYBOARD_LL, hookProc, mod, 0);
             if (h == IntPtr.Zero) Environment.Exit(2);
             Emit("{\"ev\":\"ready\"}");
+            // Vordergrundwechsel melden (die App lädt das Programmsymbol vorab). Der Rückruf läuft auf diesem
+            // Thread (Nachrichtenschleife unten) und reicht nur weiter: der Tastatur-Hook wartet nie.
+            winEventProc = VordergrundGewechselt;
+            Native.SetWinEventHook(3, 3, IntPtr.Zero, winEventProc, 0, 0, 2); // EVENT_SYSTEM_FOREGROUND, WINEVENT_SKIPOWNPROCESS
+            VordergrundGewechselt(IntPtr.Zero, 3, Native.GetForegroundWindow(), 0, 0, 0, 0);
             Native.MSG msg;
             while (Native.GetMessage(out msg, IntPtr.Zero, 0, 0) > 0) { }
         }
@@ -372,6 +475,15 @@ namespace Letterflow
                     bool restore = Regex.IsMatch(line, "\"restore\"\\s*:\\s*true");
                     Emit("{\"id\":" + id + ",\"paste\":" + PasteJson(hwnd, restore) + "}");
                 }
+                else if (cmd == "mic")
+                {
+                    Match d = Regex.Match(line, "\"device\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
+                    MikrofonSchalten(Regex.IsMatch(line, "\"on\"\\s*:\\s*true"), d.Success ? Regex.Unescape(d.Groups[1].Value) : null, Zahl(line, "warm"));
+                }
+                else if (cmd == "vollbild")
+                {
+                    Emit("{\"id\":" + id + ",\"vollbild\":" + (Vollbild() ? "true" : "false") + "}");
+                }
                 else if (cmd == "grab")
                 {
                     Emit("{\"id\":" + id + ",\"grab\":" + GrabJson(Zahl(line, "x"), Zahl(line, "y"), Zahl(line, "w"), Zahl(line, "h")) + "}");
@@ -379,6 +491,314 @@ namespace Letterflow
             }
             catch { }
         }
+
+        // ---------- Mikrofon: WASAPI, geteilter Modus, ereignisgesteuert ----------
+        // Windows wandelt selbst in 16 kHz mono Float (AUTOCONVERTPCM). Pakete (erstes sofort, dann ab 20 ms)
+        // gehen als Base64 ({"ev":"pcm","b":...}) an die App; dazu {"ev":"mic"} mit started (+ warm), error
+        // (Name wie im Browser) oder stopped. Audio fließt nur zwischen an und aus.
+        // Warm: Das Öffnen (Initialize) kostet je nach Gerät ~0,2 s. Nach einer Aufnahme bleibt der Strom daher
+        // bis zu `warm` ms geöffnet, aber gestoppt: kein Ton, kein Mikrofon-Symbol; der nächste Start dauert ~10 ms.
+
+        class MicStrom
+        {
+            public IMMDeviceEnumerator en;
+            public IMMDevice dev;
+            public IAudioClient client;
+            public IAudioCaptureClient cap;
+            public IntPtr ev;
+            public string geraet;
+        }
+
+        static readonly object MicLock = new object();
+        static MicStrom warmStrom; // unter MicLock
+        static readonly Timer kaltTimer = new Timer(delegate { Parken(null, 0); }, null, Timeout.Infinite, Timeout.Infinite);
+
+        // Läuft auf dem stdin-Thread, in Reihenfolge. Eine neue Aufnahme wartet, bis die vorige ganz zu ist.
+        static void MikrofonSchalten(bool an, string geraet, int warmMs)
+        {
+            micRun = false;
+            if (!an) return;
+            if (micThread != null) micThread.Join();
+            micRun = true;
+            micThread = new Thread(delegate() { Aufnehmen(geraet ?? "", warmMs); });
+            micThread.IsBackground = true;
+            micThread.SetApartmentState(ApartmentState.MTA);
+            micThread.Start();
+        }
+
+        // Strom warm ablegen (ms > 0) oder schließen; ein vorher abgelegter wird geschlossen.
+        // shortcut: ein warmer Strom folgt keinem Wechsel des Windows-Standardgeräts (höchstens `warm` ms lang).
+        static void Parken(MicStrom s, int ms)
+        {
+            MicStrom alt;
+            lock (MicLock)
+            {
+                alt = warmStrom;
+                warmStrom = ms > 0 ? s : null;
+                kaltTimer.Change(ms > 0 && s != null ? ms : Timeout.Infinite, Timeout.Infinite);
+            }
+            if (alt != s) Schliessen(alt);
+            if (ms <= 0) Schliessen(s);
+        }
+
+        static void Schliessen(MicStrom s)
+        {
+            if (s == null) return;
+            Freigeben(s.cap);
+            Freigeben(s.client);
+            Freigeben(s.dev);
+            Freigeben(s.en);
+            if (s.ev != IntPtr.Zero) Native.CloseHandle(s.ev);
+        }
+
+        // Beim Start des Helfers einmal öffnen (der erste Start im Prozess dauert sonst ~0,4 s) und warm ablegen.
+        static void MikrofonVorwaermen()
+        {
+            string fehler;
+            Parken(Oeffnen("", out fehler), 15000);
+        }
+
+        static string MicFehler(int hr, bool laeuft)
+        {
+            if (hr == unchecked((int)0x80070005)) return "NotAllowedError"; // E_ACCESSDENIED: Datenschutz sperrt
+            if (hr == unchecked((int)0x88890004) || hr == unchecked((int)0x80070490)) // Gerät weg / nicht gefunden
+                return laeuft ? "TrackEndedError" : "NotFoundError";
+            return "Error";
+        }
+
+        static void Freigeben(object o)
+        {
+            if (o != null) Marshal.FinalReleaseComObject(o);
+        }
+
+        static string GeraeteName(IMMDevice d)
+        {
+            IPropertyStore ps;
+            if (d.OpenPropertyStore(0, out ps) != 0) return null; // STGM_READ
+            try
+            {
+                PropertyKey k = new PropertyKey(); // PKEY_Device_FriendlyName
+                k.fmtid = new Guid("A45C254E-DF1C-4EFD-8020-67D146A850E0");
+                k.pid = 14;
+                PropVariant v;
+                if (ps.GetValue(ref k, out v) != 0) return null;
+                string name = v.vt == 31 ? Marshal.PtrToStringUni(v.p) : null; // VT_LPWSTR
+                Native.PropVariantClear(ref v);
+                return name;
+            }
+            finally { Freigeben(ps); }
+        }
+
+        // Windows-Standard (leer) oder das aktive Aufnahmegerät mit diesem Namen (wie ihn die Einstellungen zeigen).
+        static IMMDevice Geraet(IMMDeviceEnumerator en, string name)
+        {
+            IMMDevice d;
+            if (name == "") return en.GetDefaultAudioEndpoint(1, 0, out d) == 0 ? d : null; // eCapture, eConsole
+            IMMDeviceCollection alle;
+            if (en.EnumAudioEndpoints(1, 1, out alle) != 0) return null; // DEVICE_STATE_ACTIVE
+            try
+            {
+                int n;
+                alle.GetCount(out n);
+                for (int i = 0; i < n; i++)
+                {
+                    if (alle.Item(i, out d) != 0) continue;
+                    if (GeraeteName(d) == name) return d;
+                    Freigeben(d);
+                }
+                return null;
+            }
+            finally { Freigeben(alle); }
+        }
+
+        // Gerät öffnen (16 kHz mono Float, Ereignis, noch nicht gestartet); null mit Fehlername.
+        static MicStrom Oeffnen(string geraet, out string fehler)
+        {
+            MicStrom s = new MicStrom();
+            s.geraet = geraet;
+            IntPtr fmt = IntPtr.Zero;
+            fehler = null;
+            try
+            {
+                s.en = (IMMDeviceEnumerator)new MMDeviceEnumeratorKlasse();
+                s.dev = Geraet(s.en, geraet);
+                if (s.dev == null) fehler = "NotFoundError";
+                else
+                {
+                    Guid iid = typeof(IAudioClient).GUID;
+                    object o;
+                    int hr = s.dev.Activate(ref iid, 0x17, IntPtr.Zero, out o); // CLSCTX_ALL
+                    if (hr == 0)
+                    {
+                        s.client = (IAudioClient)o;
+                        // WAVEFORMATEX: IEEE-Float, 1 Kanal, 16000 Hz, 32 Bit
+                        fmt = Marshal.AllocCoTaskMem(18);
+                        Marshal.WriteInt16(fmt, 0, 3);
+                        Marshal.WriteInt16(fmt, 2, 1);
+                        Marshal.WriteInt32(fmt, 4, 16000);
+                        Marshal.WriteInt32(fmt, 8, 64000);
+                        Marshal.WriteInt16(fmt, 12, 4);
+                        Marshal.WriteInt16(fmt, 14, 32);
+                        Marshal.WriteInt16(fmt, 16, 0);
+                        // EVENTCALLBACK | AUTOCONVERTPCM | SRC_DEFAULT_QUALITY, Puffer 200 ms
+                        hr = s.client.Initialize(0, unchecked((int)0x88040000), 2000000, 0, fmt, IntPtr.Zero);
+                    }
+                    if (hr == 0)
+                    {
+                        s.ev = Native.CreateEvent(IntPtr.Zero, false, false, null);
+                        hr = s.client.SetEventHandle(s.ev);
+                    }
+                    if (hr == 0)
+                    {
+                        Guid capId = typeof(IAudioCaptureClient).GUID;
+                        hr = s.client.GetService(ref capId, out o);
+                        if (hr == 0) s.cap = (IAudioCaptureClient)o;
+                    }
+                    if (hr != 0) fehler = MicFehler(hr, false);
+                }
+            }
+            catch (UnauthorizedAccessException) { fehler = "NotAllowedError"; }
+            catch (Exception) { fehler = "Error"; }
+            finally { if (fmt != IntPtr.Zero) Marshal.FreeCoTaskMem(fmt); }
+            if (fehler == null) return s;
+            Schliessen(s);
+            return null;
+        }
+
+        static void PcmAusgeben(float[] werte, int n)
+        {
+            byte[] b = new byte[n * 4];
+            Buffer.BlockCopy(werte, 0, b, 0, b.Length);
+            Emit("{\"ev\":\"pcm\",\"b\":\"" + Convert.ToBase64String(b) + "\"}");
+        }
+
+        static void Aufnehmen(string geraet, int warmMs)
+        {
+            MicStrom s;
+            lock (MicLock)
+            {
+                s = warmStrom;
+                warmStrom = null;
+                kaltTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            }
+            bool warm = s != null && s.geraet == geraet, gestartet = false;
+            string fehler = null;
+            try
+            {
+                if (s != null && !warm) { Schliessen(s); s = null; }
+                if (warm)
+                {
+                    s.client.Reset(); // nichts Altes aus dem Puffer
+                    if (s.client.Start() != 0) { Schliessen(s); s = null; warm = false; } // z. B. Gerät inzwischen weg
+                }
+                if (s == null)
+                {
+                    s = Oeffnen(geraet, out fehler);
+                    if (s == null) return;
+                    int hr = s.client.Start();
+                    if (hr != 0) { fehler = MicFehler(hr, false); return; }
+                }
+                gestartet = true;
+                Emit("{\"ev\":\"mic\",\"started\":true,\"warm\":" + (warm ? "true" : "false") + "}");
+                float[] werte = new float[16000];
+                int fuell = 0;
+                bool weiter = true, erstes = true;
+                while (weiter)
+                {
+                    weiter = micRun; // nach dem Stopp noch einmal alles abholen
+                    Native.WaitForSingleObject(s.ev, weiter ? 100u : 0u);
+                    uint n;
+                    int hr;
+                    while ((hr = s.cap.GetNextPacketSize(out n)) == 0 && n > 0)
+                    {
+                        IntPtr data;
+                        uint frames, flags;
+                        ulong p1, p2;
+                        hr = s.cap.GetBuffer(out data, out frames, out flags, out p1, out p2);
+                        if (hr != 0) break;
+                        int m = (int)frames;
+                        if (fuell + m > werte.Length) { PcmAusgeben(werte, fuell); fuell = 0; }
+                        if (m > werte.Length) m = werte.Length;
+                        if ((flags & 2) != 0) Array.Clear(werte, fuell, m); // AUDCLNT_BUFFERFLAGS_SILENT
+                        else Marshal.Copy(data, werte, fuell, m);
+                        fuell += m;
+                        s.cap.ReleaseBuffer(frames);
+                    }
+                    if (hr != 0) { fehler = MicFehler(hr, true); break; }
+                    // Erstes Paket sofort (Startzeit), danach ab 20 ms
+                    if (fuell > 0 && (fuell >= 320 || erstes || !weiter)) { PcmAusgeben(werte, fuell); fuell = 0; erstes = false; }
+                }
+                if (fuell > 0) PcmAusgeben(werte, fuell);
+            }
+            catch (UnauthorizedAccessException) { fehler = "NotAllowedError"; }
+            catch (Exception) { fehler = "Error"; }
+            finally
+            {
+                try { if (gestartet) s.client.Stop(); } catch { }
+                Parken(s, fehler == null ? warmMs : 0); // nach einem Fehler nie warm halten
+                if (fehler != null) Emit("{\"ev\":\"mic\",\"error\":\"" + fehler + "\"}");
+                Emit("{\"ev\":\"mic\",\"stopped\":true}");
+            }
+        }
+
+        // ---------- Vollbild: dann keine Pille und keine Bildschirmerfassung ----------
+
+        static bool IstShell(IntPtr hwnd)
+        {
+            StringBuilder sb = new StringBuilder(256);
+            Native.GetClassName(hwnd, sb, 256);
+            string cls = sb.ToString();
+            return cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd";
+        }
+
+        // Windows meldet exklusives Direct3D-Vollbild oder Präsentationsmodus (QUNS_RUNNING_D3D_FULL_SCREEN,
+        // QUNS_PRESENTATION_MODE), oder das Vordergrundfenster ohne Titelleiste deckt seinen ganzen Bildschirm
+        // (randloses Vollbild, Video). QUNS_BUSY allein zählt nicht: gemessen auch bei normalem Fenster vorn.
+        static bool Vollbild()
+        {
+            int s;
+            if (Native.SHQueryUserNotificationState(out s) == 0 && (s == 3 || s == 4)) return true;
+            IntPtr fg = Native.GetForegroundWindow();
+            if (fg == IntPtr.Zero || IstShell(fg)) return false;
+            if ((Native.GetWindowLong(fg, -16) & 0x00C00000) == 0x00C00000) return false; // WS_CAPTION: normales/maximiertes Fenster
+            IntPtr alt = Native.SetThreadDpiAwarenessContext(new IntPtr(-4)); // echte Pixel für beide Rechtecke
+            try
+            {
+                Native.RECT r;
+                Native.MONITORINFO mi = new Native.MONITORINFO();
+                mi.cbSize = Marshal.SizeOf(typeof(Native.MONITORINFO));
+                if (!Native.GetWindowRect(fg, out r) || !Native.GetMonitorInfo(Native.MonitorFromWindow(fg, 2), ref mi)) return false;
+                Native.RECT m = mi.rcMonitor;
+                return r.left <= m.left && r.top <= m.top && r.right >= m.right && r.bottom >= m.bottom;
+            }
+            finally { if (alt != IntPtr.Zero) Native.SetThreadDpiAwarenessContext(alt); }
+        }
+
+        // ---------- Vordergrund: Programm melden, damit die App das Symbol vorab lädt ----------
+
+        static void VordergrundGewechselt(IntPtr hook, uint ev, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
+        {
+            if (idObject != 0 || hwnd == IntPtr.Zero) return; // nur ganze Fenster
+            long nr = Interlocked.Increment(ref vordergrundNr);
+            ThreadPool.QueueUserWorkItem(delegate { VordergrundMelden(hwnd, nr); });
+        }
+
+        // Desktop, Taskleiste und erhöhte Programme: exe null (die Pille zeigt dann das Letterflow-Symbol).
+        static void VordergrundMelden(IntPtr hwnd, long nr)
+        {
+            try
+            {
+                string exe = null, name = null;
+                uint pid;
+                Native.GetWindowThreadProcessId(hwnd, out pid);
+                if (!IstShell(hwnd) && !IsElevated(pid)) ProgramOf(hwnd, pid, out exe, out name);
+                // Nur der neueste Wechsel zählt (Meldungen aus dem Thread-Pool können sich überholen)
+                if (nr == Interlocked.Read(ref vordergrundNr))
+                    Emit("{\"ev\":\"vordergrund\",\"exe\":" + JsonStr(exe) + ",\"appName\":" + JsonStr(name) + "}");
+            }
+            catch { }
+        }
+
 
         static int Zahl(string line, string name)
         {

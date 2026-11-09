@@ -5,7 +5,7 @@ const path = require('node:path');
 const { launchApp, fertigerDatenOrdner } = require('./helpers');
 const { encodeWav } = require('../../src/main/wav');
 
-// Diktat-Ablauf mit Ersatz-Helfer, Ersatz-Engines und einer WAV-Datei als Test-Mikrofon.
+// Diktat-Ablauf mit Ersatz-Helfer (liefert auch das Mikrofon: eine WAV-Datei) und Ersatz-Engines.
 const DIKTAT = path.join(__dirname, '..', 'fixtures', 'diktat-kurz.wav');
 const TEXTFELD = { hwnd: 42, editable: 'yes', elevated: false };
 
@@ -56,15 +56,17 @@ const seiteVon = async (datei) => {
   return app.windows().find((w) => w.url().endsWith(datei));
 };
 const overlaySeite = () => seiteVon('overlay.html');
-const mikrofonSeite = () => seiteVon('recorder.html');
+const mikrofonAn = () =>
+  expect
+    .poll(() => app.evaluate(() => global.__letterflow.recorder.aktiv), { timeout: 10000 })
+    .toBe(true);
 const pille = async () => (await overlaySeite()).locator('#pille');
 const zeile = async (n) => (await overlaySeite()).locator(`#zeile${n}`);
 
 // Kürzel halten, bis das Mikrofon wirklich läuft, dann noch `ms` sprechen und loslassen.
 async function diktieren(ms = 1500) {
   await druecken();
-  const seite = await mikrofonSeite();
-  await expect(seite.locator('html')).toHaveAttribute('data-aktiv', '', { timeout: 10000 });
+  await mikrofonAn();
   await new Promise((r) => setTimeout(r, ms)); // Sprechdauer, kein Warten auf Zustand
   await loslassen();
 }
@@ -145,8 +147,8 @@ test('Engines nicht bereit → Hinweis statt Aufnahme', async () => {
   await expect(p).toHaveAttribute('data-kind', 'info');
   await loslassen();
   await expect(p).not.toHaveClass(/sichtbar/, { timeout: 5000 });
-  // Das Mikrofon wurde nie geöffnet (sein Fenster entsteht erst beim ersten Start).
-  expect(app.windows().some((w) => w.url().endsWith('recorder.html'))).toBe(false);
+  // Das Mikrofon wurde nie geöffnet.
+  expect(await app.evaluate(() => global.__letterflow.befehle)).not.toContain('mic');
   expect(await lastPaste()).toBeNull();
 });
 
@@ -193,19 +195,18 @@ test('gewähltes Mikrofon fehlt → Windows-Standard', async () => {
   await fokus(TEXTFELD);
   await diktieren();
   await expect.poll(lastPaste, { timeout: 10000 }).toEqual({ text: 'Hallo tim.', hwnd: 42 });
-  expect(protokoll()).toMatch(/OverconstrainedError/);
+  expect(protokoll()).toMatch(/NotFoundError/);
 });
 
 test('Mikrofon während der Aufnahme abgezogen → einmal Windows-Standard', async () => {
   await starten();
   await fokus(TEXTFELD);
   await druecken();
-  const seite = await mikrofonSeite();
-  await expect(seite.locator('html')).toHaveAttribute('data-sample-rate', '16000');
-  // Die Spur meldet „ended“, als wäre das Gerät abgezogen worden.
-  await seite.evaluate(() => mik.strom.getAudioTracks()[0].dispatchEvent(new Event('ended')));
+  await mikrofonAn();
+  // Der Helfer meldet das Gerät als weg.
+  await helfer({ cmd: '__micEnde' });
   await expect.poll(protokoll).toMatch(/Standardgerät/);
-  await expect(seite.locator('html')).toHaveAttribute('data-sample-rate', '16000');
+  await mikrofonAn();
   await new Promise((r) => setTimeout(r, 1500)); // Sprechdauer
   await loslassen();
   await expect.poll(lastPaste, { timeout: 10000 }).toEqual({ text: 'Hallo tim.', hwnd: 42 });
@@ -240,8 +241,7 @@ test('Engine-Neustart während der Aufnahme → Erkennung nutzt die neuen Engine
   await starten();
   await fokus(TEXTFELD);
   await druecken();
-  const seite = await mikrofonSeite();
-  await expect(seite.locator('html')).toHaveAttribute('data-sample-rate', '16000');
+  await mikrofonAn();
   await app.evaluate(() => global.__letterflow.enginesNeustart(false));
   await expect.poll(() => app.evaluate(() => global.__letterflow.status().engines)).toBe('bereit');
   await new Promise((r) => setTimeout(r, 1500)); // Sprechdauer

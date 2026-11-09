@@ -4,7 +4,7 @@ const path = require('node:path');
 const DEFAULTS = {
   hotkey: 'rctrl',
   hotkeyMode: 'halten', // halten: gedrückt halten · umschalten: doppelt tippen startet, einmal tippen beendet
-  micDeviceId: null,
+  micDeviceId: null, // Name des Aufnahmegeräts (seit 0.25; vorher Browser-ID), null = Windows-Standard
   smoothing: true,
   smoothingModel: 'auto',
   dictionary: [],

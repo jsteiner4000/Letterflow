@@ -100,6 +100,8 @@ function inhaltSetzen(state) {
   pille.dataset.kind = state.kind;
   if (state.kind === 'warnung' || state.kind === 'fehler') symbol.dataset.art = 'warn';
   else if (app && app.iconDataUrl) symbol.dataset.art = 'bild';
+  else if (app && app.laedt)
+    symbol.dataset.art = 'leer'; // Symbol lädt noch: neutraler Platzhalter
   else symbol.dataset.art = 'mono';
   if (symbol.dataset.art === 'bild') bild.src = app.iconDataUrl;
   else bild.removeAttribute('src');
@@ -290,6 +292,7 @@ function federLauf(rein, mitBulge) {
       window.letterflow.overlay.erschienen(verworfen(a.zeiten));
     } else {
       pille.style.opacity = schatten.style.opacity = '0';
+      wegMelden();
     }
   };
   formSetzen(rein, mitBulge, rein ? -1e3 : 0); // Form schon vor dem ersten Bild gesetzt
@@ -327,14 +330,22 @@ function erscheinen() {
 }
 
 pille.addEventListener('animationend', (e) => {
-  // nur das schlichte Einblenden (der Tropfen ist federgetrieben)
-  if (
-    e.target === pille &&
-    pille.classList.contains('schlicht') &&
-    pille.classList.contains('sichtbar')
-  )
-    window.letterflow.overlay.erschienen(null);
+  // nur das schlichte Ein-/Ausblenden (der Tropfen ist federgetrieben)
+  if (e.target !== pille || !pille.classList.contains('schlicht')) return;
+  if (pille.classList.contains('sichtbar')) window.letterflow.overlay.erschienen(null);
+  else if (pille.classList.contains('weg')) wegMelden();
 });
+
+// Zwei Bilder abwarten: dann ist das, was das Fenster zeigt, wirklich gezeichnet.
+const zweiBilder = (f) => requestAnimationFrame(() => requestAnimationFrame(f));
+let wegNr = 0;
+// Pille ist ganz verschwunden: melden, sobald das leere Bild gezeichnet ist (dann wird das Fenster
+// verborgen und zeigt beim nächsten Mal kein altes Bild). Kommt vorher ein neuer Zustand, entfällt es.
+function wegMelden() {
+  const nr = ++wegNr;
+  zweiBilder(() => nr === wegNr && !aktiv && window.letterflow.overlay.weg());
+}
+window.letterflow.overlay.onZeigen(() => zweiBilder(() => window.letterflow.overlay.gezeigt()));
 
 window.letterflow.overlay.onState((raw) => {
   // Lange Meldungen „A – B“ zweizeilig, damit bei 340 px möglichst wenig gekürzt wird.
@@ -343,6 +354,7 @@ window.letterflow.overlay.onState((raw) => {
   einstellung = raw.pille || einstellung;
   deckend = Boolean(raw.deckend);
   aktiv = true;
+  wegNr++;
   const sichtbar = pille.classList.contains('sichtbar');
   const wechsel = sichtbar && pille.dataset.kind !== state.kind && !ruhig();
   const alt = [pille.style.width, pille.style.left];
@@ -389,14 +401,17 @@ window.letterflow.overlay.onHide(() => {
   const war = pille.classList.contains('sichtbar');
   pille.classList.remove('sichtbar', 'wechsel', 'tropf');
   streifen = null;
-  if (schlicht) {
-    pille.classList.add('weg'); // Einblenden rückwärts
+  if (schlicht && war) {
+    pille.classList.add('weg'); // Einblenden rückwärts, danach wegMelden (animationend)
     schatten.classList.remove('an');
   } else if (war) {
-    federLauf(false, false);
-  } else if (anim) {
-    cancelAnimationFrame(anim.id);
+    federLauf(false, false); // meldet am Ende weg
+  } else {
+    if (anim) cancelAnimationFrame(anim.id);
     anim = null;
+    pille.style.opacity = schatten.style.opacity = '0';
+    schatten.classList.remove('an');
+    wegMelden();
   }
 });
 

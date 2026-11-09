@@ -31,14 +31,9 @@ contextBridge.exposeInMainWorld('letterflow', {
     onLevel: (cb) => ipcRenderer.on('overlay:level', (_event, n) => cb(n)),
     onBackdrop: (cb) => ipcRenderer.on('overlay:backdrop', (_event, b) => cb(b)),
     onHide: (cb) => ipcRenderer.on('overlay:hide', () => cb()),
-  },
-  recorder: {
-    ready: () => ipcRenderer.send('recorder:ready'),
-    onStart: (cb) => ipcRenderer.on('recorder:start', (_event, o) => cb(o)),
-    onStop: (cb) => ipcRenderer.on('recorder:stop', () => cb()),
-    pcm: (daten) => ipcRenderer.send('recorder:pcm', daten),
-    started: (warm) => ipcRenderer.send('recorder:started', warm),
-    stopped: () => ipcRenderer.send('recorder:stopped'),
-    error: (fehler) => ipcRenderer.send('recorder:error', fehler),
+    // Fenster gezeigt bzw. Pille verschwunden: Antwort erst nach zwei gezeichneten Bildern
+    onZeigen: (cb) => ipcRenderer.on('overlay:zeigen', () => cb()),
+    gezeigt: () => ipcRenderer.send('overlay:gezeigt'),
+    weg: () => ipcRenderer.send('overlay:weg'),
   },
 });

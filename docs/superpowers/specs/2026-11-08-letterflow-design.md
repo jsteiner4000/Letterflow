@@ -93,7 +93,9 @@ Verworfen: Python + faster-whisper – keine AMD-GPU-Unterstützung. Gewählt ha
 ### Oberfläche
 
 - **Taskleisten-Symbol** (Infobereich) mit Menü: Einstellungen, Über Letterflow, Beenden. Kein Hauptfenster.
-- **Aufnahme-Anzeige**: kleine Pille unten mittig, über allen Fenstern, nimmt keinen Fokus. Zustände: Aufnahme (Pegel), Verarbeitung, Warnung, Fehler. Weiche Ein-/Ausblendung.
+- **Aufnahme-Anzeige**: kleine Pille unten mittig, über allen Fenstern, nimmt keinen Fokus. Zustände: Aufnahme (Pegel), Verarbeitung, Warnung, Fehler. Weiche Ein-/Ausblendung. Das Fenster ist nur beim Diktieren gezeigt (0.25). **Vollbild** (Spiel, Video, Präsentation; exklusives Direct3D-Vollbild, Präsentationsmodus oder ein Vordergrundfenster ohne Titelleiste, das seinen Bildschirm ganz deckt): keine Pille und keine Bildschirmerfassung, Aufnahme und Einfügen laufen normal.
+- **Mikrofon** (0.25): im nativen Helfer über WASAPI (geteilter Modus, ereignisgesteuert, Windows wandelt in 16 kHz mono). Audio fließt nur zwischen Drücken und Loslassen. Nach einem Diktat bleibt das Gerät 15 s geöffnet, aber gestoppt (kein Ton, kein Mikrofon-Symbol von Windows): Start dann ~3 ms statt ~0,2 s. Gerätewahl über den Gerätenamen (Windows-Standard oder ein benanntes Gerät).
+- **Programmsymbol** (0.25): Der Helfer meldet jeden Vordergrundwechsel (`SetWinEventHook`), die App lädt das Symbol vorab; die Pille zeigt es ab dem ersten Bild. Lädt es noch, ein neutraler Platzhalter; Programm unbekannt/ohne eigenes Symbol oder kein Textfeld: Letterflow-Symbol.
 - **Einstellungsfenster**: Mikrofon, Glättung an/aus, Wörterbuch (Liste), Mit Windows starten, Hardware-Anzeige, Modellstatus.
 - **Erster Start**: Willkommen + Modell-Download mit Fortschritt (ca. 0,7 GB, mit „Gründlich“ ca. 3,2 GB), Wiederaufnahme nach Abbruch, Prüfsummen-Kontrolle. Ablage unter `%LOCALAPPDATA%\Letterflow\models`.
 

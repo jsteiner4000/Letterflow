@@ -342,18 +342,26 @@ $('woerterbuch-form').addEventListener('submit', async (e) => {
 
 // --- Mikrofone -----------------------------------------------------------
 
+// Gespeichert wird der Gerätename: Er ist derselbe, den Windows dem Helfer nennt, der das Mikrofon öffnet.
+let geraete = [];
 async function mikrofoneLaden() {
-  const gewaehlt = aktuell ? aktuell.micDeviceId : null;
-  let geraete = [];
+  let gewaehlt = aktuell ? aktuell.micDeviceId : null;
   try {
     geraete = (await navigator.mediaDevices.enumerateDevices()).filter(
       (d) => d.kind === 'audioinput' && d.deviceId !== 'default' && d.deviceId !== 'communications',
     );
   } catch {}
+  // Bis 0.24 stand hier die Geräte-ID des Browsers: einmalig in den Namen umschreiben.
+  const alt = geraete.find((d) => d.deviceId === gewaehlt && d.label);
+  if (alt) {
+    gewaehlt = alt.label;
+    speichern({ micDeviceId: gewaehlt });
+  }
+  const benannt = geraete.filter((d) => d.label);
   const optionen = [new Option('Windows-Standard', '')];
-  geraete.forEach((d, i) => optionen.push(new Option(d.label || `Mikrofon ${i + 1}`, d.deviceId)));
+  benannt.forEach((d) => optionen.push(new Option(d.label, d.label)));
   // Gespeichertes, gerade nicht angeschlossenes Gerät sichtbar lassen.
-  if (gewaehlt && !geraete.some((d) => d.deviceId === gewaehlt)) {
+  if (gewaehlt && !benannt.some((d) => d.label === gewaehlt)) {
     optionen.push(new Option('Gewähltes Mikrofon (nicht angeschlossen)', gewaehlt));
   }
   $('mikrofon').replaceChildren(...optionen);
@@ -362,9 +370,9 @@ async function mikrofoneLaden() {
 }
 
 async function mikrofoneMitNamen() {
-  const geraete = await mikrofoneLaden();
+  const liste = await mikrofoneLaden();
   // Ohne Berechtigung liefert Windows keine Namen; einmal kurz anfragen und neu lesen.
-  if (geraete.length && geraete.every((d) => !d.label)) {
+  if (liste.length && liste.every((d) => !d.label)) {
     try {
       const strom = await navigator.mediaDevices.getUserMedia({ audio: true });
       strom.getTracks().forEach((t) => t.stop());
@@ -397,7 +405,7 @@ async function pegelStarten() {
   const lauf = (pegel = { timer: setTimeout(pegelStoppen, PEGEL_DAUER_MS) });
   $('pegel-test').textContent = 'Test beenden';
   $('pegel').hidden = false;
-  const id = aktuell?.micDeviceId;
+  const id = geraete.find((d) => d.label && d.label === aktuell?.micDeviceId)?.deviceId;
   let strom;
   try {
     strom = await navigator.mediaDevices.getUserMedia({

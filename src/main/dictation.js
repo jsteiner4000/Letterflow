@@ -32,7 +32,7 @@ const MESSAGES = {
 };
 
 // Gerät fehlt oder ist weg: einmal mit dem Windows-Standardgerät neu versuchen.
-const DEVICE_GONE = new Set(['NotFoundError', 'OverconstrainedError', 'TrackEndedError']);
+const DEVICE_GONE = new Set(['NotFoundError', 'TrackEndedError']);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -77,6 +77,7 @@ class Dictation {
       'hotkey-down': () => this._down(),
       'hotkey-up': () => this._up(),
       'hotkey-cancel': () => this._cancel(),
+      vordergrund: (v) => this._vordergrund(v),
       failed: () => {
         this.log('helfer: ausgefallen');
         this._message('fehler', MESSAGES.helperFailed, HELPER_FAILED_MS);
@@ -100,6 +101,26 @@ class Dictation {
       this._end(rec);
       this._stopRecorder(rec);
     }
+  }
+
+  // --- Programmsymbol ----------------------------------------------------------
+
+  // Der Helfer meldet jeden Vordergrundwechsel: Symbol schon jetzt laden, damit die Pille es beim
+  // Erscheinen hat. exe null: Desktop, Taskleiste oder erhöhtes Programm (Letterflow-Symbol).
+  _vordergrund({ exe, appName }) {
+    const v = (this.vordergrundApp = { exe, info: exe ? null : undefined });
+    if (exe)
+      this.getAppInfo({ exe, appName })
+        .then((info) => (v.info = info))
+        .catch(() => (v.info = undefined));
+  }
+
+  // Für das erste Bild der Pille: geladenes Symbol, Platzhalter solange es lädt (oder noch nichts
+  // gemeldet ist), sonst nichts (Letterflow-Symbol).
+  _sofortApp() {
+    const v = this.vordergrundApp;
+    if (v && v.info !== null) return v.info || null;
+    return { name: '', iconDataUrl: null, laedt: true };
   }
 
   // --- Kürzel ------------------------------------------------------------------
@@ -170,7 +191,7 @@ class Dictation {
     this.setTrayState('hoert');
     clearTimeout(this.messageTimer);
     this.messageTimer = null;
-    this.overlay.show({ kind: 'aufnahme' });
+    this.overlay.show({ kind: 'aufnahme', app: this._sofortApp() });
     rec.limitTimer = setTimeout(() => this._finish(rec, true), MAX_DURATION_MS);
   }
 
@@ -217,7 +238,7 @@ class Dictation {
   _pcm(pcm) {
     const rec = this.capture;
     if (!rec) return;
-    // Zeit vom Kürzel bis zum ersten Ton (warm: inklusive 300 ms Vorlauf); kein Inhalt im Protokoll
+    // Zeit vom Kürzel bis zum ersten Ton (warm: Gerät war noch geöffnet); kein Inhalt im Protokoll
     if (!rec.gotAudio)
       this.log(
         `mikrofon-start ${Date.now() - rec.startedAt} ms, ${this.recorder.warm ? 'warm' : 'kalt'}`,

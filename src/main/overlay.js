@@ -20,21 +20,34 @@ const ERFASSEN_FRIST_MS = 400; // länger: gilt als Fehler, die Pille bleibt get
 const HOEHE = 152; // ganze Gerätepixel bei 125 % (190 px); Platz für Schatten (32 px Weichheit, 12 px nach unten) und den Weg beim Ein-/Ausblenden
 const LADE_FRIST_MS = 10000;
 const ABSTAND = 60; // zum unteren Rand des Bildschirms
+const BILD_FRIST_MS = 200; // so lange höchstens auf die ersten Bilder des gezeigten Fensters warten
+const WEG_FRIST_MS = 1000; // Rückfall, falls der Renderer das Ende des Verschwindens nicht meldet
 
-// Aufnahme-Pille: rahmenlos, transparent, klickdurchlässig, nimmt nie den Fokus. Das Fenster bleibt
-// nach dem ersten Laden dauerhaft gezeigt (im Ruhezustand völlig durchsichtig, kein Bild, keine
-// Timer): ein verborgenes Fenster neu zu zeigen liefert zuerst alte oder gar keine Bilder, das
-// Aufploppen wäre unsichtbar.
+// Aufnahme-Pille: rahmenlos, transparent, klickdurchlässig, nimmt nie den Fokus. Das Fenster ist nur
+// beim Diktieren gezeigt; der Renderer bleibt geladen. Gegen alte Bilder und unsichtbares Aufploppen:
+// Verborgen wird erst, wenn die Pille ganz verschwunden und dieses leere Bild gezeichnet ist (der
+// Renderer meldet 'overlay:weg'); beim Zeigen beginnt das Aufploppen erst, wenn das Fenster Bilder
+// liefert (Antwort 'overlay:gezeigt' nach zwei Bildern).
+//
+// Vollbild (Spiel, Video, Präsentation): keine Pille und keine Erfassung; das Diktat läuft trotzdem.
 //
 // Echtes Glas: Das Fenster ist von Bildschirmaufnahmen ausgenommen (setContentProtection). Der Streifen
 // unter der Pille wird vor dem Erscheinen und danach alle 750 ms erfasst (schnell über den Helfer,
 // sonst desktopCapturer) und nur im Speicher an den Renderer gegeben. Nichts wird gespeichert oder gesendet.
-function createOverlay({ getSettings = () => ({}), capture = true, grab = null } = {}) {
+function createOverlay({
+  getSettings = () => ({}),
+  capture = true,
+  grab = null,
+  vollbild = async () => false,
+} = {}) {
   const events = new EventEmitter();
   let win = null;
   let bereit = null; // Promise: Renderer ist initialisiert
   let erfassung = null; // { timer } solange die Pille sichtbar ist
   let gezeigt = false; // zwischen show und hide
+  let unterdrueckt = false; // Vollbild beim Erscheinen: bis zum nächsten hide nichts zeigen
+  let bildWarten = null; // Funktion, die das Warten auf 'overlay:gezeigt' beendet
+  let wegTimer = null;
   let kette = Promise.resolve(); // show/hide nacheinander (show wartet kurz auf den Hintergrund)
   const reihe = (f) =>
     (kette = kette
@@ -59,8 +72,17 @@ function createOverlay({ getSettings = () => ({}), capture = true, grab = null }
     if (!vonOverlay(event)) return;
     if (Number.isFinite(anteil) && anteil >= 0 && anteil <= 1) events.emit('animation', anteil);
   };
+  const onGezeigt = (event) => vonOverlay(event) && bildWarten && bildWarten();
+  // Pille ist verschwunden und das leere Bild gezeichnet: jetzt verbergen (außer sie kommt gerade wieder).
+  const verbergen = () => {
+    clearTimeout(wegTimer);
+    if (!gezeigt && win && !win.isDestroyed() && win.isVisible()) win.hide();
+  };
+  const onWeg = (event) => vonOverlay(event) && verbergen();
   ipcMain.on('overlay:ready', onReady);
   ipcMain.on('overlay:erschienen', onErschienen);
+  ipcMain.on('overlay:gezeigt', onGezeigt);
+  ipcMain.on('overlay:weg', onWeg);
 
   function ensureWindow() {
     if (win && !win.isDestroyed()) return bereit;
@@ -100,9 +122,6 @@ function createOverlay({ getSettings = () => ({}), capture = true, grab = null }
       }, LADE_FRIST_MS);
       diese.__bereit = () => {
         clearTimeout(frist);
-        // Einmal zeigen und gezeigt lassen (Pille noch durchsichtig); showInactive: kein Fokusklau.
-        positionieren();
-        diese.showInactive();
         resolve();
       };
     });
@@ -134,6 +153,7 @@ function createOverlay({ getSettings = () => ({}), capture = true, grab = null }
       const bild = app.iconDataUrl;
       const bildOk = typeof bild === 'string' && bild.length <= 64 * 1024 && BILD_URL.test(bild);
       s.app = { name: app.name.slice(0, 80), iconDataUrl: bildOk ? bild : null };
+      if (app.laedt === true) s.app.laedt = true; // Symbol lädt noch: neutraler Platzhalter
     }
     // Windows „Transparenzeffekte“ aus → Glas deckend
     s.deckend = Boolean(nativeTheme.prefersReducedTransparency);
@@ -152,6 +172,7 @@ function createOverlay({ getSettings = () => ({}), capture = true, grab = null }
 
   // Streifen unter der Pille erfassen (Bildschirm unter dem Fenster, in Bildpunkten des Bildschirms).
   async function erfassen() {
+    if (await vollbild()) throw new Error('Vollbild'); // nie über einem Vollbildprogramm erfassen
     const b = win.getBounds();
     const anzeige = screen.getDisplayNearestPoint({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
     const f = anzeige.scaleFactor;
@@ -217,38 +238,59 @@ function createOverlay({ getSettings = () => ({}), capture = true, grab = null }
     show(state) {
       reihe(async () => {
         await ensureWindow();
-        if (!win || win.isDestroyed()) return;
-        // Das Fenster bleibt dauerhaft gezeigt; andere Fenster (z. B. nach Bildschirmwechsel oder
-        // Vollbild) können sich davorschieben. Daher bei jedem Zeigen wieder ganz nach oben.
-        win.setAlwaysOnTop(true, 'screen-saver');
-        win.moveTop();
+        if (!win || win.isDestroyed() || unterdrueckt) return;
         let streifen = null;
         if (!gezeigt) {
+          // Ein Helfer-Aufruf (wenige ms): läuft ein Vollbildprogramm, bleibt die Pille aus.
+          if (await vollbild()) {
+            unterdrueckt = true;
+            return;
+          }
           gezeigt = true;
+          clearTimeout(wegTimer);
           // Größe bleibt fest; während der Anzeige nicht mehr verschieben. Den Hintergrund schnell
-          // vorab holen (die Pille ist noch durchsichtig): der Wobble hat ihn ab dem ersten Bild.
-          positionieren();
+          // vorab holen (Fenster noch verborgen): der Wobble hat ihn ab dem ersten Bild.
+          if (!win.isVisible()) positionieren();
           if (grab && erfassenAn()) streifen = await erfassenEinmal();
+          if (!win || win.isDestroyed()) return;
+          // Bei jedem Zeigen wieder ganz nach oben (andere oberste Fenster schieben sich sonst davor).
+          win.setAlwaysOnTop(true, 'screen-saver');
+          win.showInactive(); // kein Fokusklau
+          win.moveTop();
+          // Erst aufploppen, wenn das Fenster Bilder liefert; sonst fehlen die ersten Bilder.
+          await new Promise((resolve) => {
+            const fertig = () => {
+              clearTimeout(t);
+              bildWarten = null;
+              resolve();
+            };
+            const t = setTimeout(fertig, BILD_FRIST_MS);
+            bildWarten = fertig;
+            senden('overlay:zeigen');
+          });
         }
         senden('overlay:state', zustand(state));
         if (streifen) senden('overlay:backdrop', streifen);
         erfassenStarten(!streifen);
       });
     },
-    // Fenster vorab laden und zeigen, damit schon das erste Kürzel die Pille sofort zeigt.
+    // Fenster vorab laden (verborgen), damit schon das erste Kürzel die Pille sofort zeigt.
     prepare() {
       ensureWindow().catch(() => {});
     },
     level(n) {
       senden('overlay:level', Math.max(0, Math.min(1, Number(n) || 0)));
     },
-    // Pille verschwindet im Renderer; das Fenster bleibt (durchsichtig) gezeigt.
+    // Pille verschwindet im Renderer; danach wird das Fenster verborgen ('overlay:weg').
     hide() {
       reihe(() => {
+        unterdrueckt = false;
         if (!win || win.isDestroyed()) return;
         senden('overlay:hide');
         gezeigt = false;
         erfassenStoppen();
+        clearTimeout(wegTimer);
+        wegTimer = setTimeout(verbergen, WEG_FRIST_MS);
       });
     },
     // Räumt Fenster und Handler ab (App-Ende, Tests).
@@ -257,6 +299,9 @@ function createOverlay({ getSettings = () => ({}), capture = true, grab = null }
       electronApp.removeListener('gpu-info-update', gpuPruefen);
       ipcMain.removeListener('overlay:ready', onReady);
       ipcMain.removeListener('overlay:erschienen', onErschienen);
+      ipcMain.removeListener('overlay:gezeigt', onGezeigt);
+      ipcMain.removeListener('overlay:weg', onWeg);
+      clearTimeout(wegTimer);
       if (win && !win.isDestroyed()) win.destroy();
       win = null;
     },

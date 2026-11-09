@@ -6,6 +6,7 @@ const { createHotkeyMachine } = require('./hotkey-machine');
 
 const TIMEOUT_MS = 1000;
 const GRAB_TIMEOUT_MS = 150;
+const VOLLBILD_TIMEOUT_MS = 150;
 const PASTE_TIMEOUT_MS = 5000; // bis zu 3 s auf losgelassene Tasten, dazu Fensterwechsel und Rückkehr
 // Wartezeiten vor Neustarts nach Abstürzen; bei MAX_FAILURES Ausfällen binnen einer Minute Aufgabe
 const BACKOFF_MS = [300, 1000, 3000, 10000];
@@ -13,6 +14,16 @@ const MAX_FAILURES = 5;
 const FAILURE_WINDOW_MS = 60000;
 const FOCUS_FALLBACK = { hwnd: 0, editable: 'unknown', elevated: false, exe: null, appName: null };
 const PASTE_FALLBACK = { ok: false, reason: null };
+
+// Vertrauensgrenze: Base64 aus dem Helfer → Float32Array (16 kHz mono); alles andere wird verworfen.
+function pcmLesen(b64) {
+  if (typeof b64 !== 'string') return null;
+  const roh = Buffer.from(b64, 'base64');
+  if (roh.length % 4) return null;
+  const pcm = new Float32Array(roh.length / 4);
+  new Uint8Array(pcm.buffer).set(roh); // kopieren: Buffer ist nicht immer auf 4 Byte ausgerichtet
+  return pcm;
+}
 
 class Helper extends EventEmitter {
   constructor() {
@@ -58,6 +69,7 @@ class Helper extends EventEmitter {
       this.machine = createHotkeyMachine(this.preset, this.mode);
       this.mask = false;
       if (r) this.emit('hotkey-' + r);
+      this.emit('mic', { error: 'Error', stopped: true }); // laufende Aufnahme ist mit dem Helfer weg
       if (this.stopped) return;
       const now = Date.now();
       this.failures = this.failures.filter((t) => now - t < FAILURE_WINDOW_MS);
@@ -94,11 +106,31 @@ class Helper extends EventEmitter {
       if (!p) return;
       this.pending.delete(m.id);
       clearTimeout(p.timer);
-      p.resolve(m.focus || m.paste || m.grab || p.fallback);
+      p.resolve(m.focus || m.paste || m.grab || m.vollbild || p.fallback);
       return;
     }
     if (m.ev === 'ready') {
       this.emit('ready');
+      return;
+    }
+    if (m.ev === 'pcm') {
+      const pcm = pcmLesen(m.b);
+      if (pcm) this.emit('pcm', pcm);
+      return;
+    }
+    if (m.ev === 'mic') {
+      const error = typeof m.error === 'string' ? m.error.slice(0, 40) : null;
+      this.emit('mic', {
+        started: m.started === true,
+        warm: m.warm === true,
+        stopped: m.stopped === true,
+        error,
+      });
+      return;
+    }
+    if (m.ev === 'vordergrund') {
+      const text = (v) => (typeof v === 'string' && v.length < 1024 ? v : null);
+      this.emit('vordergrund', { exe: text(m.exe), appName: text(m.appName) });
       return;
     }
     const r = this.machine.feed(m);
@@ -146,6 +178,17 @@ class Helper extends EventEmitter {
     return bgra && bgra.length === w * h * 4 ? { w, h, bgra } : null;
   }
 
+  // Mikrofon an (Gerätename oder null = Windows-Standard) oder aus; Antworten kommen als 'mic'/'pcm'.
+  // warmMs: so lange bleibt das Gerät nach dem Aus geöffnet, aber gestoppt (kein Ton, kein Mikrofon-Symbol).
+  mic(on, device = null, warmMs = 0) {
+    this.send({ cmd: 'mic', on: !!on, device: on ? device : null, warm: warmMs });
+  }
+
+  // Läuft ein Vollbildprogramm (Spiel, Video, Präsentation)? Im Zweifel nein.
+  vollbild() {
+    return this._request({ cmd: 'vollbild' }, false, VOLLBILD_TIMEOUT_MS);
+  }
+
   setMask(on) {
     this.mask = !!on;
     this.send({ cmd: 'mask', on: !!on });
@@ -161,4 +204,4 @@ class Helper extends EventEmitter {
   }
 }
 
-module.exports = { Helper };
+module.exports = { Helper, pcmLesen };

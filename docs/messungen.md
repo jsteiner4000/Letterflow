@@ -438,3 +438,23 @@ Entwickler-Laptop (Ryzen 7 7730U, 8 Kerne/16 Threads, 16 GB, Vega-iGPU – vermu
 - Neuer Wächter für alle Modell-Stufen: stehengebliebene Füllwörter („Ähm“, „äh“) werden zeilenweise aus der Modellausgabe entfernt, Zeilenanfang wieder groß. Das ändert die Zeilen 16 und 20 des Testsatzes; der zweite Lauf (unterste Ausgewogen-Zeile) ist mit Wächter.
 - Selbstkorrekturen („Datei, nein, den Link“) wendet auch das 1,7B-Modell kaum an (Selbstkorrektur-Sätze: 45,8 % wie die Regeln); das bleibt „Gründlich“ vorbehalten.
 - Speicher (Schätzung, nicht gemessen): Modell 1,1 GB + KV-Cache bei 2048 Token ≈ 0,23 GB; Abschnitt 5.2 maß für Qwen3-1.7B auf dem Prozessor 2,2 GB Spitze bei 4096 Token Kontext.
+
+## Mikrofon im Helfer, Pille nur beim Diktieren, Vollbild (Version 0.25.0)
+
+Entwickler-Laptop (Ryzen 7 7730U, eingebautes Mikrofon, Windows-Standardgerät), Messskript im Arbeitsordner (nicht im Projekt): Helfer starten, `mic` an → erstes PCM-Paket, je 1,5 s Aufnahme, 2 s Pause, 5–6 Starts.
+
+| | getUserMedia (0.22–0.24) | WASAPI im Helfer (0.25) |
+|---|---|---|
+| kalt: Befehl → erstes Paket | 587–1394 ms | 216–223 ms (davon `IAudioClient::Initialize` ~180–210 ms, Gerät/Treiber; gleich mit Mischformat ohne Umwandlung) |
+| erster Start im Prozess | – | 393–426 ms ohne Vorwärmen; der Helfer öffnet das Gerät daher beim Start einmal (danach 79 ms, noch im Vorwärmen) |
+| warm (≤ 15 s nach einem Diktat) | 1–2 ms, Mikrofon offen (Symbol sichtbar), 300 ms Vorlauf | 3–4 ms; Gerät geöffnet, aber **gestoppt**: kein Ton, kein Vorlauf nötig |
+
+- Ziel ≤ 200 ms kalt knapp verfehlt (Initialize ist Gerätezeit). Daher bleibt ein Warmhalten von 15 s, aber nur als geöffneter, gestoppter Strom. Bildschirmfoto während eines nur geöffneten Stroms (20 s ohne Start): kein Mikrofon-Symbol in der Taskleiste. Die Gegenprobe mit laufender Aufnahme wurde unterbrochen (nicht belegt).
+- Pakete: erstes sofort, dann ab 20 ms (Base64 in JSON-Zeilen, 16 kHz mono Float); 1,5 s an ergibt 1,30 s (kalt) bzw. 1,52 s (warm) Audio.
+- Gerät nicht vorhanden → `NotFoundError` (dann einmal Windows-Standard), Datenschutz-Sperre → `NotAllowedError`, Gerät während der Aufnahme weg → `TrackEndedError`; Meldungen unverändert.
+
+**Pille nur beim Diktieren** (Testmodus, Inhaltsschutz nur für die Messung aus, BitBlt-Sonde über einen zweiten Helfer, ~16 ms je Probe; vorher eine breite Fehler-Pille gezeigt und verborgen): in 4 Runden war das Fenster nach dem Verschwinden verborgen; Aufploppen 27–28 rAF-Bilder; erste sichtbare Änderung 117–118 ms nach `show` mit 15–20 von ~4000 Messpunkten, dann 1000 → 2900 → 3900 → 4070 (Überschwingen) → 3900. Kein Bild mit altem Inhalt.
+
+**Vollbild-Erkennung** (ein Helfer-Aufruf beim Erscheinen und vor jeder Erfassung): 5–8 ms. `SHQueryUserNotificationState` meldete auf diesem Laptop `QUNS_BUSY` auch mit einem normalen Fenster vorn (535 × 727, mit Titelleiste); BUSY zählt daher nicht, nur `QUNS_RUNNING_D3D_FULL_SCREEN`/`QUNS_PRESENTATION_MODE` und die Geometrie (Vordergrundfenster ohne Titelleiste deckt seinen Bildschirm; Desktop/Taskleiste ausgenommen). Probe: Vollbildfenster vorn → ja, dasselbe Fenster 600 × 400 → nein.
+
+**Stufe „Automatisch“ auf diesem Laptop:** `detectHardware` liefert Vulkan, AMD Radeon (iGPU), 512 MiB eigener Grafikspeicher, 15,4 GiB, 16 Threads → **Ausgewogen**. „Hier: Schnell“ auf einem 0.24-Bildschirmfoto stammte aus dem Testmodus (`LETTERFLOW_FAKE_ENGINES` meldet 0 Arbeitsspeicher und 0 Threads), kein Fehler.

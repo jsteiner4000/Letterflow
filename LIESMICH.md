@@ -29,6 +29,8 @@ Beim ersten Start lädt Letterflow einmalig die Sprachmodelle herunter (ca. 0,7 
 
 Für den Glaseffekt liest die Pille, solange sie sichtbar ist, den Bildschirmbereich direkt hinter sich – nur im Arbeitsspeicher, nie gespeichert oder gesendet (bei „Transparenzeffekte aus“ in Windows entfällt das).
 
+Läuft ein Spiel, Video oder eine Präsentation im Vollbild, bleibt die Pille aus und der Bildschirm wird nicht gelesen; Diktieren und Einfügen funktionieren trotzdem. Das Mikrofon nimmt nur auf, solange du diktierst (nach einem Diktat bleibt es 15 Sekunden bereit, aber stumm, damit das nächste sofort startet).
+
 ## Hilfe bei Problemen
 
 - **Kein Ton / Mikrofon nicht gefunden:** Windows-Einstellungen → Datenschutz & Sicherheit → Mikrofon: „Desktop-Apps den Zugriff erlauben“ einschalten.

@@ -11,14 +11,9 @@ if (testMode && process.env.LETTERFLOW_DATA_DIR) {
   app.setPath('userData', process.env.LETTERFLOW_DATA_DIR);
 }
 
-// Testmodus: Chromium liefert ein künstliches Mikrofon (periodischer Ton), kein echtes Gerät nötig.
+// Testmodus: Chromium liefert ein künstliches Mikrofon (Pegeltest der Einstellungen); das Diktat-Mikrofon
+// liefert der Ersatz-Helfer.
 if (testMode) app.commandLine.appendSwitch('use-fake-device-for-media-stream');
-// Testmodus: eine WAV-Datei als Mikrofon (läuft in Schleife).
-if (testMode && process.env.LETTERFLOW_FAKE_AUDIO_FILE)
-  app.commandLine.appendSwitch(
-    'use-file-for-fake-audio-capture',
-    process.env.LETTERFLOW_FAKE_AUDIO_FILE,
-  );
 
 const windows = require('./windows');
 const { setupPermissions } = require('./permissions');
@@ -209,10 +204,8 @@ if (!app.requestSingleInstanceLock()) {
       getSettings: einstellungen,
       capture: !testMode,
       grab: (bereich) => helper.grab(bereich),
+      vollbild: () => helper.vollbild(),
     });
-    // Test: kürzere Warmhaltezeit des Mikrofons über die Umgebung
-    const warm = Number(process.env.LETTERFLOW_MIK_WARM_MS);
-    const recorder = createRecorder(testMode && warm >= 0 ? { warmMs: warm } : {});
     // „Automatisch“ schaltet die Animation ab, wenn sie zweimal hintereinander > 30 % Bilder verwirft.
     let ruckler = 0;
     overlay.on('animation', (anteil) => {
@@ -230,11 +223,9 @@ if (!app.requestSingleInstanceLock()) {
       }
     });
     // Tests prüfen das erste Fenster: dort die Pille nicht vorab laden.
-    if (!testMode) {
-      overlay.prepare();
-      recorder.prepare();
-    }
+    if (!testMode) overlay.prepare();
     helper = new Helper();
+    const recorder = createRecorder(helper);
     helper.setPreset(einstellungen().hotkey || 'rctrl', einstellungen().hotkeyMode);
     if (testMode) {
       // Tests drücken nie echte Tasten: Ersatz-Helfer mit gleichem Protokoll.
@@ -245,7 +236,13 @@ if (!app.requestSingleInstanceLock()) {
     }
     app.on('will-quit', () => helper.stop());
     const pastes = []; // nur Tests: alle Einfüge-Versuche
+    const befehle = []; // nur Tests: alle Befehle an den Helfer
     if (testMode) {
+      const send = helper.send.bind(helper);
+      helper.send = (obj) => {
+        befehle.push(obj.cmd);
+        send(obj);
+      };
       const paste = helper.paste.bind(helper);
       helper.paste = async (hwnd, restore) => {
         pastes.push({ text: await clipboard.readText(), hwnd });
@@ -319,11 +316,9 @@ if (!app.requestSingleInstanceLock()) {
         get lastPaste() {
           return pastes.at(-1) ?? null;
         },
+        befehle,
         // Test: Mikrofon-Zugriff verweigern, als wäre er in Windows gesperrt.
-        mikrofonSperren: () =>
-          session.defaultSession.setPermissionRequestHandler((_wc, _p, callback) =>
-            callback(false),
-          ),
+        mikrofonSperren: () => helper.send({ cmd: '__micFehler', name: 'NotAllowedError' }),
       };
     }
   });

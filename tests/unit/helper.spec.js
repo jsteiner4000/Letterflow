@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 const path = require('node:path');
-const { Helper } = require('../../src/main/helper');
+const { Helper, pcmLesen } = require('../../src/main/helper');
 
 const FAKE = path.join(__dirname, '..', 'fakes', 'fake-helper.js');
 
@@ -159,4 +159,23 @@ test('ständig ausfallender Helfer: Wartezeit steigt, nach 5 Ausfällen Aufgabe 
   helper.start(process.execPath, [FAKE]);
   await failed2;
   expect(starts).toBe(10);
+});
+
+test('PCM aus dem Helfer: nur ganze Float32-Werte, sonst verworfen', () => {
+  const b64 = Buffer.from(new Float32Array([0.5, -1]).buffer).toString('base64');
+  expect(pcmLesen(b64)).toEqual(new Float32Array([0.5, -1]));
+  expect(pcmLesen(Buffer.alloc(3).toString('base64'))).toBeNull();
+  expect(pcmLesen(42)).toBeNull();
+});
+
+test('vollbild fragt den Helfer, Mikrofon liefert Pakete und stopped', async () => {
+  const h = startFake({});
+  await waitEvent(h, 'ready');
+  expect(await h.vollbild()).toBe(false);
+  const pcm = waitEvent(h, 'pcm');
+  h.mic(true, null, 0);
+  expect((await pcm).length).toBe(640);
+  const gestoppt = new Promise((r) => h.on('mic', (m) => m.stopped && r()));
+  h.mic(false);
+  await gestoppt;
 });

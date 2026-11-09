@@ -162,6 +162,10 @@
 .symbol[data-art='bild'] img {
   display: block;
 }
+/* Programmsymbol lädt noch: neutraler Platzhalter statt kurz aufblitzendem Letterflow-Symbol */
+.symbol[data-art='leer'] {
+  background: color-mix(in srgb, var(--text) 14%, transparent);
+}
 /* Programm unbekannt oder ohne eigenes Symbol: Letterflow-Symbol */
 .symbol[data-art='mono'] {
   background: url('../../assets/icon.png') center / 30px no-repeat;
