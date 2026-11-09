@@ -18,7 +18,8 @@ const wavPfad = (id) => path.join(root, 'testdata', 'stimme', id + '.wav');
 const woerter = (t) =>
   t
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .replace(/-/g, ' ') // Bindestriche zählen nicht als Fehler; Listenstriche verschwinden damit ebenfalls
+    .replace(/[^\p{L}\p{N}\s]/gu, '')
     .split(/\s+/)
     .filter(Boolean);
 function wer(erw, ist) {

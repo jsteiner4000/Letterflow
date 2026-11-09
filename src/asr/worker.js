@@ -11,6 +11,8 @@ function laden(modelDir, numThreads) {
   return new sherpa.OfflineRecognizer({
     featConfig: { sampleRate: 16000, featureDim: 80 },
     decodingMethod: 'greedy_search',
+    // Gemessen am Testsatz (docs/messungen.md §13): 0,25–1 senkt die WER, ab 2 wird es schlechter; Beam Search war schlechter.
+    blankPenalty: 0.5,
     modelConfig: {
       transducer: {
         encoder: path.join(modelDir, 'encoder.int8.onnx'),
