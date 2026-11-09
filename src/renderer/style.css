@@ -1,5 +1,5 @@
-/* Gemeinsame Grundlage aller App-Fenster: Schriften, Farb-Tokens, Bedienelemente.
-   Nur die Skalen aus der Gestaltungs-Spec: Abstände 4/8/12/16/24/32, Radien 12/8/6/5. */
+/* Gemeinsame Grundlage aller App-Fenster (Vorlage docs/design/einstellungen-v3.html):
+   warm-neutral, einfarbig; Petrol nur im Logo und in der Pille. */
 
 @font-face {
   font-family: 'Inter';
@@ -9,6 +9,14 @@
   font-display: block;
 }
 @font-face {
+  font-family: 'Newsreader';
+  src: url('fonts/newsreader/Newsreader-Variable.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: block;
+}
+/* Outfit nur noch für das ℓ im Logo und in der Pille */
+@font-face {
   font-family: 'Outfit';
   src: url('fonts/outfit/Outfit-Variable.woff2') format('woff2');
   font-weight: 100 900;
@@ -16,52 +24,53 @@
   font-display: block;
 }
 
-/* Hell (Vorlage einstellungen-hell) */
 :root {
-  --bg: #f3f6f5;
-  --bg-tint: rgba(15, 118, 110, 0.07);
-  --surface: rgba(255, 255, 255, 0.78);
-  --surface-2: #ffffff;
-  --edge-top: #ffffff;
-  --edge: rgba(11, 31, 29, 0.09);
-  --edge-strong: rgba(11, 31, 29, 0.2);
-  --ink: #0b1f1d;
-  --ink-2: #4a5f5b;
-  --accent: #0f766e;
-  --accent-ink: #ffffff;
-  --select: rgba(15, 118, 110, 0.07);
-  --select-edge: #0f766e;
+  --side: #f4f2ee;
+  --bg: #ffffff;
+  --card: #f6f4f0;
+  --sel: #ebe8e2;
+  --line: rgba(30, 25, 20, 0.08);
+  --ink: #1d1b18;
+  --ink-2: #6b675f;
+  --ink-3: #8e8a82;
+  --off: #d9d5cd;
+  --on: #1d1b18;
+  --on-ink: #ffffff;
+  --knob: #ffffff;
+  --btn: #ffffff;
+  --btn-edge: rgba(30, 25, 20, 0.14);
+  --focus: #1d1b18;
+  --gut: #3e9a6e;
   --warm: #c2410c;
   --warm-tint: rgba(194, 65, 12, 0.07);
-  --focus: #0f766e;
-  --knob: #ffffff;
-  --knob-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-  --scrim: rgba(11, 31, 29, 0.28);
-  --dialog-shadow: 0 16px 48px rgba(11, 31, 29, 0.18);
+  --accent: #0f766e; /* nur Logo */
+  --scrim: rgba(30, 25, 20, 0.28);
+  --dialog-shadow: 0 16px 48px rgba(30, 25, 20, 0.18);
   --fade: 180ms ease-out;
   --press: 100ms ease-out;
   color-scheme: light;
 }
 
-/* Dunkel (Vorlage einstellungen, :root) – folgt Windows */
+/* Dunkel – folgt Windows */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0a0e0e;
-    --bg-tint: rgba(15, 118, 110, 0.1);
-    --surface: rgba(255, 255, 255, 0.045);
-    --surface-2: rgba(255, 255, 255, 0.07);
-    --edge-top: rgba(255, 255, 255, 0.16);
-    --edge: rgba(255, 255, 255, 0.07);
-    --edge-strong: rgba(255, 255, 255, 0.16);
-    --ink: #edf6f4;
-    --ink-2: #a9bdb9;
-    --accent: #3cc4ae;
-    --accent-ink: #04201c;
-    --select: rgba(60, 196, 174, 0.1);
-    --select-edge: rgba(60, 196, 174, 0.6);
+    --side: #1e1d1b;
+    --bg: #252422;
+    --card: #2c2b28;
+    --sel: #33322f;
+    --line: rgba(255, 250, 240, 0.07);
+    --ink: #efece6;
+    --ink-2: #a39f97;
+    --ink-3: #7f7b74;
+    --off: #4a4843;
+    --on: #efece6;
+    --on-ink: #252422;
+    --knob: #252422;
+    --btn: #33322f;
+    --btn-edge: rgba(255, 250, 240, 0.1);
+    --focus: #efece6;
     --warm: #fdba74;
     --warm-tint: rgba(253, 186, 116, 0.08);
-    --focus: #5eead4;
     --scrim: rgba(0, 0, 0, 0.55);
     --dialog-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
     color-scheme: dark;
@@ -74,13 +83,11 @@
 
 body {
   margin: 0;
-  background:
-    radial-gradient(600px 300px at 100% 0, var(--bg-tint), transparent 70%) fixed,
-    var(--bg);
+  background: var(--bg);
   color: var(--ink);
   font-family: 'Inter', 'Segoe UI', sans-serif;
   font-optical-sizing: auto;
-  font-weight: 500;
+  font-weight: 400;
   font-size: 13px;
   line-height: 18px;
   animation: einblenden var(--fade) both;
@@ -93,35 +100,62 @@ p {
   margin: 0;
 }
 
-/* Seitentitel und Abschnitte (Outfit nur für Überschriften) */
+/* Seitentitel in Newsreader, Abschnitte in Inter */
 h1 {
   font:
-    600 22px/28px 'Outfit',
-    sans-serif;
-  letter-spacing: -0.015em;
+    400 30px/36px 'Newsreader',
+    serif;
+  letter-spacing: -0.01em;
+  margin-bottom: 24px;
 }
 h2 {
   font:
-    600 15px/20px 'Outfit',
+    600 13px/18px 'Inter',
     sans-serif;
-  letter-spacing: -0.005em;
+  margin: 0 0 8px 2px;
+}
+.lead {
+  margin: -20px 0 24px;
+  color: var(--ink-2);
 }
 .leise {
   color: var(--ink-2);
-  font-size: 12px;
-  line-height: 16px;
 }
 
-/* Glasfläche: leichte Fläche, Lichtkante oben, 1-px-Rand */
-.surface {
-  background: var(--surface);
+/* Listen-Gruppe: Fläche mit Zeilen, Trennlinien dazwischen */
+.gruppe {
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+  background: var(--card);
   border-radius: 12px;
-  box-shadow:
-    inset 0 1px 0 var(--edge-top),
-    inset 0 0 0 1px var(--edge);
+}
+.zeile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--line);
+}
+.gruppe > .zeile:first-child {
+  border-top: 0;
+}
+.text {
+  flex: 1;
+  min-width: 0;
+}
+.text b {
+  display: block;
+  font:
+    600 13.5px/18px 'Inter',
+    sans-serif;
+}
+.text span {
+  display: block;
+  color: var(--ink-2);
 }
 
-/* Wortmarke */
+/* Wortmarke (Einrichtung) */
 .marke {
   display: flex;
   align-items: center;
@@ -129,9 +163,8 @@ h2 {
 }
 .marke b {
   font:
-    600 16px/20px 'Outfit',
+    600 15px/20px 'Inter',
     sans-serif;
-  letter-spacing: -0.01em;
 }
 .logo {
   width: 24px;
@@ -141,26 +174,25 @@ h2 {
   display: grid;
   place-items: center;
   background: var(--accent);
-  color: var(--accent-ink);
+  color: #fff;
   font:
     700 14px/1 'Outfit',
     sans-serif;
 }
 
-/* Knöpfe: Hover hebt an (Rand kräftiger), Druck gibt nach */
+/* Knöpfe: weiße Fläche mit feinem Rand; Druck gibt nach */
 .knopf {
-  height: 32px;
-  padding: 0 16px;
+  flex: none;
+  height: 30px;
+  padding: 0 12px;
   border: 0;
   border-radius: 8px;
   font:
-    600 13px/18px 'Inter',
+    500 13px/18px 'Inter',
     sans-serif;
   color: var(--ink);
-  background: var(--surface-2);
-  box-shadow:
-    inset 0 1px 0 var(--edge-top),
-    inset 0 0 0 1px var(--edge);
+  background: var(--btn);
+  box-shadow: inset 0 0 0 1px var(--btn-edge);
   cursor: pointer;
   white-space: nowrap;
   transition:
@@ -168,20 +200,30 @@ h2 {
     transform var(--press);
 }
 .knopf:hover {
-  box-shadow:
-    inset 0 1px 0 var(--edge-top),
-    inset 0 0 0 1px var(--edge-strong);
+  box-shadow: inset 0 0 0 1px var(--ink-3);
 }
 .knopf:active {
   transform: scale(0.98);
 }
 .knopf.haupt {
-  color: var(--accent-ink);
-  background: var(--accent);
+  color: var(--on-ink);
+  background: var(--on);
   box-shadow: none;
 }
-.knopf.haupt:hover {
-  filter: brightness(1.08);
+
+kbd {
+  flex: none;
+  padding: 4px 9px;
+  border-radius: 6px;
+  font:
+    600 12.5px/18px 'Inter',
+    sans-serif;
+  color: var(--ink);
+  background: var(--btn);
+  box-shadow:
+    inset 0 0 0 1px var(--btn-edge),
+    0 1px 0 var(--btn-edge);
+  white-space: nowrap;
 }
 
 /* Schalter: echtes Kontrollkästchen, darüber gelegt und unsichtbar */
@@ -201,39 +243,50 @@ h2 {
 }
 .regler {
   position: relative;
-  width: 40px;
+  width: 38px;
   height: 22px;
   border-radius: 11px;
-  background: var(--ink-2); /* aus: kräftig genug für 3:1 */
+  background: var(--off);
+  box-shadow: inset 0 0 0 1px var(--btn-edge); /* aus: Rand bleibt erkennbar */
   transition: background-color var(--fade);
 }
 .regler::after {
   content: '';
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 18px;
-  height: 18px;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: var(--knob);
-  box-shadow: var(--knob-shadow);
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   transition: transform var(--fade);
 }
 .schalter input:checked + .regler {
-  background: var(--accent);
+  background: var(--on);
+  box-shadow: none;
 }
 .schalter input:checked + .regler::after {
-  transform: translateX(18px);
+  background: var(--knob);
+  transform: translateX(16px);
 }
-.schalter:active .regler::after {
-  transform: scale(0.98);
+
+/* Auswahlkreis: einfarbig, gefüllt als dicker Ring */
+.kreis {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--ink-3);
+  transition: box-shadow var(--fade);
 }
-.schalter:active input:checked + .regler::after {
-  transform: translateX(18px) scale(0.98);
+input:checked + .kreis {
+  box-shadow: inset 0 0 0 5px var(--on);
 }
 
 /* Fehlermeldung im App-Stil */
 .fehler {
+  margin-bottom: 16px;
   padding: 12px 16px;
   border-radius: 12px;
   color: var(--ink);
@@ -244,12 +297,24 @@ h2 {
 
 /* Fokus: 2 px, Abstand 2 px, auf allen Bedienelementen */
 :focus-visible,
-.schalter input:focus-visible + .regler {
+.schalter input:focus-visible + .regler,
+input:focus-visible + .kreis {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
-.schalter input:focus-visible {
+.schalter input:focus-visible,
+input[type='radio']:focus-visible {
   outline: none;
+}
+
+/* Nur für Bildschirmleser */
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 [hidden] {
@@ -272,17 +337,18 @@ h2 {
     transition: none !important;
     animation: none !important;
   }
-  .knopf:active,
-  .schalter:active .regler::after {
+  .knopf:active {
     transform: none;
   }
 }
 
 /* Hoher Kontrast: Schatten-Ränder verschwinden dort, daher echte Rahmen in Systemfarben */
 @media (forced-colors: active) {
-  .surface,
+  .gruppe,
   .knopf,
-  .regler {
+  kbd,
+  .regler,
+  .logo {
     border: 1px solid CanvasText;
   }
   .regler::after {
@@ -292,7 +358,11 @@ h2 {
   .schalter input:checked + .regler::after {
     background: Highlight;
   }
-  .logo {
-    border: 1px solid CanvasText;
+  .kreis {
+    border: 1.5px solid CanvasText;
+  }
+  input:checked + .kreis {
+    forced-color-adjust: none;
+    background: Highlight;
   }
 }

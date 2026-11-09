@@ -12,8 +12,8 @@
   </head>
   <body>
     <aside>
-      <div class="marke"><span class="logo" aria-hidden="true">ℓ</span><b>Letterflow</b></div>
-      <nav role="tablist" aria-orientation="vertical" aria-label="Bereiche">
+      <div id="lab-einstellungen" class="lab">Einstellungen</div>
+      <nav role="tablist" aria-orientation="vertical" aria-labelledby="lab-einstellungen">
         <button
           role="tab"
           id="tab-diktieren"
@@ -47,13 +47,25 @@
           type="button"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg
+            <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" />
+            <circle cx="16" cy="6" r="2" />
+            <circle cx="10" cy="12" r="2" />
+            <circle cx="18" cy="18" r="2" /></svg
           >Allgemein
         </button>
       </nav>
-      <p id="statuszeile" class="statuszeile" role="status">
-        <i aria-hidden="true"></i><span id="statuszeile-text">Startet …</span>
+      <div id="lab-info" class="lab">Info</div>
+      <nav aria-labelledby="lab-info">
+        <button id="ueber" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 11v6M12 7.5v.5" /></svg
+          >Über Letterflow
+        </button>
+      </nav>
+      <p id="ver" class="ver" title="Startet …">
+        <i aria-hidden="true"></i><span id="version-zeile">Letterflow</span>
+        <span id="statuszeile" class="sr" role="status">Startet …</span>
       </p>
     </aside>
 
@@ -64,20 +76,16 @@
         <!-- Diktieren -->
         <section id="seite-diktieren" role="tabpanel" aria-labelledby="tab-diktieren">
           <h1>Diktieren</h1>
-          <p class="lead">
-            Halten, sprechen, loslassen – der Text erscheint dort, wo dein Cursor steht.
-          </p>
-
-          <div class="karte surface">
+          <div class="gruppe">
             <div class="zeile">
-              <div id="kappen" class="kappen"></div>
               <div class="text">
-                <b>Gedrückt halten zum Diktieren</b>
-                <span class="leise">Loslassen fügt den Text ein</span>
+                <b id="l-sprechtaste">Sprechtaste</b>
+                <span>Gedrückt halten, sprechen, loslassen – der Text erscheint am Cursor</span>
               </div>
+              <kbd id="kappe"></kbd>
               <button
                 id="kuerzel-aendern"
-                class="knopf rechts"
+                class="knopf"
                 type="button"
                 aria-expanded="false"
                 aria-controls="kuerzel-wahl"
@@ -85,89 +93,91 @@
                 Ändern
               </button>
             </div>
-            <div
-              id="kuerzel-wahl"
-              class="kuerzel-wahl"
-              role="radiogroup"
-              aria-label="Tastenkürzel wählen"
-              hidden
-            >
-              <label class="wahl"
+            <div id="kuerzel-wahl" role="radiogroup" aria-labelledby="l-sprechtaste" hidden>
+              <label class="zeile wahl"
+                ><input type="radio" name="hotkey" value="rctrl" /><span
+                  class="kreis"
+                  aria-hidden="true"
+                ></span
+                ><span class="text"><b>Rechte Strg (Standard)</b></span></label
+              >
+              <label class="zeile wahl"
                 ><input type="radio" name="hotkey" value="ctrl+win" /><span
-                  >Strg + Win (Standard)</span
-                ></label
+                  class="kreis"
+                  aria-hidden="true"
+                ></span
+                ><span class="text"><b>Strg + Win</b></span></label
               >
-              <label class="wahl"
-                ><input type="radio" name="hotkey" value="rctrl" /><span>Rechte Strg</span></label
-              >
-              <label class="wahl"
+              <label class="zeile wahl"
                 ><input type="radio" name="hotkey" value="ctrl+shift" /><span
-                  >Strg + Umschalt</span
-                ></label
+                  class="kreis"
+                  aria-hidden="true"
+                ></span
+                ><span class="text"><b>Strg + Umschalt</b></span></label
               >
             </div>
           </div>
 
-          <div class="abschnitt">
-            <div>
-              <h2 id="h-glaetten">Text glätten</h2>
-              <p id="glaetten-hinweis" class="leise">
-                Entfernt „ähm“, setzt Satzzeichen und deine Schreibweisen
-              </p>
+          <h2>Glättung</h2>
+          <div class="gruppe">
+            <div class="zeile">
+              <div class="text">
+                <b id="h-glaetten">Text glätten</b>
+                <span id="glaetten-hinweis"
+                  >Entfernt „ähm“, setzt Satzzeichen und deine Schreibweisen</span
+                >
+              </div>
+              <label class="schalter">
+                <input
+                  type="checkbox"
+                  id="glaettung"
+                  role="switch"
+                  aria-labelledby="h-glaetten"
+                  aria-describedby="glaetten-hinweis"
+                />
+                <span class="regler" aria-hidden="true"></span>
+              </label>
             </div>
-            <label class="schalter">
-              <input
-                type="checkbox"
-                id="glaettung"
-                role="switch"
-                aria-labelledby="h-glaetten"
-                aria-describedby="glaetten-hinweis"
-              />
-              <span class="regler" aria-hidden="true"></span>
-            </label>
-          </div>
-          <div id="stufen" class="stufen" role="radiogroup" aria-label="Glättungsstufe">
-            <label class="stufe surface">
-              <input type="radio" name="smoothingModel" value="auto" />
-              <span class="kreis" aria-hidden="true"></span>
-              <b>Automatisch</b>
-              <span class="leise">Wählt nach deinem PC.</span>
-              <span id="auf-diesem-pc" class="kennung akzent" hidden></span>
-            </label>
-            <label class="stufe surface">
-              <input type="radio" name="smoothingModel" value="schnell" />
-              <span class="kreis" aria-hidden="true"></span>
-              <b>Schnell</b>
-              <span class="leise">Sofort, ohne Selbstkorrekturen.</span>
-            </label>
-            <label class="stufe surface">
-              <input type="radio" name="smoothingModel" value="gruendlich" />
-              <span class="kreis" aria-hidden="true"></span>
-              <b>Gründlich</b>
-              <span class="leise">Wendet auch „Montag, nein, Dienstag“ an.</span>
-              <span class="kennung">Lädt einmalig 2,5 GB – fragt vorher</span>
-            </label>
+            <div id="stufen" role="radiogroup" aria-label="Glättungsstufe">
+              <label class="zeile wahl">
+                <input type="radio" name="smoothingModel" value="auto" />
+                <span class="kreis" aria-hidden="true"></span>
+                <span class="text"
+                  ><b>Automatisch</b><span id="auto-text">Wählt nach deinem PC</span></span
+                >
+              </label>
+              <label class="zeile wahl">
+                <input type="radio" name="smoothingModel" value="schnell" />
+                <span class="kreis" aria-hidden="true"></span>
+                <span class="text"><b>Schnell</b><span>Sofort, ohne Selbstkorrekturen</span></span>
+              </label>
+              <label class="zeile wahl">
+                <input type="radio" name="smoothingModel" value="gruendlich" />
+                <span class="kreis" aria-hidden="true"></span>
+                <span class="text"
+                  ><b>Gründlich</b
+                  ><span>Wendet auch „Montag, nein, Dienstag“ an · lädt einmalig 2,5 GB</span></span
+                >
+              </label>
+            </div>
           </div>
 
-          <div class="abschnitt">
-            <div>
-              <h2 id="h-mikrofon">Mikrofon</h2>
-              <p class="leise">Wird nur während der Aufnahme geöffnet</p>
+          <h2>Mikrofon</h2>
+          <div class="gruppe">
+            <div class="zeile">
+              <div class="text">
+                <b id="l-mikrofon">Eingabegerät</b>
+                <span>Wird nur während der Aufnahme geöffnet</span>
+              </div>
+              <span id="pegel" class="pegel" aria-hidden="true" hidden
+                ><i></i><i></i><i></i><i></i><i></i
+              ></span>
+              <button id="pegel-test" class="knopf" type="button">Pegel testen</button>
+              <span class="auswahl">
+                <select id="mikrofon" aria-labelledby="l-mikrofon"></select>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+              </span>
             </div>
-          </div>
-          <div class="karte surface zeile">
-            <div class="text">
-              <b id="l-mikrofon">Eingabegerät</b>
-              <span class="leise">Pegel testen: Knopf drücken und sprechen</span>
-            </div>
-            <span id="pegel" class="pegel" aria-hidden="true"
-              ><i></i><i></i><i></i><i></i><i></i
-            ></span>
-            <button id="pegel-test" class="knopf" type="button">Pegel testen</button>
-            <span class="auswahl rechts">
-              <select id="mikrofon" aria-labelledby="l-mikrofon"></select>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
-            </span>
           </div>
         </section>
 
@@ -175,44 +185,50 @@
         <section id="seite-woerterbuch" role="tabpanel" aria-labelledby="tab-woerterbuch" hidden>
           <h1>Wörterbuch</h1>
           <p class="lead">Namen und Fachbegriffe, die genau so geschrieben werden sollen</p>
-          <form id="woerterbuch-form" class="karte surface zeile">
-            <input
-              type="text"
-              id="neuer-eintrag"
-              class="eingabe"
-              aria-label="Neuer Eintrag"
-              autocomplete="off"
-              spellcheck="false"
-            />
-            <button type="submit" class="knopf haupt">Hinzufügen</button>
+          <form id="woerterbuch-form" class="gruppe">
+            <div class="zeile">
+              <input
+                type="text"
+                id="neuer-eintrag"
+                class="eingabe"
+                aria-label="Neuer Eintrag"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button type="submit" class="knopf haupt">Hinzufügen</button>
+            </div>
           </form>
-          <ul id="eintraege" class="eintraege"></ul>
+          <ul id="eintraege" class="gruppe eintraege"></ul>
         </section>
 
         <!-- Allgemein -->
         <section id="seite-allgemein" role="tabpanel" aria-labelledby="tab-allgemein" hidden>
           <h1>Allgemein</h1>
-          <div class="karte surface zeile">
-            <div class="text"><b id="l-autostart">Mit Windows starten</b></div>
-            <label class="schalter rechts">
-              <input type="checkbox" id="autostart" role="switch" aria-labelledby="l-autostart" />
-              <span class="regler" aria-hidden="true"></span>
-            </label>
+          <div class="gruppe">
+            <div class="zeile">
+              <div class="text"><b id="l-autostart">Mit Windows starten</b></div>
+              <label class="schalter">
+                <input type="checkbox" id="autostart" role="switch" aria-labelledby="l-autostart" />
+                <span class="regler" aria-hidden="true"></span>
+              </label>
+            </div>
           </div>
 
-          <div class="abschnitt"><h2>System</h2></div>
-          <ul class="karte surface system">
-            <li id="status-erkennung">Spracherkennung: Prozessor</li>
-            <li id="status-glaettung"></li>
-            <li id="status-engine"></li>
+          <h2>System</h2>
+          <ul class="gruppe">
+            <li id="status-erkennung" class="zeile">Spracherkennung: Prozessor</li>
+            <li id="status-glaettung" class="zeile"></li>
+            <li id="status-engine" class="zeile"></li>
           </ul>
 
-          <div class="karte surface zeile">
-            <div class="text">
-              <b>Letterflow</b>
-              <span id="version" class="leise">Version …</span>
+          <h2>Version</h2>
+          <div class="gruppe">
+            <div class="zeile">
+              <div class="text">
+                <b>Letterflow</b>
+                <span id="version">Version …</span>
+              </div>
             </div>
-            <button id="ueber" class="knopf rechts" type="button">Über Letterflow</button>
           </div>
         </section>
       </div>

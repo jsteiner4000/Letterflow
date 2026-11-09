@@ -20,8 +20,8 @@ class Helper extends EventEmitter {
     this.stopped = true;
     this.nextId = 1;
     this.pending = new Map();
-    this.machine = createHotkeyMachine('ctrl+win');
-    this.preset = 'ctrl+win';
+    this.machine = createHotkeyMachine('rctrl');
+    this.preset = 'rctrl';
     this.mask = false;
     this.backoffMs = BACKOFF_MS;
     this.failures = [];

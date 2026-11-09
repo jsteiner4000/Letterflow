@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const DEFAULTS = {
-  hotkey: 'ctrl+win',
+  hotkey: 'rctrl',
   micDeviceId: null,
   smoothing: true,
   smoothingModel: 'auto',
@@ -10,7 +10,7 @@ const DEFAULTS = {
   autostart: true,
 };
 
-const HOTKEYS = ['ctrl+win', 'rctrl', 'ctrl+shift'];
+const HOTKEYS = ['rctrl', 'ctrl+win', 'ctrl+shift'];
 const MODELS = ['auto', 'schnell', 'gruendlich'];
 
 // Prüft je Feld; ungültige Werte ergeben undefined (= Standardwert).

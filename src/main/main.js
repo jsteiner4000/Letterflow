@@ -199,7 +199,7 @@ if (!app.requestSingleInstanceLock()) {
     // Tests prüfen das erste Fenster: dort die Pille nicht vorab laden.
     if (!testMode) overlay.prepare();
     helper = new Helper();
-    helper.setPreset(einstellungen().hotkey || 'ctrl+win');
+    helper.setPreset(einstellungen().hotkey || 'rctrl');
     if (testMode) {
       // Tests drücken nie echte Tasten: Ersatz-Helfer mit gleichem Protokoll.
       const fake = path.join(__dirname, '..', '..', 'tests', 'fakes', 'fake-helper.js');

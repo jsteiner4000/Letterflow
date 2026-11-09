@@ -24,7 +24,7 @@ test('kaputte Datei wird gesichert und ersetzt', () => {
 
 test('ungültige Werte werden verworfen', () => {
   const s = saveSettings(dir, { hotkey: 'alt+f4', dictionary: ['Kubernetes', 42, ''] });
-  expect(s.hotkey).toBe('ctrl+win');
+  expect(s.hotkey).toBe('rctrl');
   expect(s.dictionary).toEqual(['Kubernetes']);
 });
 
@@ -34,11 +34,11 @@ test('Speichern überlebt Neuladen', () => {
 });
 
 test('Teil-Änderungen behalten übrige Werte, unbekannte Felder fallen weg', () => {
-  saveSettings(dir, { hotkey: 'rctrl', micDeviceId: 'abc' });
+  saveSettings(dir, { hotkey: 'ctrl+win', micDeviceId: 'abc' });
   const s = saveSettings(dir, { smoothingModel: 'schnell', fremd: 1 });
   expect(s).toEqual({
     ...DEFAULTS,
-    hotkey: 'rctrl',
+    hotkey: 'ctrl+win',
     micDeviceId: 'abc',
     smoothingModel: 'schnell',
   });
@@ -46,7 +46,7 @@ test('Teil-Änderungen behalten übrige Werte, unbekannte Felder fallen weg', ()
 });
 
 test('Lesefehler außer "fehlt" werden weitergegeben, nichts wird überschrieben', () => {
-  saveSettings(dir, { hotkey: 'rctrl' });
+  saveSettings(dir, { hotkey: 'ctrl+win' });
   const original = fs.readFileSync;
   fs.readFileSync = () => {
     throw Object.assign(new Error('belegt'), { code: 'EBUSY' });
@@ -57,7 +57,7 @@ test('Lesefehler außer "fehlt" werden weitergegeben, nichts wird überschrieben
   } finally {
     fs.readFileSync = original;
   }
-  expect(loadSettings(dir).hotkey).toBe('rctrl');
+  expect(loadSettings(dir).hotkey).toBe('ctrl+win');
 });
 
 test('Umbenennen wird einmal wiederholt', () => {
@@ -78,7 +78,7 @@ test('Umbenennen wird einmal wiederholt', () => {
 });
 
 test('dauerhafter Umbenennen-Fehler wirft und lässt die alte Datei unversehrt', () => {
-  saveSettings(dir, { hotkey: 'rctrl' });
+  saveSettings(dir, { hotkey: 'ctrl+win' });
   const original = fs.renameSync;
   fs.renameSync = () => {
     throw Object.assign(new Error('gesperrt'), { code: 'EPERM' });
@@ -88,5 +88,5 @@ test('dauerhafter Umbenennen-Fehler wirft und lässt die alte Datei unversehrt',
   } finally {
     fs.renameSync = original;
   }
-  expect(loadSettings(dir).hotkey).toBe('rctrl');
+  expect(loadSettings(dir).hotkey).toBe('ctrl+win');
 });

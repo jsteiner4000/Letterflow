@@ -14,7 +14,7 @@ Beim ersten Start lädt Letterflow einmalig die Sprachmodelle herunter (ca. 0,7 
 
 ## Benutzen
 
-- **Strg + Win** halten, sprechen, loslassen. Der Text wird eingefügt.
+- **Rechte Strg** halten, sprechen, loslassen. Der Text wird eingefügt. In den Einstellungen kannst du stattdessen **Strg + Win** oder **Strg + Umschalt** wählen.
 - **Esc** während des Haltens verwirft die Aufnahme.
 - Das Symbol im Infobereich der Taskleiste zeigt den Zustand; ein Rechtsklick öffnet das Menü.
 

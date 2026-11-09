@@ -1,10 +1,10 @@
-/* Einstellungen: Seitenleiste (Grundfläche ohne eigenes Glas) + Inhaltsspalte */
+/* Einstellungen: Seitenleiste (Grundfläche) + Inhaltsspalte mit Listen-Gruppen */
 html {
   overflow-x: hidden;
 }
 body {
   display: grid;
-  grid-template-columns: 200px minmax(0, 1fr);
+  grid-template-columns: 208px minmax(0, 1fr);
   height: 100vh;
   overflow: hidden;
 }
@@ -14,49 +14,52 @@ body {
 aside {
   display: flex;
   flex-direction: column;
-  padding: 24px 8px 16px;
-  border-right: 1px solid var(--edge);
+  padding: 20px 12px 16px;
+  background: var(--side);
+  overflow-y: auto;
 }
-.marke {
-  margin: 0 8px 24px;
+.lab {
+  margin: 0 10px 8px;
+  font:
+    500 11px/14px 'Inter',
+    sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  margin-bottom: 20px;
 }
 nav button {
   display: flex;
   align-items: center;
-  gap: 12px;
-  height: 36px;
-  padding: 0 12px;
+  gap: 10px;
+  height: 32px;
+  padding: 0 10px;
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: var(--ink-2);
+  color: var(--ink);
   font:
-    500 13px/18px 'Inter',
+    500 13.5px/18px 'Inter',
     sans-serif;
   text-align: left;
   cursor: pointer;
   transition:
     background-color var(--fade),
-    color var(--fade),
     transform var(--press);
 }
 nav button:hover {
-  color: var(--ink);
+  background: color-mix(in srgb, var(--sel) 55%, transparent);
 }
 nav button:active {
   transform: scale(0.98);
 }
 nav button[aria-selected='true'] {
-  color: var(--ink);
-  background: var(--surface-2);
-  box-shadow:
-    inset 0 1px 0 var(--edge-top),
-    inset 0 0 0 1px var(--edge);
+  background: var(--sel);
 }
 nav svg {
   width: 16px;
@@ -64,33 +67,30 @@ nav svg {
   flex: none;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: 1.6;
 }
-nav button[aria-selected='true'] svg {
-  color: var(--accent);
-}
-.statuszeile {
+.ver {
   margin-top: auto;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  color: var(--ink-2);
+  gap: 6px;
+  padding: 0 10px;
   font-size: 12px;
   line-height: 16px;
+  color: var(--ink-3);
 }
-.statuszeile i {
-  width: 8px;
-  height: 8px;
+.ver i {
+  width: 7px;
+  height: 7px;
   flex: none;
   border-radius: 50%;
-  background: var(--ink-2);
+  background: var(--ink-3);
 }
-.statuszeile[data-zustand='bereit'] i {
-  background: var(--accent);
+.ver[data-zustand='bereit'] i {
+  background: var(--gut);
 }
-.statuszeile[data-zustand='fehlt'] i,
-.statuszeile[data-zustand='fehler'] i {
+.ver[data-zustand='fehlt'] i,
+.ver[data-zustand='fehler'] i {
   background: var(--warm);
 }
 
@@ -98,103 +98,20 @@ nav button[aria-selected='true'] svg {
 
 main {
   overflow-y: auto;
-  padding: 24px 32px 32px;
+  padding: 40px;
 }
 /* Mittige Spalte: wächst mit dem Fenster bis zu einer lesbaren Breite */
 .inhalt {
-  max-width: 760px;
+  max-width: 720px;
   margin: 0 auto;
 }
-.fehler {
-  margin-bottom: 16px;
-}
-.lead {
-  margin: 4px 0 16px;
-  color: var(--ink-2);
-}
-.karte {
-  padding: 16px;
-  margin-bottom: 24px;
-}
-.zeile {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.karte.zeile {
-  padding: 12px 16px;
-  gap: 12px;
-}
-.text {
-  min-width: 0;
-}
-.text b {
-  display: block;
-  font-weight: 600;
-}
-.text span {
-  display: block;
-}
-.rechts {
-  margin-left: auto;
-}
 
-/* Tastenkürzel als Kappen */
-.kappen {
-  display: flex;
-  gap: 8px;
-}
-kbd {
-  min-width: 46px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  text-align: center;
-  font:
-    600 13px/18px 'Inter',
-    sans-serif;
-  color: var(--ink);
-  background: var(--surface-2);
-  box-shadow:
-    inset 0 1px 0 var(--edge-top),
-    inset 0 -2px 0 var(--edge),
-    inset 0 0 0 1px var(--edge);
-  white-space: nowrap;
-}
-.kuerzel-wahl {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--edge);
-}
+/* Auswahl-Zeilen (Sprechtaste, Stufen): verdecktes echtes Auswahlfeld fängt Klick und Tastatur */
 .wahl {
   position: relative;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: var(--surface-2);
-  box-shadow:
-    inset 0 1px 0 var(--edge-top),
-    inset 0 0 0 1px var(--edge);
   cursor: pointer;
-  transition:
-    box-shadow var(--fade),
-    transform var(--press);
 }
-.wahl:hover {
-  box-shadow:
-    inset 0 1px 0 var(--edge-top),
-    inset 0 0 0 1px var(--edge-strong);
-}
-.wahl:has(input:checked) {
-  background: var(--select);
-  box-shadow: inset 0 0 0 1.5px var(--select-edge);
-  font-weight: 600;
-}
-
-/* Verdeckte echte Auswahlfelder (Kürzel, Stufen): fangen Klick und Tastatur */
-.wahl input,
-.stufe input {
+.wahl input {
   position: absolute;
   inset: 0;
   z-index: 1;
@@ -204,124 +121,39 @@ kbd {
   opacity: 0;
   cursor: pointer;
 }
-.wahl:has(input:focus-visible),
-.stufe:has(input:focus-visible) {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
-.wahl:active,
-.stufe:active {
-  transform: scale(0.98);
-}
-
-/* Abschnittskopf: Titel + Erklärung links, Schalter rechts */
-.abschnitt {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-/* Stufen-Kacheln */
-.stufen {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 24px;
-}
-.stufe {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  padding: 12px 12px 12px 36px;
-  cursor: pointer;
-  transition:
-    box-shadow var(--fade),
-    background-color var(--fade),
-    opacity var(--fade),
-    transform var(--press);
-}
-.stufe:hover {
-  box-shadow:
-    inset 0 1px 0 var(--edge-top),
-    inset 0 0 0 1px var(--edge-strong);
-}
-.stufe b {
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-.kreis {
-  position: absolute;
-  left: 12px;
-  top: 13px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1.5px var(--ink-2);
-}
-.stufe:has(input:checked) {
-  background: var(--select);
-  box-shadow:
-    inset 0 1px 0 var(--edge-top),
-    inset 0 0 0 1.5px var(--select-edge);
-}
-.stufe:has(input:checked) .kreis {
-  box-shadow: inset 0 0 0 1.5px var(--accent);
-}
-.stufe:has(input:checked) .kreis::after {
-  content: '';
-  position: absolute;
-  inset: 4px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-/* Glätten aus: Kacheln blass und nicht wählbar */
-.stufe:has(input:disabled) {
+/* Glätten aus: Stufen blass und nicht wählbar */
+.wahl:has(input:disabled) {
   opacity: 0.5;
   cursor: default;
-  transform: none;
 }
-.stufe:has(input:disabled) input {
+.wahl:has(input:disabled) input {
   cursor: default;
 }
-.kennung {
-  margin-top: 8px;
-  font:
-    600 11px/14px 'Inter',
-    sans-serif;
-  letter-spacing: 0.02em;
-  color: var(--ink-2);
-}
-.kennung.akzent {
-  color: var(--accent);
-}
 
-/* Mikrofon: Pegel und Geräteauswahl */
+/* Mikrofon: Pegel (nur während des Tests) und Geräteauswahl */
 .pegel {
   display: flex;
   align-items: center;
   gap: 2px;
-  margin-left: 8px;
 }
 .pegel i {
   width: 3px;
   height: 10px;
   border-radius: 2px;
-  background: var(--edge);
+  background: var(--off);
 }
 .pegel i.an {
-  background: var(--accent);
+  background: var(--on);
 }
 .auswahl {
   position: relative;
-  flex: 0 1 240px;
-  min-width: 160px;
+  flex: 0 1 200px;
+  min-width: 150px;
 }
 .auswahl select {
   width: 100%;
-  height: 32px;
-  padding: 0 32px 0 12px;
+  height: 30px;
+  padding: 0 30px 0 12px;
   border: 0;
   border-radius: 8px;
   appearance: none;
@@ -329,24 +161,20 @@ kbd {
     500 13px/18px 'Inter',
     sans-serif;
   color: var(--ink);
-  background: var(--surface-2);
-  box-shadow:
-    inset 0 1px 0 var(--edge-top),
-    inset 0 0 0 1px var(--edge);
+  background: var(--btn);
+  box-shadow: inset 0 0 0 1px var(--btn-edge);
   text-overflow: ellipsis;
   cursor: pointer;
 }
 .auswahl select:hover {
-  box-shadow:
-    inset 0 1px 0 var(--edge-top),
-    inset 0 0 0 1px var(--edge-strong);
+  box-shadow: inset 0 0 0 1px var(--ink-3);
 }
 .auswahl svg {
   position: absolute;
   right: 12px;
   top: 9px;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   fill: none;
   stroke: var(--ink-2);
   stroke-width: 2;
@@ -355,13 +183,10 @@ kbd {
 
 /* --- Wörterbuch -------------------------------------------------------- */
 
-#woerterbuch-form {
-  margin-bottom: 16px;
-}
 .eingabe {
   flex: 1;
   min-width: 0;
-  height: 32px;
+  height: 30px;
   padding: 0 12px;
   border: 0;
   border-radius: 8px;
@@ -369,47 +194,35 @@ kbd {
     500 13px/18px 'Inter',
     sans-serif;
   color: var(--ink);
-  background: var(--surface-2);
-  box-shadow:
-    inset 0 1px 0 var(--edge-top),
-    inset 0 0 0 1px var(--edge);
+  background: var(--btn);
+  box-shadow: inset 0 0 0 1px var(--btn-edge);
   user-select: text;
 }
-.eintraege {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.eintraege:empty {
+  display: none;
 }
 .eintraege li {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  max-width: 100%;
-  padding: 4px 4px 4px 12px;
-  border-radius: 8px;
-  background: var(--surface);
-  box-shadow:
-    inset 0 1px 0 var(--edge-top),
-    inset 0 0 0 1px var(--edge);
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 .eintraege li.neu {
   animation: einblenden var(--fade) both;
 }
 .eintraege li span {
+  flex: 1;
+  min-width: 0;
   overflow-wrap: anywhere;
+  font-weight: 500;
 }
 .eintraege button {
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   flex: none;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
   color: var(--ink-2);
   cursor: pointer;
@@ -419,7 +232,7 @@ kbd {
 }
 .eintraege button:hover {
   color: var(--ink);
-  background: var(--surface-2);
+  background: var(--sel);
 }
 .eintraege button:active {
   transform: scale(0.98);
@@ -432,19 +245,6 @@ kbd {
   stroke-width: 2;
 }
 
-/* --- Allgemein --------------------------------------------------------- */
-
-.system {
-  list-style: none;
-  margin: 12px 0 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-#seite-allgemein h1 {
-  margin-bottom: 16px;
-}
-
 /* --- Rückfrage-Dialog (confirm.js) ------------------------------------- */
 
 .rueckfrage {
@@ -455,8 +255,7 @@ kbd {
   color: var(--ink);
   background: var(--bg);
   box-shadow:
-    inset 0 1px 0 var(--edge-top),
-    inset 0 0 0 1px var(--edge),
+    inset 0 0 0 1px var(--line),
     var(--dialog-shadow);
 }
 .rueckfrage[open] {
@@ -464,6 +263,13 @@ kbd {
 }
 .rueckfrage::backdrop {
   background: var(--scrim);
+}
+.rueckfrage h2 {
+  margin: 0;
+  font:
+    400 22px/28px 'Newsreader',
+    serif;
+  letter-spacing: -0.01em;
 }
 .rueckfrage p {
   margin: 4px 0 24px;
@@ -487,22 +293,13 @@ kbd {
 
 @media (forced-colors: active) {
   nav button[aria-selected='true'],
-  .wahl,
   .eingabe,
   .auswahl select,
   .rueckfrage {
     border: 1px solid CanvasText;
   }
-  .stufe:has(input:checked),
-  .wahl:has(input:checked) {
-    outline: 2px solid Highlight;
-  }
-  .kreis {
-    border: 1.5px solid CanvasText;
-  }
-  .stufe:has(input:checked) .kreis::after {
-    forced-color-adjust: none;
-    background: Highlight;
+  .ver i {
+    border: 1px solid CanvasText;
   }
   .pegel i {
     forced-color-adjust: none;

@@ -29,7 +29,7 @@ function openSingle(key, datei, optionen) {
     autoHideMenuBar: true,
     icon: path.join(ASSETS, 'letterflow.ico'),
     // Deckender Hintergrund passend zu style.css (--bg), kein Schwarz vor dem ersten Paint.
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0a0e0e' : '#f3f6f5',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#252422' : '#ffffff',
     webPreferences: {
       preload: PRELOAD,
       contextIsolation: true,

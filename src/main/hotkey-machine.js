@@ -13,7 +13,7 @@ const PRESETS = {
 };
 
 function createHotkeyMachine(preset) {
-  const groups = PRESETS[preset] || PRESETS['ctrl+win'];
+  const groups = PRESETS[preset] || PRESETS.rctrl;
   const allowed = new Set(groups.flat());
   const pressed = new Set();
   // idle: wartet · active: Kürzel gehalten · dead: gesperrt, bis alle Tasten losgelassen sind

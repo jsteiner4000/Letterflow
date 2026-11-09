@@ -4,10 +4,10 @@ const $ = (id) => document.getElementById(id);
 let aktuell = null;
 let letzterStatus = null;
 
-const KAPPEN = {
-  'ctrl+win': ['Strg', 'Win'],
-  rctrl: ['Rechte Strg'],
-  'ctrl+shift': ['Strg', 'Umschalt'],
+const KAPPE = {
+  rctrl: 'Rechte Strg',
+  'ctrl+win': 'Strg + Win',
+  'ctrl+shift': 'Strg + Umschalt',
 };
 
 // --- Bereiche (Seitenleiste) ---------------------------------------------
@@ -52,11 +52,7 @@ function anzeigen(s) {
     r.checked = r.value === s.smoothingModel;
     r.disabled = !s.smoothing;
   }
-  $('kappen').replaceChildren(
-    ...(KAPPEN[s.hotkey] || []).map((t) =>
-      Object.assign(document.createElement('kbd'), { textContent: t }),
-    ),
-  );
+  $('kappe').textContent = KAPPE[s.hotkey] || '';
   $('glaettung').checked = s.smoothing;
   $('autostart').checked = s.autostart;
   $('mikrofon').value = s.micDeviceId ?? '';
@@ -84,6 +80,7 @@ function eintraegeAnzeigen(liste) {
     if (!li) {
       li = document.createElement('li');
       li.dataset.eintrag = eintrag;
+      li.className = 'zeile';
       if (eintraegeGezeigt) li.classList.add('neu');
       const text = document.createElement('span');
       text.textContent = eintrag;
@@ -233,6 +230,7 @@ function pegelStoppen() {
   pegel.strom?.getTracks().forEach((t) => t.stop());
   pegel.ctx?.close().catch(() => {});
   pegel = null;
+  $('pegel').hidden = true;
   for (const b of $('pegel').children) b.classList.remove('an');
 }
 
@@ -240,6 +238,7 @@ async function pegelStarten() {
   pegelStoppen();
   const lauf = (pegel = { timer: setTimeout(pegelStoppen, PEGEL_DAUER_MS) });
   $('pegel-test').textContent = 'Test beenden';
+  $('pegel').hidden = false;
   const id = aktuell?.micDeviceId;
   let strom;
   try {
@@ -301,11 +300,12 @@ const STUFE_TEXT = { schnell: 'Schnell', gruendlich: 'Gründlich' };
 function statusAnzeigen(st) {
   letzterStatus = st;
   const zustand = STATUSZEILE[st.engines] ? st.engines : 'fehlt';
-  $('statuszeile').dataset.zustand = zustand;
-  $('statuszeile-text').textContent = STATUSZEILE[zustand];
+  // Sichtbar nur der Punkt; der Text steht im Tooltip und für Bildschirmleser in role=status.
+  $('ver').dataset.zustand = zustand;
+  $('ver').title = STATUSZEILE[zustand];
+  $('statuszeile').textContent = STATUSZEILE[zustand];
   const pc = STUFE_TEXT[st.autoTier];
-  $('auf-diesem-pc').hidden = !pc;
-  $('auf-diesem-pc').textContent = pc ? `Auf diesem PC: ${pc}` : '';
+  $('auto-text').textContent = pc ? `Wählt nach deinem PC – hier: ${pc}` : 'Wählt nach deinem PC';
   $('status-glaettung').textContent =
     st.tier === 'gruendlich'
       ? `Glättung: Gründlich auf ${BACKEND_TEXT[st.backend] || 'Prozessor'}${st.rueckfall ? ' (Rückfall, Grafikkarte nicht nutzbar)' : ''}`
@@ -337,7 +337,10 @@ api.settings.onChanged((s) => {
   anzeigen(aktuell);
   api
     .info()
-    .then((info) => ($('version').textContent = `Version ${info.version}`))
+    .then((info) => {
+      $('version').textContent = `Version ${info.version}`;
+      $('version-zeile').textContent = `Letterflow v${info.version}`;
+    })
     .catch(() => {});
   statusAktualisieren();
   setInterval(statusAktualisieren, 3000);

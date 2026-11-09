@@ -59,12 +59,9 @@ test('Tastenereignisse werden zu hotkey-Ereignissen', async () => {
   const seen = [];
   for (const n of ['hotkey-down', 'hotkey-up', 'hotkey-cancel']) h.on(n, () => seen.push(n));
   const emit = (o) => h.send({ cmd: '__emit', msg: o });
-  emit({ ev: 'key', key: 'lctrl', down: true });
-  emit({ ev: 'key', key: 'lwin', down: true });
-  emit({ ev: 'key', key: 'lwin', down: false });
-  emit({ ev: 'key', key: 'lctrl', down: false });
-  emit({ ev: 'key', key: 'lctrl', down: true });
-  emit({ ev: 'key', key: 'lwin', down: true });
+  emit({ ev: 'key', key: 'rctrl', down: true });
+  emit({ ev: 'key', key: 'rctrl', down: false });
+  emit({ ev: 'key', key: 'rctrl', down: true });
   emit({ ev: 'other' });
   await expect
     .poll(() => seen)
@@ -74,10 +71,11 @@ test('Tastenereignisse werden zu hotkey-Ereignissen', async () => {
 test('setPreset wirkt auf die Erkennung', async () => {
   const h = startFake({});
   await waitEvent(h, 'ready');
-  h.setPreset('rctrl');
+  h.setPreset('ctrl+win');
   const seen = [];
   h.on('hotkey-down', () => seen.push('down'));
-  h.send({ cmd: '__emit', msg: { ev: 'key', key: 'rctrl', down: true } });
+  h.send({ cmd: '__emit', msg: { ev: 'key', key: 'lctrl', down: true } });
+  h.send({ cmd: '__emit', msg: { ev: 'key', key: 'lwin', down: true } });
   await expect.poll(() => seen).toEqual(['down']);
 });
 
@@ -105,8 +103,7 @@ test('Absturz bei gehaltenem Kürzel meldet hotkey-cancel', async () => {
   h.on('hotkey-down', () => seen.push('down'));
   h.on('hotkey-cancel', () => seen.push('cancel'));
   h.on('hotkey-up', () => seen.push('up'));
-  h.send({ cmd: '__emit', msg: { ev: 'key', key: 'lctrl', down: true } });
-  h.send({ cmd: '__emit', msg: { ev: 'key', key: 'lwin', down: true } });
+  h.send({ cmd: '__emit', msg: { ev: 'key', key: 'rctrl', down: true } });
   await expect.poll(() => seen).toEqual(['down']);
   h.send({ cmd: '__exit' });
   await expect.poll(() => seen).toEqual(['down', 'cancel']);

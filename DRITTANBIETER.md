@@ -12,6 +12,7 @@ Folgende Bestandteile stammen von Dritten:
 | Qwen3-4B-Instruct-2507 (Modell) | Apache 2.0 | https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507 |
 | Inter (Schrift) | SIL OFL 1.1 | https://github.com/rsms/inter |
 | Outfit (Schrift) | SIL OFL 1.1 | https://github.com/Outfitio/Outfit-Fonts |
+| Newsreader (Schrift) | SIL OFL 1.1 | https://github.com/productiontype/Newsreader |
 
 ## Spracherkennung: NVIDIA Parakeet
 

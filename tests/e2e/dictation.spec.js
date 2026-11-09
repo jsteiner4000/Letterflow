@@ -40,14 +40,8 @@ const helfer = (m) =>
   app.evaluate((_e, nachricht) => global.__letterflow.helper.send(nachricht), m);
 const taste = (key, down) => helfer({ cmd: '__emit', msg: { ev: 'key', key, down } });
 const fokus = (focus) => helfer({ cmd: '__setFocus', focus });
-const druecken = async () => {
-  await taste('lctrl', true);
-  await taste('lwin', true);
-};
-const loslassen = async () => {
-  await taste('lwin', false);
-  await taste('lctrl', false);
-};
+const druecken = () => taste('rctrl', true);
+const loslassen = () => taste('rctrl', false);
 const lastPaste = () => app.evaluate(() => global.__letterflow.lastPaste);
 const zwischenablage = () => app.evaluate(({ clipboard }) => clipboard.readText());
 const protokoll = () => {
