@@ -5,7 +5,7 @@ window.PilleGlas = (() => {
   const VS = 'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
   const FS = `precision highp float;
 uniform sampler2D tex; uniform vec2 texSize; uniform vec2 size; uniform vec2 off;
-uniform float S; uniform float refr; uniform float bgra;
+uniform float S; uniform float ts; uniform float refr; uniform float bgra;
 void main(){
   vec2 f = vec2(gl_FragCoord.x, size.y - gl_FragCoord.y);
   float r = size.y * .5; vec2 c = size * .5; float rim = 16. * S;
@@ -21,17 +21,31 @@ void main(){
   for (int i = 0; i < 3; i++) {
     float fi = float(i);
     float kc = 1. + (fi - 1.) * .06 * k;
-    vec2 pos = off + c + d * mag + n * bend * kc;
+    vec2 pos = off + (c + d * mag + n * bend * kc) * ts;
     vec3 s = texture2D(tex, (pos + .5) / texSize).rgb;
     if (bgra > .5) s = s.bgr;
     if (i == 0) o.r = s.r; else if (i == 1) o.g = s.g; else o.b = s.b;
   }
-  gl_FragColor = vec4(o, 1.);
+  // Kante weich über ~1 Bildpunkt (vormultipliertes Alpha); die Form schneidet CSS (border-radius).
+  float a = clamp(r - q + .5, 0., 1.);
+  gl_FragColor = vec4(o * a, a);
 }`;
+
+  // Gerätepixel je CSS-Pixel als --dpr (scharfe 1-Bildpunkt-Linien); neu bei Bildschirmwechsel.
+  (function dprMerken() {
+    document.documentElement.style.setProperty('--dpr', String(devicePixelRatio));
+    matchMedia(`(resolution: ${devicePixelRatio}dppx)`).addEventListener('change', dprMerken, {
+      once: true,
+    });
+  })();
 
   // null, wenn WebGL fehlt: die Pille bleibt dann beim getönten Glas.
   function erzeugen(canvas) {
-    const gl = canvas.getContext('webgl', { antialias: false, alpha: false });
+    const gl = canvas.getContext('webgl', {
+      antialias: false,
+      alpha: true,
+      premultipliedAlpha: true,
+    });
     if (!gl) return null;
     const bauen = (typ, quelle) => {
       const s = gl.createShader(typ);
@@ -60,6 +74,35 @@ void main(){
       gl.texParameteri(gl.TEXTURE_2D, k, v);
     const u = (n) => gl.getUniformLocation(prog, n);
     let tex = { w: 1, h: 1, bgra: 0 };
+    // Zeichenfläche = CSS-Größe × devicePixelRatio, exakt aus dem Layout (auch nach Bildschirmwechsel).
+    let px = null;
+    let zuletzt = null;
+    new ResizeObserver(([e]) => {
+      const b = e.devicePixelContentBoxSize && e.devicePixelContentBoxSize[0];
+      px = b ? [b.inlineSize, b.blockSize] : null;
+      if (zuletzt) zeichnen(zuletzt);
+    }).observe(canvas, { box: 'device-pixel-content-box' });
+    // Ursprung (ox, oy) im Bild (Pixel), s: Bildpixel je CSS-Pixel.
+    function zeichnen(a) {
+      zuletzt = a;
+      const dpr = devicePixelRatio;
+      const [w, h] =
+        px || [canvas.clientWidth, canvas.clientHeight].map((v) => Math.round(v * dpr));
+      if (!w || !h) return;
+      if (canvas.width !== w) canvas.width = w;
+      if (canvas.height !== h) canvas.height = h;
+      gl.viewport(0, 0, w, h);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.uniform2f(u('texSize'), tex.w, tex.h);
+      gl.uniform2f(u('size'), w, h);
+      gl.uniform2f(u('off'), a.ox, a.oy);
+      gl.uniform1f(u('S'), h / 52); // Linsenmaße in CSS-Pixeln der 52 px hohen Pille
+      gl.uniform1f(u('ts'), a.s / (h / 52));
+      gl.uniform1f(u('refr'), a.refraction / 100);
+      gl.uniform1f(u('bgra'), tex.bgra);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
     return {
       // Bild: Canvas (rgba) oder { daten: Uint8Array BGRA, w, h }
       bild(quelle) {
@@ -81,19 +124,7 @@ void main(){
           tex = { w: quelle.width, h: quelle.height, bgra: 0 };
         }
       },
-      // Pille der Größe breite × hoehe (Bildpunkte) bei Dichte s, Ursprung (ox, oy) im Bild (Pixel).
-      zeichnen({ breite, hoehe, s, ox, oy, refraction }) {
-        canvas.width = Math.round(breite * s);
-        canvas.height = Math.round(hoehe * s);
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        gl.uniform2f(u('texSize'), tex.w, tex.h);
-        gl.uniform2f(u('size'), canvas.width, canvas.height);
-        gl.uniform2f(u('off'), ox, oy);
-        gl.uniform1f(u('S'), s);
-        gl.uniform1f(u('refr'), refraction / 100);
-        gl.uniform1f(u('bgra'), tex.bgra);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      },
+      zeichnen,
     };
   }
 
@@ -139,7 +170,15 @@ void main(){
     // Deckkraft zur Tönung hin gemischt (sonst weiße Balken auf weißem Deckglas).
     const lt = leucht(ton);
     const lc = lum === null ? lt : lum * (1 - deck) + lt * deck;
-    pille.classList.toggle('hellgrund', lc > 0.6);
+    // Über hellem Grund das Glas abdunkeln (Ebene in .milch, Übergang per CSS), Stärke 0–100 %.
+    const dunkel =
+      cfg.autoDarken !== false && lum !== null
+        ? ((cfg.autoDarkenStrength ?? 50) / 100) *
+          0.6 *
+          Math.min(1, Math.max(0, (lum - 0.6) / 0.25))
+        : 0;
+    st.setProperty('--dunkel', dunkel.toFixed(3));
+    pille.classList.toggle('hellgrund', lc * (1 - dunkel) + 0.08 * dunkel > 0.6);
   }
 
   return { erzeugen, helligkeit, anwenden };

@@ -211,7 +211,9 @@ h2 {
   box-shadow: none;
 }
 
+/* Tastenkappe: Kanten genau 1 Gerätepixel (--dpr setzt pille-glas.js, sonst 1) */
 kbd {
+  --hair: calc(1px / var(--dpr, 1));
   flex: none;
   padding: 4px 9px;
   border-radius: 6px;
@@ -221,9 +223,29 @@ kbd {
   color: var(--ink);
   background: var(--btn);
   box-shadow:
-    inset 0 0 0 1px var(--btn-edge),
-    0 1px 0 var(--btn-edge);
+    inset 0 0 0 var(--hair) var(--btn-edge),
+    0 var(--hair) 0 var(--btn-edge);
   white-space: nowrap;
+}
+/* Mehrere Kappen bzw. Kappe mit Zusatz („rechts“), an der Grundlinie ausgerichtet */
+.tasten,
+.text .tasten {
+  display: inline-flex;
+  flex: none;
+  align-items: baseline;
+  gap: 6px;
+  vertical-align: baseline;
+}
+.tasten .plus {
+  display: inline;
+  font-weight: 400;
+  color: var(--ink-2);
+}
+.tasten small {
+  font:
+    500 11px/18px 'Inter',
+    sans-serif;
+  color: var(--ink-2);
 }
 
 /* Schalter: echtes Kontrollkästchen, darüber gelegt und unsichtbar */

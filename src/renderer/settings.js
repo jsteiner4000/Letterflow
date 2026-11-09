@@ -4,11 +4,24 @@ const $ = (id) => document.getElementById(id);
 let aktuell = null;
 let letzterStatus = null;
 
+// Sprechtaste als Tastenkappen: [Strg] rechts · [Strg] + [Win] · [Strg] + [Umschalt]
 const KAPPE = {
-  rctrl: 'Rechte Strg',
-  'ctrl+win': 'Strg + Win',
-  'ctrl+shift': 'Strg + Umschalt',
+  rctrl: [['Strg', 'rechts']],
+  'ctrl+win': [['Strg'], ['Win']],
+  'ctrl+shift': [['Strg'], ['Umschalt']],
 };
+function kappenZeigen(ziel, hotkey) {
+  const teile = [];
+  for (const [taste, zusatz] of KAPPE[hotkey] || []) {
+    if (teile.length)
+      teile.push(
+        Object.assign(document.createElement('span'), { className: 'plus', textContent: '+' }),
+      );
+    teile.push(Object.assign(document.createElement('kbd'), { textContent: taste }));
+    if (zusatz) teile.push(Object.assign(document.createElement('small'), { textContent: zusatz }));
+  }
+  ziel.replaceChildren(...teile);
+}
 
 // --- Bereiche (Seitenleiste) ---------------------------------------------
 
@@ -53,7 +66,7 @@ function anzeigen(s) {
     r.checked = r.value === s.smoothingModel;
     r.disabled = !s.smoothing;
   }
-  $('kappe').textContent = KAPPE[s.hotkey] || '';
+  kappenZeigen($('kappe'), s.hotkey);
   $('glaettung').checked = s.smoothing;
   $('autostart').checked = s.autostart;
   pilleAnzeigen(s.pill);
@@ -135,7 +148,16 @@ function speichern(patchOderFunktion) {
 
 // --- Pille: Vorschau (gleicher Glas-Code wie das Aufnahme-Fenster, festes Beispielbild) ---------
 
-const PILLE_STANDARD = { frost: 40, opacity: 85, refraction: 60, tint: 'hell' };
+// Glas-Standard (Zurücksetzen); die Animation bleibt dabei unberührt.
+const PILLE_STANDARD = {
+  frost: 40,
+  opacity: 85,
+  refraction: 60,
+  tint: 'hell',
+  autoDarken: true,
+  autoDarkenStrength: 50,
+};
+const REGLER = ['frost', 'opacity', 'refraction', 'autoDarkenStrength'];
 const BILD_B = 640;
 const BILD_H = 170;
 const BILD_S = 2;
@@ -159,7 +181,7 @@ function beispielZeichnen() {
   x.arc(BILD_B * 0.22, BILD_H * 0.55, 56, 0, 7);
   x.fill();
   x.fillStyle = '#fff';
-  x.fillRect(BILD_B * 0.5, 0, BILD_B * 0.5, BILD_H);
+  x.fillRect(BILD_B * 0.44, 0, BILD_B * 0.56, BILD_H); // Pille liegt großteils auf Weiß: Abdunkeln sichtbar
   x.fillStyle = '#222';
   x.font = '600 16px Georgia, serif';
   x.fillText('Hallo Tim, ich schicke dir', BILD_B * 0.53, 52);
@@ -171,15 +193,16 @@ function beispielZeichnen() {
   if (vorschauGlas) vorschauGlas.bild(beispiel);
 }
 
-const WELLE = Array.from({ length: 22 }, (_, i) =>
-  Math.min(1, 0.2 + 0.8 * Math.abs(Math.sin((i + 1) * 0.9) * Math.cos((i + 1) * 0.37))),
-);
-[...document.querySelectorAll('#vorschau-balken i')].forEach((b, i) => {
-  b.style.transform = `scaleY(${WELLE[i].toFixed(2)})`;
-});
+// Zeitstrahl mitten im Sprechen: links älter (blendet aus), rechts die neuesten Balken.
+for (let i = 0; i < 22; i++) {
+  const h = Math.min(1, 0.15 + 0.85 * Math.abs(Math.sin((i + 1) * 0.9) * Math.cos((i + 1) * 0.37)));
+  const b = $('vorschau-balken').appendChild(document.createElement('i'));
+  b.style.transform = `translateX(${i * 5.5}px) scaleY(${(i < 3 ? 0 : h).toFixed(2)})`;
+}
 
 function vorschauAnzeigen() {
-  const breite = vorschau.offsetWidth || 217;
+  const breite = vorschau.offsetWidth;
+  if (!breite) return; // Bereich verborgen: beim Öffnen neu
   const s = BILD_S;
   const ox = Math.round(((BILD_B - breite) / 2) * s);
   const oy = Math.round(((BILD_H - 52) / 2) * s);
@@ -194,17 +217,20 @@ function vorschauAnzeigen() {
   }
   window.PilleGlas.anwenden(vorschau, cfg, beispielHell.wert);
   const echt = Boolean(vorschauGlas) && !matchMedia('(forced-colors: active)').matches;
-  if (echt) vorschauGlas.zeichnen({ breite, hoehe: 52, s, ox, oy, refraction: cfg.refraction });
+  if (echt) vorschauGlas.zeichnen({ s, ox, oy, refraction: cfg.refraction });
   vorschau.classList.toggle('echt', echt);
 }
 
 const HEX = /^#[0-9a-f]{6}$/i;
 function pilleAnzeigen(p) {
   pilleStand = p;
-  for (const k of ['frost', 'opacity', 'refraction']) {
+  for (const k of REGLER) {
     $(`p-${k}`).value = p[k];
     $(`w-${k}`).textContent = `${p[k]} %`;
   }
+  $('p-autoDarken').checked = p.autoDarken;
+  $('p-autoDarkenStrength').disabled = !p.autoDarken;
+  $('p-animation').value = p.animation;
   for (const r of document.querySelectorAll('input[name="tint"]')) r.checked = r.value === p.tint;
   const eigene = HEX.test(p.tint);
   $('p-eigen').value = eigene ? p.tint : '#ffffff';
@@ -217,7 +243,7 @@ function pilleAnzeigen(p) {
 
 beispielZeichnen();
 
-for (const k of ['frost', 'opacity', 'refraction']) {
+for (const k of REGLER) {
   $(`p-${k}`).addEventListener('input', (e) => {
     pilleStand = { ...pilleStand, [k]: Number(e.target.value) };
     $(`w-${k}`).textContent = `${e.target.value} %`;
@@ -236,7 +262,16 @@ $('p-eigen').addEventListener('input', (e) => {
 $('p-eigen').addEventListener('change', (e) =>
   speichern((s) => ({ pill: { ...s.pill, tint: e.target.value } })),
 );
-$('pille-zurueck').addEventListener('click', () => speichern({ pill: PILLE_STANDARD }));
+$('p-autoDarken').addEventListener('change', (e) => {
+  pilleAnzeigen({ ...pilleStand, autoDarken: e.target.checked });
+  speichern((s) => ({ pill: { ...s.pill, autoDarken: e.target.checked } }));
+});
+$('p-animation').addEventListener('change', (e) =>
+  speichern((s) => ({ pill: { ...s.pill, animation: e.target.value } })),
+);
+$('pille-zurueck').addEventListener('click', () =>
+  speichern((s) => ({ pill: { ...s.pill, ...PILLE_STANDARD } })),
+);
 
 // --- Eingaben ------------------------------------------------------------
 

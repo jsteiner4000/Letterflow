@@ -92,11 +92,33 @@ test('dauerhafter Umbenennen-Fehler wirft und lässt die alte Datei unversehrt',
 });
 
 test('Pille: Regler begrenzt, Tönung geprüft, Rest Standard', () => {
-  expect(DEFAULTS.pill).toEqual({ frost: 40, opacity: 85, refraction: 60, tint: 'hell' });
-  const s = saveSettings(dir, {
-    pill: { frost: 150, opacity: -5, refraction: 'x', tint: '#ABCDEF' },
+  expect(DEFAULTS.pill).toEqual({
+    frost: 40,
+    opacity: 85,
+    refraction: 60,
+    tint: 'hell',
+    autoDarken: true,
+    autoDarkenStrength: 50,
+    animation: 'auto',
+    animationAutoOff: false,
   });
-  expect(s.pill).toEqual({ frost: 100, opacity: 0, refraction: 60, tint: '#abcdef' });
+  const s = saveSettings(dir, {
+    pill: { frost: 150, opacity: -5, refraction: 'x', tint: '#ABCDEF', autoDarkenStrength: 120 },
+  });
+  expect(s.pill).toEqual({
+    ...DEFAULTS.pill,
+    frost: 100,
+    opacity: 0,
+    tint: '#abcdef',
+    autoDarkenStrength: 100,
+  });
+  const a = saveSettings(dir, {
+    pill: { animation: 'aus', animationAutoOff: true, autoDarken: false },
+  });
+  expect(a.pill).toMatchObject({ animation: 'aus', animationAutoOff: true, autoDarken: false });
+  expect(saveSettings(dir, { pill: { animation: 'flott', autoDarken: 1 } }).pill).toEqual(
+    DEFAULTS.pill,
+  );
   expect(saveSettings(dir, { pill: { tint: 'rot' } }).pill).toEqual(DEFAULTS.pill);
   expect(saveSettings(dir, { pill: 5 }).pill).toEqual(DEFAULTS.pill);
 });

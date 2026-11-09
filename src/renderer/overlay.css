@@ -8,10 +8,9 @@ body {
   forced-color-adjust: none; /* sonst wird das transparente Fenster zur deckenden Fläche */
 }
 
-body {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* Lage setzt overlay.js auf ganze Gerätepixel (scharfer Rand) */
+#pille {
+  position: absolute;
 }
 
 /* Nur für den Bildschirmleser */

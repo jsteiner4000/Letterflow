@@ -196,6 +196,22 @@ if (!app.requestSingleInstanceLock()) {
     trayHandle = tray.createTray();
     enginesAnstossen(app.getPath('userData'));
     const overlay = createOverlay({ getSettings: einstellungen, capture: !testMode });
+    // „Automatisch“ schaltet die Animation ab, wenn sie zweimal hintereinander > 30 % Bilder verwirft.
+    let ruckler = 0;
+    overlay.on('animation', (anteil) => {
+      ruckler = anteil > 0.3 ? ruckler + 1 : 0;
+      const p = einstellungen().pill;
+      if (ruckler < 2 || p.animation !== 'auto' || p.animationAutoOff) return;
+      try {
+        const neu = saveSettings(app.getPath('userData'), {
+          pill: { ...p, animationAutoOff: true },
+        });
+        for (const w of BrowserWindow.getAllWindows())
+          if (!w.isDestroyed()) w.webContents.send('settings:changed', neu);
+      } catch (fehler) {
+        console.error('Einstellungen nicht gespeichert:', fehler);
+      }
+    });
     // Tests prüfen das erste Fenster: dort die Pille nicht vorab laden.
     if (!testMode) overlay.prepare();
     helper = new Helper();

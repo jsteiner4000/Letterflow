@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('letterflow', {
   },
   overlay: {
     ready: () => ipcRenderer.send('overlay:ready'),
+    erschienen: (anteil) => ipcRenderer.send('overlay:erschienen', anteil),
     onState: (cb) => ipcRenderer.on('overlay:state', (_event, state) => cb(state)),
     onLevel: (cb) => ipcRenderer.on('overlay:level', (_event, n) => cb(n)),
     onBackdrop: (cb) => ipcRenderer.on('overlay:backdrop', (_event, b) => cb(b)),

@@ -8,14 +8,25 @@ const DEFAULTS = {
   smoothingModel: 'auto',
   dictionary: [],
   autostart: true,
-  pill: { frost: 40, opacity: 85, refraction: 60, tint: 'hell' },
+  pill: {
+    frost: 40,
+    opacity: 85,
+    refraction: 60,
+    tint: 'hell',
+    autoDarken: true,
+    autoDarkenStrength: 50,
+    animation: 'auto',
+    animationAutoOff: false, // intern: „Automatisch“ hat auf diesem PC ruckelnde Animationen gemessen
+  },
 };
 
 const HOTKEYS = ['rctrl', 'ctrl+win', 'ctrl+shift'];
 const MODELS = ['auto', 'schnell', 'gruendlich'];
 const TINTS = ['hell', 'neutral', 'dunkel', 'warm', 'petrol'];
+const ANIMATIONS = ['auto', 'an', 'aus'];
 
-// Glas der Pille: Regler 0–100 (ungültig → Standard), Tönung Name oder eigene Farbe #rrggbb.
+// Glas der Pille: Regler 0–100 (ungültig → Standard), Tönung Name oder eigene Farbe #rrggbb,
+// Abdunkeln über hellem Grund, Animation beim Erscheinen.
 function pill(v) {
   const q = v && typeof v === 'object' && !Array.isArray(v) ? v : {};
   const d = DEFAULTS.pill;
@@ -28,6 +39,10 @@ function pill(v) {
     opacity: regler('opacity'),
     refraction: regler('refraction'),
     tint: ok ? q.tint.toLowerCase() : d.tint,
+    autoDarken: typeof q.autoDarken === 'boolean' ? q.autoDarken : d.autoDarken,
+    autoDarkenStrength: regler('autoDarkenStrength'),
+    animation: ANIMATIONS.includes(q.animation) ? q.animation : d.animation,
+    animationAutoOff: typeof q.animationAutoOff === 'boolean' ? q.animationAutoOff : false,
   };
 }
 

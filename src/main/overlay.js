@@ -1,4 +1,12 @@
-const { BrowserWindow, ipcMain, screen, nativeTheme, desktopCapturer } = require('electron');
+const {
+  app: electronApp,
+  BrowserWindow,
+  ipcMain,
+  screen,
+  nativeTheme,
+  desktopCapturer,
+} = require('electron');
+const os = require('node:os');
 const { EventEmitter } = require('node:events');
 const path = require('node:path');
 
@@ -29,6 +37,15 @@ function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
   let aufnahmeAktiv = false;
   let erfassung = null; // { id, timer } solange die Pille sichtbar ist
   let erfassungId = 0;
+  let gezeigt = false; // zwischen show und hide
+  // Schwacher PC (für „Automatisch“): kein GPU-Compositing oder < 4 Kerne. Bestimmt, sobald der
+  // GPU-Prozess sich meldet (vorher meldet Chromium noch Software).
+  let schwach = os.availableParallelism() < 4;
+  const gpuPruefen = () => {
+    const gpu = String(electronApp.getGPUFeatureStatus().gpu_compositing || '');
+    schwach = os.availableParallelism() < 4 || !gpu.startsWith('enabled');
+  };
+  electronApp.on('gpu-info-update', gpuPruefen);
   const wartende = new Set(); // Funktionen, die auf 'gestartet'/'gestoppt' warten
 
   const vonOverlay = (event) => win && !win.isDestroyed() && event.sender === win.webContents;
@@ -53,7 +70,15 @@ function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
   const onGemeldet = (event) => {
     if (vonOverlay(event)) for (const f of [...wartende]) f();
   };
+  // Erscheinen ist fertig (Anteil verworfener Bilder oder null): erst jetzt erfassen, damit
+  // desktopCapturer und das Hochladen der Linse die Animation nicht stören.
+  const onErschienen = (event, anteil) => {
+    if (!vonOverlay(event)) return;
+    if (Number.isFinite(anteil) && anteil >= 0 && anteil <= 1) events.emit('animation', anteil);
+    if (gezeigt) erfassenStarten();
+  };
   ipcMain.on('overlay:ready', onReady);
+  ipcMain.on('overlay:erschienen', onErschienen);
   ipcMain.on('overlay:pcm', onPcm);
   ipcMain.on('overlay:recorder-error', onFehler);
   ipcMain.on('overlay:started', onGemeldet);
@@ -131,7 +156,11 @@ function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
     }
     // Windows „Transparenzeffekte“ aus → Glas deckend
     s.deckend = Boolean(nativeTheme.prefersReducedTransparency);
-    s.pille = getSettings().pill;
+    const p = getSettings().pill || {};
+    s.pille = p;
+    // „Automatisch“: aus auf schwachen PCs oder nach gemessenem Ruckeln.
+    s.animation =
+      p.animation === 'an' || (p.animation !== 'aus' && !p.animationAutoOff && !schwach);
     return s;
   }
 
@@ -209,17 +238,33 @@ function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
         .then(() => {
           if (!win || win.isDestroyed()) return;
           clearTimeout(ausblendTimer);
+          gezeigt = true;
+          // Erst zeigen (noch leer), dann der Zustand: so beginnt die Animation, wenn das Fenster
+          // wirklich Bilder liefert. Größe bleibt fest; während der Aufnahme nicht mehr verschieben.
+          // showInactive: kein Fokusklau.
+          if (!win.isVisible()) {
+            positionieren();
+            win.showInactive();
+          }
           senden('overlay:state', zustand(state));
-          positionieren();
-          // showInactive: kein Fokusklau; der Renderer blendet den fertigen Inhalt weich ein.
-          if (!win.isVisible()) win.showInactive();
-          erfassenStarten();
         })
         .catch((fehler) => console.error('Aufnahme-Pille nicht angezeigt:', fehler.message));
     },
     // Fenster vorab laden, damit schon das erste Kürzel die Pille sofort zeigt.
+    // Einmal unsichtbar zeigen (Pille ist noch durchsichtig): das erste Zeigen kostet ~200 ms
+    // (Fensterfläche anlegen) und würde sonst das erste Aufploppen verschlucken.
     prepare() {
-      ensureWindow().catch(() => {});
+      ensureWindow()
+        .then(() => {
+          if (!win || win.isDestroyed() || win.isVisible()) return;
+          const diese = win;
+          positionieren();
+          diese.showInactive();
+          setTimeout(() => {
+            if (!gezeigt && !diese.isDestroyed()) diese.hide();
+          }, 500);
+        })
+        .catch(() => {});
     },
     level(n) {
       senden('overlay:level', Math.max(0, Math.min(1, Number(n) || 0)));
@@ -227,6 +272,7 @@ function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
     hide() {
       if (!win || win.isDestroyed()) return;
       senden('overlay:hide');
+      gezeigt = false;
       erfassenStoppen();
       clearTimeout(ausblendTimer);
       const diese = win;
@@ -252,7 +298,9 @@ function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
     destroy() {
       clearTimeout(ausblendTimer);
       erfassenStoppen();
+      electronApp.removeListener('gpu-info-update', gpuPruefen);
       ipcMain.removeListener('overlay:ready', onReady);
+      ipcMain.removeListener('overlay:erschienen', onErschienen);
       ipcMain.removeListener('overlay:pcm', onPcm);
       ipcMain.removeListener('overlay:recorder-error', onFehler);
       ipcMain.removeListener('overlay:started', onGemeldet);

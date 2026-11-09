@@ -95,7 +95,7 @@
                 <b id="l-sprechtaste">Sprechtaste</b>
                 <span>Gedrückt halten, sprechen, loslassen – der Text erscheint am Cursor</span>
               </div>
-              <kbd id="kappe"></kbd>
+              <span id="kappe" class="tasten"></span>
               <button
                 id="kuerzel-aendern"
                 class="knopf"
@@ -112,21 +112,37 @@
                   class="kreis"
                   aria-hidden="true"
                 ></span
-                ><span class="text"><b>Rechte Strg (Standard)</b></span></label
+                ><span class="text"
+                  ><b
+                    ><span class="tasten"><kbd>Strg</kbd><small>rechts</small></span> (Standard)</b
+                  ></span
+                ></label
               >
               <label class="zeile wahl"
                 ><input type="radio" name="hotkey" value="ctrl+win" /><span
                   class="kreis"
                   aria-hidden="true"
                 ></span
-                ><span class="text"><b>Strg + Win</b></span></label
+                ><span class="text"
+                  ><b
+                    ><span class="tasten"
+                      ><kbd>Strg</kbd><span class="plus">+</span><kbd>Win</kbd></span
+                    ></b
+                  ></span
+                ></label
               >
               <label class="zeile wahl"
                 ><input type="radio" name="hotkey" value="ctrl+shift" /><span
                   class="kreis"
                   aria-hidden="true"
                 ></span
-                ><span class="text"><b>Strg + Umschalt</b></span></label
+                ><span class="text"
+                  ><b
+                    ><span class="tasten"
+                      ><kbd>Strg</kbd><span class="plus">+</span><kbd>Umschalt</kbd></span
+                    ></b
+                  ></span
+                ></label
               >
             </div>
           </div>
@@ -206,10 +222,8 @@
               <span class="symbol" data-art="mono"></span>
               <span class="rechts">
                 <span id="vorschau-balken" class="balken"
-                  ><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i
-                  ><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i
+                  ><span class="pegelbalken" style="transform: scaleX(0.6)"></span
                 ></span>
-                <span class="punkt"></span>
               </span>
               <span class="rim"></span>
             </div>
@@ -265,6 +279,37 @@
             </div>
             <div class="zeile">
               <div class="text">
+                <b id="l-abdunkeln">Auf hellem Hintergrund abdunkeln</b>
+                <span>Hält die Pille über weißen Flächen klar</span>
+              </div>
+              <label class="schalter">
+                <input
+                  type="checkbox"
+                  id="p-autoDarken"
+                  role="switch"
+                  aria-labelledby="l-abdunkeln"
+                />
+                <span class="regler" aria-hidden="true"></span>
+              </label>
+            </div>
+            <div class="zeile">
+              <div class="text">
+                <b id="l-autoDarkenStrength">Stärke</b>
+                <span>Wie stark das Glas über hellem Grund abdunkelt</span>
+              </div>
+              <input
+                type="range"
+                id="p-autoDarkenStrength"
+                class="schieber"
+                min="0"
+                max="100"
+                step="1"
+                aria-labelledby="l-autoDarkenStrength"
+              />
+              <output id="w-autoDarkenStrength" class="wert" for="p-autoDarkenStrength"></output>
+            </div>
+            <div class="zeile">
+              <div class="text">
                 <b id="l-tint">Tönung</b>
                 <span>Grundfarbe des Glases</span>
               </div>
@@ -298,6 +343,22 @@
                   ><input type="color" id="p-eigen" aria-label="Eigene Farbe" /><span></span
                 ></label>
               </div>
+            </div>
+          </div>
+          <div class="gruppe">
+            <div class="zeile">
+              <div class="text">
+                <b id="l-animation">Animation beim Erscheinen</b>
+                <span>Automatisch: aus auf langsamen PCs</span>
+              </div>
+              <span class="auswahl">
+                <select id="p-animation" aria-labelledby="l-animation">
+                  <option value="auto">Automatisch</option>
+                  <option value="an">An</option>
+                  <option value="aus">Aus</option>
+                </select>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+              </span>
             </div>
           </div>
           <div class="gruppe">

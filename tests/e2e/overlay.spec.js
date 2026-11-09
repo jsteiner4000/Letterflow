@@ -44,16 +44,16 @@ test('Pille zeigt Texte und Pegel, blendet weich aus', async () => {
   await expect(seite.locator('#pille')).toHaveAttribute('data-kind', 'aufnahme');
   await expect(seite.locator('#zeile1')).toHaveText(''); // kein Programmname in der Pille
   await expect(seite.locator('#pille')).toHaveClass(/sichtbar/);
-  await expect(seite.locator('#balken i')).toHaveCount(22);
+  // Zeitstrahl: bei Stille keine Balken, beim Sprechen laufen hohe Balken ein.
+  const hoechster = () =>
+    seite.$$eval('#balken i', (bs) =>
+      Math.max(
+        ...bs.map((b) => Number((b.style.transform.match(/scaleY\(([\d.]+)/) || [])[1] || 0)),
+      ),
+    );
+  expect(await hoechster()).toBe(0);
   await bruecke(() => global.__letterflow.overlay.level(1));
-  await expect
-    .poll(() =>
-      seite
-        .locator('#balken i')
-        .nth(7)
-        .evaluate((e) => Number(e.style.transform.match(/[\d.]+/)[0])),
-    )
-    .toBeGreaterThan(0.5);
+  await expect.poll(hoechster).toBeGreaterThan(0.5);
   // Fokus bleibt unberührt, Fenster klickdurchlässig und transparent
   const eigenschaften = await bruecke(() => {
     const w = global.__letterflow.overlay.window;

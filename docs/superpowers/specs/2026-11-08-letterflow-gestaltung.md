@@ -7,7 +7,7 @@ Entwürfe: `docs/design/` (`pille.png`, `pille-nah.png`, `pille-szenen.png`, `ei
 ## Gewählte Entwürfe (Julius, 2026-11-09) – verbindlich
 
 - **App-Fenster:** `docs/design/einstellungen-hell.png` / `einstellungen-hell.html` ist die Vorlage (wirkt „nicht nach KI“). Der dunkle Modus nutzt dieselbe Vorlage mit den dunklen Tokens unten; die App folgt weiter Windows.
-- **Pille:** `docs/design/pille-glas.png` / `pille-glas.html` ist die Vorlage: **leicht durchscheinendes Liquid-Glass** (heller Glanz oben links, Lichtkante, durchscheinender getönter Körper, Mint-Wellenform mit weichem Schein, Leuchtpunkt rechts). Sie ersetzt die Glas-Werte von `pille.png`/`pille.html` (rauchiges Glas). Übernommen bleiben aus der Überarbeitung: alle Zustände und Texte, fester Platz rechts, Kürzen langer Namen, Ersatz-Symbol, Barrierefreiheit, immer dunkel.
+- **Pille:** `docs/design/pille-glas.png` / `pille-glas.html` ist die Vorlage: **leicht durchscheinendes Liquid-Glass** (heller Glanz oben links, Lichtkante, durchscheinender getönter Körper, Mint-Wellenform mit weichem Schein; Leuchtpunkt entfällt seit v4). Sie ersetzt die Glas-Werte von `pille.png`/`pille.html` (rauchiges Glas). Übernommen bleiben aus der Überarbeitung: alle Zustände und Texte, fester Platz rechts, Kürzen langer Namen, Ersatz-Symbol, Barrierefreiheit, immer dunkel.
 
 ## Absicht
 
@@ -164,3 +164,14 @@ Vorlage verbindlich: `docs/design/pille-v3.html` (+ `pille-v3-foto.png`, `pille-
 - **Tönung**: Hell (Standard), Neutral, Dunkel, Warm, Petrol – als runde Farbfelder mit Auswahlring + „Eigene Farbe“ (Farbwähler).
 - Knopf „Zurücksetzen“.
 Werte werden sofort gespeichert (`settings.pill = { frost, opacity, refraction, tint }`, validiert) und wirken ab dem nächsten Erscheinen der Pille. Barrierefreiheit: „Transparenz aus“ erzwingt Durchsicht 0.
+
+### Pille v4 – flüssig, scharf, Zeitstrahl (Julius, 2026-11-09) – ersetzt Abweichendes oben
+
+- **Kein Leuchtpunkt** mehr (Pille und Vorschau).
+- **Aufploppen:** Fenster hat von Anfang an seine Endgröße und wird während der Aufnahme nicht verschoben. Liquid-Drop (< 0,3 s) animiert nur `transform`, `opacity` und `clip-path: inset(… round 26px)`; kein Layout, keine Größenänderung der Linse. Die Animation beginnt erst mit dem ersten Bild des sichtbaren Fensters. Bildschirmerfassung und Hochladen der Linse starten erst nach dem Aufploppen (bis dahin getöntes Glas, dann Überblenden). Kein Außenschatten (war bisher durch den Clip ohnehin unsichtbar).
+- **„Animation beim Erscheinen“** (Bereich „Pille“): Automatisch (Standard) / An / Aus, `settings.pill.animation = 'auto' | 'an' | 'aus'`. Automatisch = aus ohne GPU-Compositing oder mit < 4 Kernen, und schaltet sich ab, wenn zwei Aufploppen hintereinander > 30 % der Bilder verwerfen (gemessen per `requestAnimationFrame`; gemerkt als `pill.animationAutoOff`, ändert nie ein ausdrückliches An/Aus). Aus und reduzierte Bewegung: schlichtes Einblenden 120 ms.
+- **Scharfer Rand:** Linse in `devicePixelRatio` (exakte Gerätepixelgröße per ResizeObserver, neu bei Bildschirmwechsel), Kante der Linse über ~1 Gerätepixel weich, Form schneidet `border-radius` (`overflow: hidden`); Breite und Lage der Pille auf ganze Gerätepixel; Lichtkante genau 1 Gerätepixel ohne Weichzeichnung.
+- **Wellenform als Zeitstrahl** (wie iOS-Sprachmemos): Stille = leere Fläche; beim Sprechen alle ~45 ms ein Balken rechts (Höhe = Pegel in diesem Moment), gleitet per `transform` nach links und blendet am linken Rand aus. Farbe weiterhin weiß bzw. `#1d1d1f` über hellem Grund. Reduzierte Bewegung: ruhiger waagrechter Pegelbalken.
+- **Abdunkeln über hellem Grund:** ist der erfasste Bereich hell (> 0,6), dunkelt das Glas weich ab (300 ms). Einstellbar: Schalter „Auf hellem Hintergrund abdunkeln“ (Standard an) und „Stärke“ 0–100 % (Standard 50 %, aus = gesperrt), `pill.autoDarken`, `pill.autoDarkenStrength`. „Zurücksetzen“ setzt das Glas zurück, nicht die Animation.
+
+**Sprechtaste (Diktieren):** als Tastenkappen – „Rechte Strg“ = Kappe „Strg“ mit kleinem „rechts“ daneben, sonst zwei Kappen mit dünnem „+“; Kanten 1 Gerätepixel; gleich in der „Ändern“-Liste.
