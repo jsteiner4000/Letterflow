@@ -5,7 +5,7 @@ const readline = require('node:readline');
 const { createHotkeyMachine } = require('./hotkey-machine');
 
 const TIMEOUT_MS = 1000;
-const PASTE_TIMEOUT_MS = 4000; // der Helfer wartet bis zu 3 s, bis die Tasten losgelassen sind
+const PASTE_TIMEOUT_MS = 5000; // bis zu 3 s auf losgelassene Tasten, dazu Fensterwechsel und Rückkehr
 // Wartezeiten vor Neustarts nach Abstürzen; bei MAX_FAILURES Ausfällen binnen einer Minute Aufgabe
 const BACKOFF_MS = [300, 1000, 3000, 10000];
 const MAX_FAILURES = 5;
@@ -129,8 +129,10 @@ class Helper extends EventEmitter {
     return this._request({ cmd: 'focus' }, { ...FOCUS_FALLBACK });
   }
 
-  paste(hwnd) {
-    return this._request({ cmd: 'paste', hwnd }, { ...PASTE_FALLBACK }, PASTE_TIMEOUT_MS);
+  // restore: Ist das Zielfenster nicht mehr vorn, holt der Helfer es nach vorn, fügt ein und kehrt zurück.
+  // Antwort: { ok, reason } mit reason 'tasten-gehalten' | 'fenster-gewechselt' (weg, erhöht oder nicht aktivierbar).
+  paste(hwnd, restore = true) {
+    return this._request({ cmd: 'paste', hwnd, restore }, { ...PASTE_FALLBACK }, PASTE_TIMEOUT_MS);
   }
 
   setMask(on) {

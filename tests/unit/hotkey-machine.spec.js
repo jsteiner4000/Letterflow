@@ -22,10 +22,22 @@ test('Reihenfolge egal (Win zuerst)', () => {
   ]);
 });
 
-test('andere Taste bricht ab', () => {
+test('nur Esc bricht ab', () => {
   const m = createHotkeyMachine('ctrl+win');
-  const evs = [key('lctrl', true), key('lwin', true), { ev: 'other' }, key('lwin', false)];
+  const evs = [key('lctrl', true), key('lwin', true), { ev: 'esc' }, key('lwin', false)];
   expect(feedAll(m, evs)).toEqual([null, 'down', 'cancel', null]);
+});
+
+test('Alt/Tab (andere Tasten) brechen nicht ab', () => {
+  const m = createHotkeyMachine('ctrl+win');
+  const evs = [
+    key('lctrl', true),
+    key('lwin', true),
+    { ev: 'other' },
+    { ev: 'other' },
+    key('lwin', false),
+  ];
+  expect(feedAll(m, evs)).toEqual([null, 'down', null, null, 'up']);
 });
 
 test('Strg+Umschalt+Win startet kein Diktat für ctrl+win', () => {
@@ -34,15 +46,15 @@ test('Strg+Umschalt+Win startet kein Diktat für ctrl+win', () => {
   expect(feedAll(m, evs)).toEqual([null, null, null, null]);
 });
 
-test('fremde Modifier-Taste während des Haltens bricht ab', () => {
+test('fremde Modifier-Taste während des Haltens wird ignoriert', () => {
   const m = createHotkeyMachine('ctrl+win');
   const evs = [key('lctrl', true), key('lwin', true), key('lshift', true), key('lshift', false)];
-  expect(feedAll(m, evs)).toEqual([null, 'down', 'cancel', null]);
+  expect(feedAll(m, evs)).toEqual([null, 'down', null, null]);
 });
 
 test('nach Abbruch kein up und erst nach vollständigem Loslassen wieder bereit', () => {
   const m = createHotkeyMachine('ctrl+win');
-  feedAll(m, [key('lctrl', true), key('lwin', true), { ev: 'other' }]);
+  feedAll(m, [key('lctrl', true), key('lwin', true), { ev: 'esc' }]);
   expect(feedAll(m, [key('lctrl', false), key('lwin', false)])).toEqual([null, null]);
   expect(feedAll(m, [key('lctrl', true), key('lwin', true)])).toEqual([null, 'down']);
 });

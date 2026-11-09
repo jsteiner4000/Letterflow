@@ -31,7 +31,12 @@ function fehlerMelden(code, auto = false) {
   senden('setup:error', { code, auto });
 }
 
-ipcMain.handle('setup:plan', () => plan);
+let frage = null; // löst mit der gewählten Glättungsstufe auf, solange die Erstwahl offen ist
+
+ipcMain.handle('setup:plan', () => (frage ? { frage: true } : plan));
+ipcMain.handle('setup:waehlen', (_event, wahl) => {
+  if (frage && (wahl === 'gruendlich' || wahl === 'schnell')) frage(wahl);
+});
 ipcMain.handle('setup:retry', () => {
   if (wiederholen) wiederholen();
 });
@@ -128,6 +133,22 @@ async function ausfuehren(fehlend) {
   }
 }
 
+// Erster Start (noch keine Modelle, Stufe nie gewählt): Person wählt die Glättungsstufe, bevor etwas geladen wird.
+// aktuell(): gespeicherte Stufe; speichern(patch): Einstellungen sichern.
+async function ersteWahl({ aktuell, speichern }) {
+  if (testMode && !process.env.LETTERFLOW_CATALOG_URL_BASE) return;
+  if (aktuell() !== 'auto') return;
+  const dataDir = getDataDir();
+  const liste = requiredFiles({ backend: 'cpu', tier: 'schnell', dataDir, ...katalogOptionen() });
+  if (!missingFiles(dataDir, liste).length) return;
+  const wahl = await new Promise((fertig) => {
+    frage = fertig;
+    windows.openSetup();
+  });
+  frage = null;
+  speichern({ smoothingModel: wahl });
+}
+
 // Löst auf, wenn alle nötigen Dateien da sind. Zeigt bei Bedarf das Einrichtungsfenster.
 async function ensureSetup({ backend, tier }) {
   // Tests ohne Testkatalog sollen weder Fenster noch Downloads auslösen.
@@ -159,13 +180,14 @@ async function ensureSetup({ backend, tier }) {
       plan = null;
       windows.closeSetup();
     });
+  senden('setup:plan', plan);
   windows.openSetup();
   return laufend;
 }
 
 // Öffnet das Fenster erneut, falls die Einrichtung noch läuft (z. B. beim nächsten Diktat-Versuch).
 function showSetup() {
-  if (laufend) windows.openSetup();
+  if (laufend || frage) windows.openSetup();
 }
 
 const testAusfallNaechstes = () => {
@@ -186,4 +208,11 @@ function gruendlichFehlt(backend) {
   );
 }
 
-module.exports = { ensureSetup, showSetup, isComplete, testAusfallNaechstes, gruendlichFehlt };
+module.exports = {
+  ensureSetup,
+  ersteWahl,
+  showSetup,
+  isComplete,
+  testAusfallNaechstes,
+  gruendlichFehlt,
+};

@@ -468,6 +468,24 @@ api.settings.onChanged((s) => {
   statusAktualisieren();
 });
 
+// Meldet die Höhe der höchsten Seite, damit das Fenster ohne Scrollen passt.
+async function groesseMelden() {
+  try {
+    await document.fonts.ready;
+    const seiten = tabs.map((t) => $(t.getAttribute('aria-controls')));
+    const gemerkt = seiten.map((s) => s.hidden);
+    const inhalt = document.querySelector('.inhalt');
+    const hoehen = seiten.map((s) => {
+      seiten.forEach((x) => (x.hidden = x !== s));
+      return inhalt.offsetHeight;
+    });
+    seiten.forEach((s, i) => (s.hidden = gemerkt[i]));
+    api.settings.groesse(Math.max(...hoehen) + 80); // 80 = Innenabstand von main
+  } catch {
+    api.settings.groesse(0);
+  }
+}
+
 (async () => {
   try {
     aktuell = await api.settings.get();
@@ -477,6 +495,7 @@ api.settings.onChanged((s) => {
   }
   await mikrofoneLaden();
   anzeigen(aktuell);
+  groesseMelden();
   api
     .info()
     .then((info) => {

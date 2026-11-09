@@ -96,6 +96,10 @@ if (!app.requestSingleInstanceLock()) {
     const dataDir = getDataDir();
     hardware = await detectHardware(loadSettings(dir).smoothingModel, { dataDir });
     if (testFehler) throw new Error('Testfehler beim Start');
+    await setup.ersteWahl({
+      aktuell: () => loadSettings(dir).smoothingModel,
+      speichern: (patch) => saveSettings(dir, patch),
+    });
     for (;;) {
       hardware.tier = aktuelleStufe(dir);
       await setup.ensureSetup({ backend: hardware.backend, tier: hardware.tier });
@@ -227,9 +231,9 @@ if (!app.requestSingleInstanceLock()) {
     const pastes = []; // nur Tests: alle Einfüge-Versuche
     if (testMode) {
       const paste = helper.paste.bind(helper);
-      helper.paste = async (hwnd) => {
+      helper.paste = async (hwnd, restore) => {
         pastes.push({ text: await clipboard.readText(), hwnd });
-        return paste(hwnd);
+        return paste(hwnd, restore);
       };
     }
     new Dictation({

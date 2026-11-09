@@ -40,6 +40,10 @@ async function einrichtungStarten(baseUrl) {
   });
   geoeffnet.push(instanz.app);
   const win = await instanz.app.firstWindow();
+  // Erster Start: zuerst die Glättungsstufe wählen („Schnell“ lädt nur die Testdateien).
+  await expect(win.getByText('Wie gründlich soll Letterflow deinen Text glätten?')).toBeVisible();
+  await win.getByRole('radio', { name: /^Schnell/ }).check();
+  await win.getByRole('button', { name: 'Weiter' }).click();
   return { ...instanz, win };
 }
 

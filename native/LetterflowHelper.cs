@@ -89,6 +89,14 @@ namespace Letterflow
         [DllImport("user32.dll")]
         public static extern IntPtr GetForegroundWindow();
         [DllImport("user32.dll")]
+        public static extern bool SetForegroundWindow(IntPtr hWnd);
+        [DllImport("user32.dll")]
+        public static extern bool IsWindow(IntPtr hWnd);
+        [DllImport("user32.dll")]
+        public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool attach);
+        [DllImport("kernel32.dll")]
+        public static extern uint GetCurrentThreadId();
+        [DllImport("user32.dll")]
         public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         public static extern int GetClassName(IntPtr hWnd, StringBuilder sb, int max);
@@ -250,8 +258,8 @@ namespace Letterflow
                         }
                         else if (down)
                         {
-                            // Nie den Tastencode melden, nur dass etwas gedrückt wurde
-                            Emit("{\"ev\":\"other\"}");
+                            // Nie den Tastencode melden, nur dass etwas gedrückt wurde (Esc bricht das Diktat ab)
+                            Emit(k.vkCode == 0x1B ? "{\"ev\":\"esc\"}" : "{\"ev\":\"other\"}");
                         }
                     }
                 }
@@ -339,7 +347,8 @@ namespace Letterflow
                 {
                     Match h = Regex.Match(line, "\"hwnd\"\\s*:\\s*(\\d+)");
                     long hwnd = h.Success ? long.Parse(h.Groups[1].Value) : 0;
-                    Emit("{\"id\":" + id + ",\"paste\":" + PasteJson(hwnd) + "}");
+                    bool restore = Regex.IsMatch(line, "\"restore\"\\s*:\\s*true");
+                    Emit("{\"id\":" + id + ",\"paste\":" + PasteJson(hwnd, restore) + "}");
                 }
             }
             catch { }
@@ -480,7 +489,33 @@ namespace Letterflow
             return IsDown(0x11) || IsDown(0x10) || IsDown(0x12) || IsDown(0x5B) || IsDown(0x5C);
         }
 
-        static string PasteJson(long hwnd)
+        // Holt ein Fenster nach vorn. Ein eigener Tastendruck (unbelegte Taste, markiert) macht den Helfer zum
+        // Empfänger der letzten Eingabe; hilft das nicht, wird kurz an den Eingabe-Thread des Vordergrundfensters gehängt.
+        static bool Activate(IntPtr target)
+        {
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                IntPtr fg = Native.GetForegroundWindow();
+                if (fg == target) return true;
+                uint me = Native.GetCurrentThreadId(), pid;
+                uint other = fg == IntPtr.Zero ? 0 : Native.GetWindowThreadProcessId(fg, out pid);
+                bool attached = attempt == 1 && other != 0 && other != me && Native.AttachThreadInput(me, other, true);
+                try
+                {
+                    SendKeys(KeyInput(VK_UNASSIGNED, false), KeyInput(VK_UNASSIGNED, true));
+                    Native.SetForegroundWindow(target);
+                }
+                finally { if (attached) Native.AttachThreadInput(me, other, false); }
+                for (int i = 0; i < 25; i++)
+                {
+                    if (Native.GetForegroundWindow() == target) return true;
+                    Thread.Sleep(10);
+                }
+            }
+            return Native.GetForegroundWindow() == target;
+        }
+
+        static string PasteJson(long hwnd, bool restore)
         {
             DateTime end = DateTime.UtcNow.AddSeconds(3);
             while (ModifiersHeld())
@@ -488,8 +523,27 @@ namespace Letterflow
                 if (DateTime.UtcNow > end) return "{\"ok\":false,\"reason\":\"tasten-gehalten\"}";
                 Thread.Sleep(10);
             }
-            if (Native.GetForegroundWindow().ToInt64() != hwnd) return "{\"ok\":false,\"reason\":\"fenster-gewechselt\"}";
+            IntPtr target = new IntPtr(hwnd);
+            IntPtr previous = Native.GetForegroundWindow();
+            bool switched = previous != target;
+            if (switched)
+            {
+                uint pid;
+                // Nur zurückholen, wenn das Fenster noch existiert und nicht erhöht ist (UIPI würde Strg+V schlucken)
+                if (!restore || hwnd == 0 || !Native.IsWindow(target)
+                    || Native.GetWindowThreadProcessId(target, out pid) == 0 || IsElevated(pid)
+                    || !Activate(target))
+                    return "{\"ok\":false,\"reason\":\"fenster-gewechselt\"}";
+                Thread.Sleep(60); // Fokus im Fenster setzen lassen
+            }
+            // Nie in ein falsches Fenster: unmittelbar vor dem Senden prüfen
+            if (Native.GetForegroundWindow() != target) return "{\"ok\":false,\"reason\":\"fenster-gewechselt\"}";
             bool sent = SendKeys(KeyInput(0x11, false), KeyInput(0x56, false), KeyInput(0x56, true), KeyInput(0x11, true));
+            if (switched && sent && previous != IntPtr.Zero && Native.IsWindow(previous))
+            {
+                Thread.Sleep(150); // Zielfenster verarbeitet Strg+V, dann zurück
+                Activate(previous);
+            }
             return "{\"ok\":" + (sent ? "true" : "false") + ",\"reason\":null}";
         }
     }

@@ -15,7 +15,7 @@ Beim ersten Start lädt Letterflow einmalig die Sprachmodelle herunter (ca. 0,7 
 ## Benutzen
 
 - **Rechte Strg** halten, sprechen, loslassen. Der Text wird eingefügt. In den Einstellungen kannst du stattdessen **Strg + Win** oder **Strg + Umschalt** wählen.
-- **Esc** während des Haltens verwirft die Aufnahme.
+- **Esc** während des Haltens verwirft die Aufnahme. Alles andere (etwa Alt + Tab zum Fensterwechsel) ist beim Diktieren erlaubt: Letterflow fügt den Text in das Fenster ein, in dem du angefangen hast, und bringt dich danach zurück.
 - Das Symbol im Infobereich der Taskleiste zeigt den Zustand; ein Rechtsklick öffnet das Menü.
 
 ## Einstellungen

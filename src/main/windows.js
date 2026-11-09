@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, nativeTheme } = require('electron');
+const { app, BrowserWindow, ipcMain, nativeTheme, screen } = require('electron');
 const path = require('node:path');
 
 const ASSETS = path.join(__dirname, '..', '..', 'assets');
@@ -16,7 +16,8 @@ ipcMain.handle('app:about', () => {
 });
 
 // Öffnet das Fenster zu `key` oder holt das bestehende nach vorn.
-function openSingle(key, datei, optionen) {
+// zeigen: false → das Fenster bleibt verborgen, bis es selbst gezeigt wird (z. B. nach dem Anpassen der Größe).
+function openSingle(key, datei, optionen, zeigen = true) {
   const bestehend = offen.get(key);
   if (bestehend && !bestehend.isDestroyed()) {
     if (bestehend.isMinimized()) bestehend.restore();
@@ -40,7 +41,7 @@ function openSingle(key, datei, optionen) {
   });
   win.removeMenu();
   // Erst anzeigen, wenn der Inhalt bereit ist (kein schwarzes Aufblitzen).
-  win.once('ready-to-show', () => win.show());
+  if (zeigen) win.once('ready-to-show', () => win.show());
   win.on('closed', () => offen.delete(key));
   win.loadFile(path.join(RENDERER, datei));
   offen.set(key, win);
@@ -58,20 +59,54 @@ function openAbout() {
   });
 }
 
+const MIN_BREITE = 880;
+const MIN_HOEHE = 600;
+const WUNSCH_BREITE = 1080;
+
+// Die Seite meldet die Höhe ihrer höchsten Ansicht: Fenster so groß, dass nichts scrollt (höchstens 90 % des Bildschirms).
+function einstellungenAnpassen(win, hoehe) {
+  if (win.isDestroyed() || win.isVisible()) return;
+  const bereich = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
+  const rahmen = win.getSize()[1] - win.getContentSize()[1];
+  const h = Math.min(
+    Math.max(Number(hoehe) || 0, MIN_HOEHE),
+    Math.floor(bereich.height * 0.9) - rahmen,
+  );
+  const b = Math.max(MIN_BREITE, Math.min(WUNSCH_BREITE, Math.floor(bereich.width * 0.9)));
+  win.setContentSize(b, Math.max(h, MIN_HOEHE));
+  win.center();
+  win.show();
+}
+
+ipcMain.on('settings:groesse', (event, hoehe) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) einstellungenAnpassen(win, hoehe);
+});
+
 function openSettings() {
-  return openSingle('settings', 'settings.html', {
-    width: 880,
-    height: 600,
-    minWidth: 880,
-    minHeight: 560,
-    title: 'Letterflow – Einstellungen',
-  });
+  const vorher = offen.get('settings');
+  const neu = !vorher || vorher.isDestroyed();
+  const win = openSingle(
+    'settings',
+    'settings.html',
+    {
+      width: WUNSCH_BREITE,
+      height: 700,
+      minWidth: MIN_BREITE,
+      minHeight: 560,
+      title: 'Letterflow – Einstellungen',
+    },
+    false,
+  );
+  // Zeigt sich nach der Größenmeldung der Seite; ohne Meldung nach 2 s trotzdem.
+  if (neu) setTimeout(() => !win.isDestroyed() && !win.isVisible() && win.show(), 2000);
+  return win;
 }
 
 function openSetup() {
   return openSingle('setup', 'setup.html', {
     width: 520,
-    height: 400,
+    height: 560,
     resizable: false,
     maximizable: false,
     title: 'Letterflow – Einrichtung',

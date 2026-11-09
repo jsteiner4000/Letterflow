@@ -40,12 +40,26 @@ $('erneut').addEventListener('click', () => {
   api.setup.retry();
 });
 
-api.setup.plan().then((plan) => {
+function planAnzeigen(plan) {
   if (!plan) return;
+  if (plan.frage) {
+    $('wahl').hidden = false;
+    return;
+  }
+  $('wahl').hidden = true;
+  $('intro').hidden = false;
+  $('laden').hidden = false;
   gesamt = plan.totalBytes;
   for (const f of plan.files) if (!empfangen.has(f.id)) empfangen.set(f.id, f.received);
   $('intro').textContent =
     `Letterflow lädt einmalig die Sprachmodelle herunter (ca. ${gb(gesamt)} GB). Danach funktioniert alles offline.`;
   fortschrittAnzeigen();
   if (plan.error) fehlerAnzeigen(plan.error.code, plan.error.auto);
+}
+
+$('weiter').addEventListener('click', () => {
+  $('weiter').disabled = true;
+  api.setup.waehlen(document.querySelector('input[name=stufe]:checked').value);
 });
+api.setup.onPlan(planAnzeigen);
+api.setup.plan().then(planAnzeigen);

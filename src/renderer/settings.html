@@ -214,159 +214,169 @@
         <section id="seite-pille" role="tabpanel" aria-labelledby="tab-pille" hidden>
           <h1>Pille</h1>
           <p class="lead">So sieht die Anzeige beim Diktieren aus</p>
-          <div class="buehne" aria-hidden="true">
-            <canvas id="vorschau-bild" class="buehne-bild" width="1280" height="340"></canvas>
-            <div id="vorschau" class="pille sichtbar" data-kind="aufnahme">
-              <canvas id="vorschau-glas" class="glas"></canvas>
-              <span class="milch"></span><span class="spec"></span>
-              <span class="symbol" data-art="mono"></span>
-              <span class="rechts">
-                <span id="vorschau-balken" class="balken"
-                  ><span class="pegelbalken" style="transform: scaleX(0.6)"></span
-                ></span>
-              </span>
-              <span class="rim"></span>
-            </div>
-          </div>
-          <div class="gruppe">
-            <div class="zeile">
-              <div class="text">
-                <b id="l-frost">Milchigkeit</b>
-                <span>Weichzeichnung und Milchschicht im Glas</span>
-              </div>
-              <input
-                type="range"
-                id="p-frost"
-                class="schieber"
-                min="0"
-                max="100"
-                step="1"
-                aria-labelledby="l-frost"
-              />
-              <output id="w-frost" class="wert" for="p-frost"></output>
-            </div>
-            <div class="zeile">
-              <div class="text">
-                <b id="l-opacity">Durchsicht</b>
-                <span>Bei 0 % ist das Glas undurchsichtig</span>
-              </div>
-              <input
-                type="range"
-                id="p-opacity"
-                class="schieber"
-                min="0"
-                max="100"
-                step="1"
-                aria-labelledby="l-opacity"
-              />
-              <output id="w-opacity" class="wert" for="p-opacity"></output>
-            </div>
-            <div class="zeile">
-              <div class="text">
-                <b id="l-refraction">Lichtbrechung</b>
-                <span>Wie stark der Hintergrund an den Rändern gebogen wird</span>
-              </div>
-              <input
-                type="range"
-                id="p-refraction"
-                class="schieber"
-                min="0"
-                max="100"
-                step="1"
-                aria-labelledby="l-refraction"
-              />
-              <output id="w-refraction" class="wert" for="p-refraction"></output>
-            </div>
-            <div class="zeile">
-              <div class="text">
-                <b id="l-abdunkeln">Auf hellem Hintergrund abdunkeln</b>
-                <span>Hält die Pille über weißen Flächen klar</span>
-              </div>
-              <label class="schalter">
-                <input
-                  type="checkbox"
-                  id="p-autoDarken"
-                  role="switch"
-                  aria-labelledby="l-abdunkeln"
-                />
-                <span class="regler" aria-hidden="true"></span>
-              </label>
-            </div>
-            <div class="zeile">
-              <div class="text">
-                <b id="l-autoDarkenStrength">Stärke</b>
-                <span>Wie stark das Glas über hellem Grund abdunkelt</span>
-              </div>
-              <input
-                type="range"
-                id="p-autoDarkenStrength"
-                class="schieber"
-                min="0"
-                max="100"
-                step="1"
-                aria-labelledby="l-autoDarkenStrength"
-              />
-              <output id="w-autoDarkenStrength" class="wert" for="p-autoDarkenStrength"></output>
-            </div>
-            <div class="zeile">
-              <div class="text">
-                <b id="l-tint">Tönung</b>
-                <span>Grundfarbe des Glases</span>
-              </div>
-              <div class="farben" role="radiogroup" aria-labelledby="l-tint">
-                <label class="farbe" title="Hell"
-                  ><input type="radio" name="tint" value="hell" aria-label="Hell" /><span
-                    style="--c: #ffffff"
-                  ></span
-                ></label>
-                <label class="farbe" title="Neutral"
-                  ><input type="radio" name="tint" value="neutral" aria-label="Neutral" /><span
-                    style="--c: #c8cad0"
-                  ></span
-                ></label>
-                <label class="farbe" title="Dunkel"
-                  ><input type="radio" name="tint" value="dunkel" aria-label="Dunkel" /><span
-                    style="--c: #16181c"
-                  ></span
-                ></label>
-                <label class="farbe" title="Warm"
-                  ><input type="radio" name="tint" value="warm" aria-label="Warm" /><span
-                    style="--c: #ffd6aa"
-                  ></span
-                ></label>
-                <label class="farbe" title="Petrol"
-                  ><input type="radio" name="tint" value="petrol" aria-label="Petrol" /><span
-                    style="--c: #0f766e"
-                  ></span
-                ></label>
-                <label class="farbe eigene" title="Eigene Farbe"
-                  ><input type="color" id="p-eigen" aria-label="Eigene Farbe" /><span></span
-                ></label>
+          <div class="pille-spalten">
+            <div class="pille-links">
+              <div class="buehne" aria-hidden="true">
+                <canvas id="vorschau-bild" class="buehne-bild" width="1280" height="340"></canvas>
+                <div id="vorschau" class="pille sichtbar" data-kind="aufnahme">
+                  <canvas id="vorschau-glas" class="glas"></canvas>
+                  <span class="milch"></span><span class="spec"></span>
+                  <span class="symbol" data-art="mono"></span>
+                  <span class="rechts">
+                    <span id="vorschau-balken" class="balken"
+                      ><span class="pegelbalken" style="transform: scaleX(0.6)"></span
+                    ></span>
+                  </span>
+                  <span class="rim"></span>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="gruppe">
-            <div class="zeile">
-              <div class="text">
-                <b id="l-animation">Animation beim Erscheinen</b>
-                <span>Automatisch: aus auf langsamen PCs</span>
+            <div class="pille-rechts">
+              <div class="gruppe">
+                <div class="zeile">
+                  <div class="text">
+                    <b id="l-frost">Milchigkeit</b>
+                    <span>Weichzeichnung und Milchschicht im Glas</span>
+                  </div>
+                  <input
+                    type="range"
+                    id="p-frost"
+                    class="schieber"
+                    min="0"
+                    max="100"
+                    step="1"
+                    aria-labelledby="l-frost"
+                  />
+                  <output id="w-frost" class="wert" for="p-frost"></output>
+                </div>
+                <div class="zeile">
+                  <div class="text">
+                    <b id="l-opacity">Durchsicht</b>
+                    <span>Bei 0 % ist das Glas undurchsichtig</span>
+                  </div>
+                  <input
+                    type="range"
+                    id="p-opacity"
+                    class="schieber"
+                    min="0"
+                    max="100"
+                    step="1"
+                    aria-labelledby="l-opacity"
+                  />
+                  <output id="w-opacity" class="wert" for="p-opacity"></output>
+                </div>
+                <div class="zeile">
+                  <div class="text">
+                    <b id="l-refraction">Lichtbrechung</b>
+                    <span>Wie stark der Hintergrund an den Rändern gebogen wird</span>
+                  </div>
+                  <input
+                    type="range"
+                    id="p-refraction"
+                    class="schieber"
+                    min="0"
+                    max="100"
+                    step="1"
+                    aria-labelledby="l-refraction"
+                  />
+                  <output id="w-refraction" class="wert" for="p-refraction"></output>
+                </div>
+                <div class="zeile">
+                  <div class="text">
+                    <b id="l-abdunkeln">Auf hellem Hintergrund abdunkeln</b>
+                    <span>Hält die Pille über weißen Flächen klar</span>
+                  </div>
+                  <label class="schalter">
+                    <input
+                      type="checkbox"
+                      id="p-autoDarken"
+                      role="switch"
+                      aria-labelledby="l-abdunkeln"
+                    />
+                    <span class="regler" aria-hidden="true"></span>
+                  </label>
+                </div>
+                <div class="zeile">
+                  <div class="text">
+                    <b id="l-autoDarkenStrength">Stärke</b>
+                    <span>Wie stark das Glas über hellem Grund abdunkelt</span>
+                  </div>
+                  <input
+                    type="range"
+                    id="p-autoDarkenStrength"
+                    class="schieber"
+                    min="0"
+                    max="100"
+                    step="1"
+                    aria-labelledby="l-autoDarkenStrength"
+                  />
+                  <output
+                    id="w-autoDarkenStrength"
+                    class="wert"
+                    for="p-autoDarkenStrength"
+                  ></output>
+                </div>
+                <div class="zeile">
+                  <div class="text">
+                    <b id="l-tint">Tönung</b>
+                    <span>Grundfarbe des Glases</span>
+                  </div>
+                  <div class="farben" role="radiogroup" aria-labelledby="l-tint">
+                    <label class="farbe" title="Hell"
+                      ><input type="radio" name="tint" value="hell" aria-label="Hell" /><span
+                        style="--c: #ffffff"
+                      ></span
+                    ></label>
+                    <label class="farbe" title="Neutral"
+                      ><input type="radio" name="tint" value="neutral" aria-label="Neutral" /><span
+                        style="--c: #c8cad0"
+                      ></span
+                    ></label>
+                    <label class="farbe" title="Dunkel"
+                      ><input type="radio" name="tint" value="dunkel" aria-label="Dunkel" /><span
+                        style="--c: #16181c"
+                      ></span
+                    ></label>
+                    <label class="farbe" title="Warm"
+                      ><input type="radio" name="tint" value="warm" aria-label="Warm" /><span
+                        style="--c: #ffd6aa"
+                      ></span
+                    ></label>
+                    <label class="farbe" title="Petrol"
+                      ><input type="radio" name="tint" value="petrol" aria-label="Petrol" /><span
+                        style="--c: #0f766e"
+                      ></span
+                    ></label>
+                    <label class="farbe eigene" title="Eigene Farbe"
+                      ><input type="color" id="p-eigen" aria-label="Eigene Farbe" /><span></span
+                    ></label>
+                  </div>
+                </div>
               </div>
-              <span class="auswahl">
-                <select id="p-animation" aria-labelledby="l-animation">
-                  <option value="auto">Automatisch</option>
-                  <option value="an">An</option>
-                  <option value="aus">Aus</option>
-                </select>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
-              </span>
-            </div>
-          </div>
-          <div class="gruppe">
-            <div class="zeile">
-              <div class="text">
-                <b>Standardwerte</b><span>Setzt das Glas der Pille zurück</span>
+              <div class="gruppe">
+                <div class="zeile">
+                  <div class="text">
+                    <b id="l-animation">Animation beim Erscheinen</b>
+                    <span>Automatisch: aus auf langsamen PCs</span>
+                  </div>
+                  <span class="auswahl">
+                    <select id="p-animation" aria-labelledby="l-animation">
+                      <option value="auto">Automatisch</option>
+                      <option value="an">An</option>
+                      <option value="aus">Aus</option>
+                    </select>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                  </span>
+                </div>
               </div>
-              <button id="pille-zurueck" class="knopf" type="button">Zurücksetzen</button>
+              <div class="gruppe">
+                <div class="zeile">
+                  <div class="text">
+                    <b>Standardwerte</b><span>Setzt das Glas der Pille zurück</span>
+                  </div>
+                  <button id="pille-zurueck" class="knopf" type="button">Zurücksetzen</button>
+                </div>
+              </div>
             </div>
           </div>
         </section>

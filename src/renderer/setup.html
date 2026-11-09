@@ -14,8 +14,39 @@
     <main>
       <div class="marke"><span class="logo" aria-hidden="true">ℓ</span><b>Letterflow</b></div>
       <h1>Willkommen bei Letterflow</h1>
-      <p id="intro" class="lead">Letterflow lädt einmalig die Sprachmodelle herunter …</p>
-      <div class="gruppe">
+      <section id="wahl" hidden>
+        <h2 id="h-wahl">Wie gründlich soll Letterflow deinen Text glätten?</h2>
+        <div class="gruppe" role="radiogroup" aria-labelledby="h-wahl">
+          <label class="zeile wahl">
+            <input type="radio" name="stufe" value="gruendlich" checked />
+            <span class="kreis" aria-hidden="true"></span>
+            <span class="text"
+              ><b>Gründlich (empfohlen)</b
+              ><span
+                >Wendet auch Selbstkorrekturen an („Montag, nein, Dienstag“) und setzt Listen. Lädt
+                einmalig zusätzlich ca. 2,5 GB.</span
+              ></span
+            >
+          </label>
+          <label class="zeile wahl">
+            <input type="radio" name="stufe" value="schnell" />
+            <span class="kreis" aria-hidden="true"></span>
+            <span class="text"
+              ><b>Schnell</b
+              ><span
+                >Sofort, ohne Zusatz-Download. Entfernt Füllwörter und setzt Satzzeichen.</span
+              ></span
+            >
+          </label>
+        </div>
+        <p class="leise klein">
+          Auf schwächeren PCs braucht Gründlich etwa 2 Sekunden statt 0,4. Später jederzeit in den
+          Einstellungen änderbar.
+        </p>
+        <button id="weiter" class="knopf haupt" type="button">Weiter</button>
+      </section>
+      <p id="intro" class="lead" hidden>Letterflow lädt einmalig die Sprachmodelle herunter …</p>
+      <div id="laden" class="gruppe" hidden>
         <div class="zeile fortschritt">
           <progress id="balken" max="100" value="0" aria-label="Gesamtfortschritt"></progress>
           <p id="fortschritt-text" class="leise" aria-live="off">Wird vorbereitet …</p>

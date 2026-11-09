@@ -63,6 +63,7 @@ test('Tastenereignisse werden zu hotkey-Ereignissen', async () => {
   emit({ ev: 'key', key: 'rctrl', down: false });
   emit({ ev: 'key', key: 'rctrl', down: true });
   emit({ ev: 'other' });
+  emit({ ev: 'esc' });
   await expect
     .poll(() => seen)
     .toEqual(['hotkey-down', 'hotkey-up', 'hotkey-down', 'hotkey-cancel']);

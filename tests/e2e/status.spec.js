@@ -88,6 +88,10 @@ test('Stufenwechsel während der Einrichtung geht nicht verloren', async () => {
     env: { LETTERFLOW_CATALOG_URL_BASE: s.url, LETTERFLOW_CATALOG_FILE: katalog },
   });
   geoeffnet.push(app);
+  // Erststart: zuerst „Schnell“ wählen, damit die Einrichtung (Parakeet) läuft.
+  const setupFenster = await app.firstWindow();
+  await setupFenster.getByRole('radio', { name: /^Schnell/ }).check();
+  await setupFenster.getByRole('button', { name: 'Weiter' }).click();
   await app.evaluate(({ BrowserWindow }) => global.__letterflow.openSettings());
   await expect.poll(() => app.windows().some((w) => w.url().includes('settings.html'))).toBe(true);
   const win = app.windows().find((w) => w.url().includes('settings.html'));

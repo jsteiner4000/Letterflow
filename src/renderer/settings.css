@@ -312,6 +312,20 @@ main {
 
 /* --- Pille: Vorschau und Regler ---------------------------------------- */
 
+/* Zwei Spalten: Vorschau links (bleibt beim Scrollen stehen), Regler rechts */
+.pille-spalten {
+  display: grid;
+  grid-template-columns: minmax(200px, 300px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.pille-links {
+  position: sticky;
+  top: 0;
+}
+.pille-spalten .gruppe:last-child {
+  margin-bottom: 0;
+}
 .buehne {
   position: relative;
   display: grid;

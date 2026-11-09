@@ -99,7 +99,7 @@ test('Abbruch fügt nichts ein', async () => {
   await druecken();
   const p = await pille();
   await expect(p).toHaveAttribute('data-kind', 'aufnahme');
-  await helfer({ cmd: '__emit', msg: { ev: 'other' } });
+  await helfer({ cmd: '__emit', msg: { ev: 'esc' } });
   await loslassen();
   await expect(p).not.toHaveClass(/sichtbar/);
   await expect.poll(protokoll).toMatch(/abgebrochen/);

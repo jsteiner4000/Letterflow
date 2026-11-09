@@ -24,8 +24,10 @@ function createHotkeyMachine(preset) {
 
   function feed(ev) {
     if (!ev) return null;
-    if (ev.ev === 'other') {
+    if (ev.ev === 'other' || ev.ev === 'esc') {
+      // Gehalten wird weiterdiktiert (auch beim Fensterwechsel): nur Esc bricht ab
       if (state === 'active') {
+        if (ev.ev !== 'esc') return null;
         state = 'dead';
         return 'cancel';
       }
@@ -43,10 +45,6 @@ function createHotkeyMachine(preset) {
       return null;
     }
     if (state === 'active') {
-      if (foreign()) {
-        state = 'dead';
-        return 'cancel';
-      }
       if (!complete()) {
         state = pressed.size === 0 ? 'idle' : 'dead';
         return 'up';
