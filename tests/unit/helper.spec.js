@@ -38,6 +38,14 @@ test('paste liefert das Ergebnis des Helfers', async () => {
   expect(await h.paste(42)).toEqual({ ok: true, reason: null });
 });
 
+test('grab liefert den Ausschnitt als BGRA-Puffer, falsche Größe → null', async () => {
+  const h = startFake({});
+  await waitEvent(h, 'ready');
+  const g = await h.grab({ x: -5, y: 10, w: 4, h: 2 });
+  expect([g.w, g.h, g.bgra.length, g.bgra[0]]).toEqual([4, 2, 32, 7]);
+  expect(await h.grab({ x: 0, y: 0, w: 13, h: 2 })).toBeNull();
+});
+
 test('Helfer antwortet nicht → unknown nach 1 s', async () => {
   const h = startFake({ FAKE_HELPER_SILENT: '1' });
   await waitEvent(h, 'ready');
@@ -51,6 +59,7 @@ test('Helfer antwortet nicht → unknown nach 1 s', async () => {
   });
   expect(Date.now() - t).toBeGreaterThanOrEqual(900);
   expect(await h.paste(1)).toEqual({ ok: false, reason: null });
+  expect(await h.grab({ x: 0, y: 0, w: 4, h: 2 })).toBeNull();
 });
 
 test('Tastenereignisse werden zu hotkey-Ereignissen', async () => {

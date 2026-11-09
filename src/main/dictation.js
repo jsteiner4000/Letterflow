@@ -39,6 +39,7 @@ class Dictation {
   constructor({
     helper,
     overlay,
+    recorder,
     getEngines,
     getAppInfo,
     getStatus,
@@ -51,6 +52,7 @@ class Dictation {
     Object.assign(this, {
       helper,
       overlay,
+      recorder,
       getEngines,
       getAppInfo,
       getStatus,
@@ -78,17 +80,17 @@ class Dictation {
         this._message('fehler', MESSAGES.helperFailed, HELPER_FAILED_MS);
       },
     };
-    this.overlayHandlers = {
+    this.recorderHandlers = {
       pcm: (pcm) => this._pcm(pcm),
       'recorder-error': (e) => this._recorderError(e.name),
     };
     for (const [n, f] of Object.entries(this.helperHandlers)) helper.on(n, f);
-    for (const [n, f] of Object.entries(this.overlayHandlers)) overlay.on(n, f);
+    for (const [n, f] of Object.entries(this.recorderHandlers)) recorder.on(n, f);
   }
 
   dispose() {
     for (const [n, f] of Object.entries(this.helperHandlers)) this.helper.off(n, f);
-    for (const [n, f] of Object.entries(this.overlayHandlers)) this.overlay.off(n, f);
+    for (const [n, f] of Object.entries(this.recorderHandlers)) this.recorder.off(n, f);
     clearTimeout(this.messageTimer);
     const rec = this.recording;
     if (rec) {
@@ -134,8 +136,11 @@ class Dictation {
           throw e;
         }
       }),
-      focus: this.helper.focus(),
     };
+    this.recording = rec;
+    // Mikrofon zuerst: jede Millisekunde davor fehlt am Anfang des Diktats.
+    this._startRecorder(rec, rec.deviceId);
+    rec.focus = this.helper.focus();
     // Programmname/-symbol parallel holen; die Pille erscheint sofort und bekommt sie nachgereicht.
     // Nur das Ergebnis des neuesten Diktats zählt: eine ältere, langsamere Abfrage zeigt nie ihr Programm.
     this.lastRec = rec;
@@ -146,13 +151,11 @@ class Dictation {
       this.lastApp = app;
       if (this.recording === rec) this.overlay.show({ kind: 'aufnahme', app });
     });
-    this.recording = rec;
     this.setTrayState('hoert');
     clearTimeout(this.messageTimer);
     this.messageTimer = null;
     this.overlay.show({ kind: 'aufnahme' });
     rec.limitTimer = setTimeout(() => this._finish(rec, true), MAX_DURATION_MS);
-    this._startRecorder(rec, rec.deviceId);
   }
 
   _up() {
@@ -178,7 +181,7 @@ class Dictation {
     this.recorderChain = this.recorderChain.then(async () => {
       if (this.recording !== rec) return; // inzwischen beendet
       this.capture = rec;
-      await this.overlay.startRecording(deviceId).catch((e) => {
+      await this.recorder.start(deviceId).catch((e) => {
         console.error('Aufnahme nicht gestartet:', e.message);
         this._recorderError('Error');
       });
@@ -189,7 +192,7 @@ class Dictation {
   _stopRecorder(rec) {
     this.recorderChain = this.recorderChain.then(async () => {
       if (this.capture !== rec) return;
-      await this.overlay.stopRecording();
+      await this.recorder.stop();
       this.capture = null;
     });
     return this.recorderChain;
@@ -198,6 +201,11 @@ class Dictation {
   _pcm(pcm) {
     const rec = this.capture;
     if (!rec) return;
+    // Zeit vom Kürzel bis zum ersten Ton (warm: inklusive 300 ms Vorlauf); kein Inhalt im Protokoll
+    if (!rec.gotAudio)
+      this.log(
+        `mikrofon-start ${Date.now() - rec.startedAt} ms, ${this.recorder.warm ? 'warm' : 'kalt'}`,
+      );
     rec.gotAudio = true;
     for (const seg of rec.segmenter.push(pcm)) rec.queue.add(normalizeLevel(seg), true);
     if (rec === this.recording) this.overlay.level(rec.segmenter.level);

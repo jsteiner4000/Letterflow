@@ -34,4 +34,9 @@ readline.createInterface({ input: process.stdin }).on('line', (line) => {
   else if (silent) return;
   else if (m.cmd === 'focus') out({ id: m.id, focus });
   else if (m.cmd === 'paste') out({ id: m.id, paste });
+  // grab: Bild aus lauter 7en; Breite 13 liefert absichtlich zu wenige Daten
+  else if (m.cmd === 'grab') {
+    const n = m.w === 13 ? 1 : m.w * m.h * 4;
+    out({ id: m.id, grab: { w: m.w, h: m.h, bgra: Buffer.alloc(n, 7).toString('base64') } });
+  }
 });

@@ -5,6 +5,7 @@ const readline = require('node:readline');
 const { createHotkeyMachine } = require('./hotkey-machine');
 
 const TIMEOUT_MS = 1000;
+const GRAB_TIMEOUT_MS = 150;
 const PASTE_TIMEOUT_MS = 5000; // bis zu 3 s auf losgelassene Tasten, dazu Fensterwechsel und Rückkehr
 // Wartezeiten vor Neustarts nach Abstürzen; bei MAX_FAILURES Ausfällen binnen einer Minute Aufgabe
 const BACKOFF_MS = [300, 1000, 3000, 10000];
@@ -92,7 +93,7 @@ class Helper extends EventEmitter {
       if (!p) return;
       this.pending.delete(m.id);
       clearTimeout(p.timer);
-      p.resolve(m.focus || m.paste || p.fallback);
+      p.resolve(m.focus || m.paste || m.grab || p.fallback);
       return;
     }
     if (m.ev === 'ready') {
@@ -133,6 +134,14 @@ class Helper extends EventEmitter {
   // Antwort: { ok, reason } mit reason 'tasten-gehalten' | 'fenster-gewechselt' (weg, erhöht oder nicht aktivierbar).
   paste(hwnd, restore = true) {
     return this._request({ cmd: 'paste', hwnd, restore }, { ...PASTE_FALLBACK }, PASTE_TIMEOUT_MS);
+  }
+
+  // Bildschirmausschnitt in Gerätepixeln: { w, h, bgra (Buffer) } oder null.
+  async grab({ x, y, w, h }) {
+    const r = await this._request({ cmd: 'grab', x, y, w, h }, null, GRAB_TIMEOUT_MS);
+    const ok = r && r.w === w && r.h === h && typeof r.bgra === 'string';
+    const bgra = ok && Buffer.from(r.bgra, 'base64');
+    return bgra && bgra.length === w * h * 4 ? { w, h, bgra } : null;
   }
 
   setMask(on) {

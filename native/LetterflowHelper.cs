@@ -113,6 +113,26 @@ namespace Letterflow
         public static extern bool OpenProcessToken(IntPtr proc, uint access, out IntPtr token);
         [DllImport("advapi32.dll", SetLastError = true)]
         public static extern bool GetTokenInformation(IntPtr token, int cls, out int info, int len, out int ret);
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetDC(IntPtr hWnd);
+        [DllImport("user32.dll")]
+        public static extern int ReleaseDC(IntPtr hWnd, IntPtr dc);
+        [DllImport("user32.dll")]
+        public static extern IntPtr SetThreadDpiAwarenessContext(IntPtr ctx);
+        [DllImport("gdi32.dll")]
+        public static extern IntPtr CreateCompatibleDC(IntPtr dc);
+        [DllImport("gdi32.dll")]
+        public static extern IntPtr CreateCompatibleBitmap(IntPtr dc, int w, int h);
+        [DllImport("gdi32.dll")]
+        public static extern IntPtr SelectObject(IntPtr dc, IntPtr obj);
+        [DllImport("gdi32.dll")]
+        public static extern bool DeleteObject(IntPtr obj);
+        [DllImport("gdi32.dll")]
+        public static extern bool DeleteDC(IntPtr dc);
+        [DllImport("gdi32.dll")]
+        public static extern bool BitBlt(IntPtr dst, int x, int y, int w, int h, IntPtr src, int sx, int sy, uint rop);
+        [DllImport("gdi32.dll")]
+        public static extern int GetDIBits(IntPtr dc, IntPtr bmp, uint start, uint lines, byte[] bits, byte[] bmi, uint usage);
     }
 
     static class Program
@@ -161,7 +181,7 @@ namespace Letterflow
             {
                 string l = line;
                 // mask wird sofort und in Reihenfolge verarbeitet (on/off dürfen sich nie überholen);
-                // focus/paste laufen in eigenen Threads, damit sie nichts blockieren
+                // focus/paste/grab laufen in eigenen Threads, damit sie nichts blockieren
                 if (Regex.IsMatch(l, "\"cmd\"\\s*:\\s*\"mask\"")) HandleCommand(l);
                 else ThreadPool.QueueUserWorkItem(delegate { HandleCommand(l); });
             }
@@ -350,8 +370,52 @@ namespace Letterflow
                     bool restore = Regex.IsMatch(line, "\"restore\"\\s*:\\s*true");
                     Emit("{\"id\":" + id + ",\"paste\":" + PasteJson(hwnd, restore) + "}");
                 }
+                else if (cmd == "grab")
+                {
+                    Emit("{\"id\":" + id + ",\"grab\":" + GrabJson(Zahl(line, "x"), Zahl(line, "y"), Zahl(line, "w"), Zahl(line, "h")) + "}");
+                }
             }
             catch { }
+        }
+
+        static int Zahl(string line, string name)
+        {
+            Match m = Regex.Match(line, "\"" + name + "\"\\s*:\\s*(-?\\d+)");
+            return m.Success ? int.Parse(m.Groups[1].Value) : 0;
+        }
+
+        // Bildschirmausschnitt (Gerätepixel) als BGRA, oben zuerst, Base64. Nur für das Glas der Pille:
+        // die Pille selbst ist von Aufnahmen ausgenommen und erscheint nicht. Nichts wird gespeichert.
+        static string GrabJson(int x, int y, int w, int h)
+        {
+            if (w <= 0 || h <= 0 || w > 4096 || h > 1024) return "null";
+            IntPtr alt = Native.SetThreadDpiAwarenessContext(new IntPtr(-4)); // pro Monitor: echte Pixel
+            IntPtr scr = Native.GetDC(IntPtr.Zero), mem = IntPtr.Zero, bmp = IntPtr.Zero;
+            try
+            {
+                mem = Native.CreateCompatibleDC(scr);
+                bmp = Native.CreateCompatibleBitmap(scr, w, h);
+                IntPtr vorher = Native.SelectObject(mem, bmp);
+                bool ok = Native.BitBlt(mem, 0, 0, w, h, scr, x, y, 0x00CC0020 | 0x40000000); // SRCCOPY | CAPTUREBLT
+                Native.SelectObject(mem, vorher);
+                if (!ok) return "null";
+                byte[] bmi = new byte[40]; // BITMAPINFOHEADER: 32 Bit, oben zuerst (negative Höhe)
+                BitConverter.GetBytes(40).CopyTo(bmi, 0);
+                BitConverter.GetBytes(w).CopyTo(bmi, 4);
+                BitConverter.GetBytes(-h).CopyTo(bmi, 8);
+                BitConverter.GetBytes((short)1).CopyTo(bmi, 12);
+                BitConverter.GetBytes((short)32).CopyTo(bmi, 14);
+                byte[] bits = new byte[w * h * 4];
+                if (Native.GetDIBits(mem, bmp, 0, (uint)h, bits, bmi, 0) != h) return "null";
+                return "{\"w\":" + w + ",\"h\":" + h + ",\"bgra\":\"" + Convert.ToBase64String(bits) + "\"}";
+            }
+            finally
+            {
+                if (bmp != IntPtr.Zero) Native.DeleteObject(bmp);
+                if (mem != IntPtr.Zero) Native.DeleteDC(mem);
+                Native.ReleaseDC(IntPtr.Zero, scr);
+                if (alt != IntPtr.Zero) Native.SetThreadDpiAwarenessContext(alt);
+            }
         }
 
         static bool IsElevated(uint pid)

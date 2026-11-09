@@ -378,3 +378,25 @@ Gemessen auf diesem Laptop (Bildschirm 125 %), echte Pille, 11 Erfassungen in ca
 - **Erfassungsdauer:** Median **111 ms**, Maximum 162 ms (die erste). Unter dem Ziel von 250 ms; die Frist von 400 ms wurde nie erreicht. Die Pille erscheint sofort getönt, die Brechung blendet nach ca. 0,12–0,17 s ein.
 - **CPU während die Pille sichtbar ist:** im Mittel **ca. 3,6 %** (Summe aller Electron-Prozesse, Prozent eines Kerns; erste Sekunde 8,7 %), mit Erfassung, WebGL-Linse und Wellenform. Im Leerlauf (Pille aus) 0, denn die Erfassung läuft nur bei sichtbarer Pille.
 - Zeichnen der Linse: WebGL-Shader, einmal je Erfassung und bei Zustandswechsel. Kein Canvas-Ersatz: ohne WebGL bleibt es beim getönten Glas.
+
+## Aufploppen und Mikrofonstart (Version 0.22.0)
+
+Gemessen auf diesem Laptop (125 %, echtes Mikrofon, Erfassung an) mit einem Messskript, das `createOverlay`/`createRecorder` wie das Diktat aufruft; je Pop Abstand 3 s bzw. 20 s. Was wirklich auf dem Bildschirm ankommt, misst eine BitBlt-Sonde (Inhaltsschutz nur dafür aus, alle ~13 ms).
+
+**Ursachen (bestätigt):**
+
+- **Keine Animation:** Beim Verschwinden wurde der Streifen gelöscht, die Klasse `echt` blieb; `linse()` warf daraufhin im ersten Bild des Verschwindens einen TypeError. Die Federn blieben auf „ganz da“ stehen, jedes weitere Aufploppen startete in Ruhe: die Pille stand im ersten Bild fertig da (Sonde: 100 % nach 16 ms). Nur das erste Aufploppen nach dem Start war animiert. Die Zahl der rAF-Bilder (24–26) sah trotzdem gut aus, weil das Erscheinen nach 0,4 s Uhrzeit endete statt in Ruhe.
+- Zusätzlich zeigte das jedes Mal neu gezeigte Fenster zuerst sein altes Bild (Sonde: alter Inhalt nach 16 ms) bzw. beim ersten Zeigen ohne Vorwärmen nur 6 Bilder.
+- **Später Start:** Das Mikrofon wurde bei jedem Diktat neu geöffnet. Aufgeschlüsselt (eigenes Fenster, ohne Grafik): `getUserMedia` 606 ms, AudioContext 57 ms, Worklet 7 ms, erstes Paket weitere 527 ms. Das ist das Gerät selbst, kaum Konkurrenz mit der Pille (H2 nur schwach: im gemeinsamen Renderer 587–1394 ms, getrennt 891–1277 ms).
+
+| | vorher (0.21.0) | nachher (0.22.0) |
+|---|---|---|
+| Bilder je Aufploppen | 24–26 rAF, ab dem 2. Pop aber ohne Bewegung | 27–28 (433–450 ms), jeder Pop; Sonde: Wachsen über ~150–250 ms mit Überschwingen |
+| Hintergrund erfassen | `desktopCapturer` 161–240 ms (Median ~180) | Helfer `grab` (GDI-BitBlt nur des Streifens): 3 ms im Helfer, 9–26 ms bis zum Renderer (Median ~14); Pille ist nicht im Bild (0 abweichende Pixel) |
+| Mikrofon bis erstes Paket, kalt | 587–1394 ms (jedes Diktat kalt) | 891–1277 ms |
+| Mikrofon bis erstes Paket, warm (≤ 15 s nach einem Diktat) | – | 1–2 ms, mit 300 ms Vorlauf |
+| CPU im Leerlauf (Fenster bleibt gezeigt) | 0 | ~0,2 % eines Kerns, solange das Mikrofon warm ist; sonst kein Bild, keine Timer |
+
+Umgesetzt: Fenster bleibt dauerhaft gezeigt (durchsichtig, klickdurchlässig); Federn laufen in Bildern ab dem ersten Bild und enden in Ruhe (Grenze 0,8 s Federzeit); Hintergrund vor dem Erscheinen über den Helfer (`desktopCapturer` nur als Rückfall); Mikrofon in einem eigenen verborgenen Fenster, als Erstes beim Kürzel gestartet, 15 s warm mit 300 ms Ringpuffer. Protokoll: `mikrofon-start X ms, kalt|warm` (nur Zeit).
+
+Offen: Der kalte Start (~1 s) ist Gerätezeit und bleibt; nur längeres Warmhalten würde ihn verkürzen.

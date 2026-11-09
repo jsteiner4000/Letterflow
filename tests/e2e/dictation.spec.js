@@ -51,20 +51,20 @@ const protokoll = () => {
     return '';
   }
 };
-const overlaySeite = async () => {
-  await expect.poll(() => app.windows().some((w) => w.url().endsWith('overlay.html'))).toBe(true);
-  return app.windows().find((w) => w.url().endsWith('overlay.html'));
+const seiteVon = async (datei) => {
+  await expect.poll(() => app.windows().some((w) => w.url().endsWith(datei))).toBe(true);
+  return app.windows().find((w) => w.url().endsWith(datei));
 };
+const overlaySeite = () => seiteVon('overlay.html');
+const mikrofonSeite = () => seiteVon('recorder.html');
 const pille = async () => (await overlaySeite()).locator('#pille');
 const zeile = async (n) => (await overlaySeite()).locator(`#zeile${n}`);
 
 // Kürzel halten, bis das Mikrofon wirklich läuft, dann noch `ms` sprechen und loslassen.
 async function diktieren(ms = 1500) {
   await druecken();
-  const seite = await overlaySeite();
-  await expect(seite.locator('html')).toHaveAttribute('data-sample-rate', '16000', {
-    timeout: 10000,
-  });
+  const seite = await mikrofonSeite();
+  await expect(seite.locator('html')).toHaveAttribute('data-aktiv', '', { timeout: 10000 });
   await new Promise((r) => setTimeout(r, ms)); // Sprechdauer, kein Warten auf Zustand
   await loslassen();
 }
@@ -83,6 +83,7 @@ test('Diktat wird regelbasiert geglättet eingefügt und Zwischenablage wiederhe
   await expect.poll(protokoll).toMatch(/einfügen \d+ ms, ok/);
   expect(protokoll()).toMatch(/erkennung \d+ ms/);
   expect(protokoll()).toMatch(/glättung \d+ ms/);
+  expect(protokoll()).toMatch(/mikrofon-start \d+ ms, kalt/);
   expect(protokoll()).not.toMatch(/hallo|tim\b|ähm/i);
 });
 
@@ -144,8 +145,8 @@ test('Engines nicht bereit → Hinweis statt Aufnahme', async () => {
   await expect(p).toHaveAttribute('data-kind', 'info');
   await loslassen();
   await expect(p).not.toHaveClass(/sichtbar/, { timeout: 5000 });
-  const seite = await overlaySeite();
-  await expect(seite.locator('html')).not.toHaveAttribute('data-sample-rate', /.*/);
+  // Das Mikrofon wurde nie geöffnet (sein Fenster entsteht erst beim ersten Start).
+  expect(app.windows().some((w) => w.url().endsWith('recorder.html'))).toBe(false);
   expect(await lastPaste()).toBeNull();
 });
 
@@ -199,10 +200,10 @@ test('Mikrofon während der Aufnahme abgezogen → einmal Windows-Standard', asy
   await starten();
   await fokus(TEXTFELD);
   await druecken();
-  const seite = await overlaySeite();
+  const seite = await mikrofonSeite();
   await expect(seite.locator('html')).toHaveAttribute('data-sample-rate', '16000');
   // Die Spur meldet „ended“, als wäre das Gerät abgezogen worden.
-  await seite.evaluate(() => aufnahme.strom.getAudioTracks()[0].dispatchEvent(new Event('ended')));
+  await seite.evaluate(() => mik.strom.getAudioTracks()[0].dispatchEvent(new Event('ended')));
   await expect.poll(protokoll).toMatch(/Standardgerät/);
   await expect(seite.locator('html')).toHaveAttribute('data-sample-rate', '16000');
   await new Promise((r) => setTimeout(r, 1500)); // Sprechdauer
@@ -239,7 +240,7 @@ test('Engine-Neustart während der Aufnahme → Erkennung nutzt die neuen Engine
   await starten();
   await fokus(TEXTFELD);
   await druecken();
-  const seite = await overlaySeite();
+  const seite = await mikrofonSeite();
   await expect(seite.locator('html')).toHaveAttribute('data-sample-rate', '16000');
   await app.evaluate(() => global.__letterflow.enginesNeustart(false));
   await expect.poll(() => app.evaluate(() => global.__letterflow.status().engines)).toBe('bereit');

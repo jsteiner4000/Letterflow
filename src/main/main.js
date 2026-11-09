@@ -23,6 +23,7 @@ if (testMode && process.env.LETTERFLOW_FAKE_AUDIO_FILE)
 const windows = require('./windows');
 const { setupPermissions } = require('./permissions');
 const { createOverlay } = require('./overlay');
+const { createRecorder } = require('./recorder');
 const tray = require('./tray');
 const { loadSettings, saveSettings } = require('./settings');
 const setup = require('./setup');
@@ -199,7 +200,14 @@ if (!app.requestSingleInstanceLock()) {
     registerIpc();
     trayHandle = tray.createTray();
     enginesAnstossen(app.getPath('userData'));
-    const overlay = createOverlay({ getSettings: einstellungen, capture: !testMode });
+    const overlay = createOverlay({
+      getSettings: einstellungen,
+      capture: !testMode,
+      grab: (bereich) => helper.grab(bereich),
+    });
+    // Test: kürzere Warmhaltezeit des Mikrofons über die Umgebung
+    const warm = Number(process.env.LETTERFLOW_MIK_WARM_MS);
+    const recorder = createRecorder(testMode && warm >= 0 ? { warmMs: warm } : {});
     // „Automatisch“ schaltet die Animation ab, wenn sie zweimal hintereinander > 30 % Bilder verwirft.
     let ruckler = 0;
     overlay.on('animation', (anteil) => {
@@ -217,7 +225,10 @@ if (!app.requestSingleInstanceLock()) {
       }
     });
     // Tests prüfen das erste Fenster: dort die Pille nicht vorab laden.
-    if (!testMode) overlay.prepare();
+    if (!testMode) {
+      overlay.prepare();
+      recorder.prepare();
+    }
     helper = new Helper();
     helper.setPreset(einstellungen().hotkey || 'rctrl');
     if (testMode) {
@@ -239,6 +250,7 @@ if (!app.requestSingleInstanceLock()) {
     new Dictation({
       helper,
       overlay,
+      recorder,
       getEngines: () => engines,
       getAppInfo: createAppInfo({
         getFileIcon: (exe, opts) => app.getFileIcon(exe, opts),
@@ -261,19 +273,22 @@ if (!app.requestSingleInstanceLock()) {
     if (testMode) {
       // Test-Brücke für electronApp.evaluate.
       const aufnahme = { pakete: [] };
-      overlay.on('pcm', (pcm) => aufnahme.pakete.push(pcm));
-      overlay.on('recorder-error', (e) => (aufnahme.fehler = e.name));
+      recorder.on('pcm', (pcm) => aufnahme.pakete.push(pcm));
+      recorder.on('recorder-error', (e) => (aufnahme.fehler = e.name));
       global.__letterflow = {
         overlay,
+        recorder,
         // Test: Aufnahme beginnen/beenden und die gesammelten Pakete als Kennzahlen lesen.
         aufnahmeStart: async (deviceId = null) => {
           aufnahme.pakete = [];
           aufnahme.fehler = null;
-          await overlay.startRecording(deviceId);
+          await recorder.start(deviceId);
         },
-        aufnahmeStopp: () => overlay.stopRecording(),
+        aufnahmeStopp: () => recorder.stop(),
         aufnahmeStand: () => ({
           fehler: aufnahme.fehler,
+          warm: recorder.warm,
+          erstes: aufnahme.pakete.length ? aufnahme.pakete[0].length : null,
           pakete: aufnahme.pakete.length,
           werte: aufnahme.pakete.reduce((n, p) => n + p.length, 0),
           rms: aufnahme.pakete.map((p) => Math.sqrt(p.reduce((n, v) => n + v * v, 0) / p.length)),

@@ -20,29 +20,27 @@ const ERFASSEN_FRIST_MS = 400; // länger: gilt als Fehler, die Pille bleibt get
 const HOEHE = 152; // ganze Gerätepixel bei 125 % (190 px); Platz für Schatten (32 px Weichheit, 12 px nach unten) und den Weg beim Ein-/Ausblenden
 const LADE_FRIST_MS = 10000;
 const ABSTAND = 60; // zum unteren Rand des Bildschirms
-const AUSBLEND_MS = 200; // etwas länger als das Verschwinden im Renderer (160 ms)
-const STOPP_WARTEZEIT_MS = 2000;
 
-// Aufnahme-Pille: rahmenlos, transparent, nimmt nie den Fokus. Das Mikrofon läuft im Renderer
-// (AudioContext 16 kHz + AudioWorklet), die PCM-Pakete kommen als 'pcm' (Float32Array) heraus.
+// Aufnahme-Pille: rahmenlos, transparent, klickdurchlässig, nimmt nie den Fokus. Das Fenster bleibt
+// nach dem ersten Laden dauerhaft gezeigt (im Ruhezustand völlig durchsichtig, kein Bild, keine
+// Timer): ein verborgenes Fenster neu zu zeigen liefert zuerst alte oder gar keine Bilder, das
+// Aufploppen wäre unsichtbar.
 //
-// Echtes Glas: Das Fenster ist von Bildschirmaufnahmen ausgenommen (setContentProtection). Solange die
-// Pille sichtbar ist, wird der Streifen unter ihr erfasst und nur im Speicher an den Renderer gegeben,
-// der ihn durch die Linse zeichnet. Nichts wird gespeichert oder gesendet.
-function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
+// Echtes Glas: Das Fenster ist von Bildschirmaufnahmen ausgenommen (setContentProtection). Der Streifen
+// unter der Pille wird vor dem Erscheinen und danach alle 750 ms erfasst (schnell über den Helfer,
+// sonst desktopCapturer) und nur im Speicher an den Renderer gegeben. Nichts wird gespeichert oder gesendet.
+function createOverlay({ getSettings = () => ({}), capture = true, grab = null } = {}) {
   const events = new EventEmitter();
   let win = null;
   let bereit = null; // Promise: Renderer ist initialisiert
-  let ausblendTimer = null;
-  let aufnahmeAktiv = false;
-  let erfassung = null; // { id, timer } solange die Pille sichtbar ist
-  let erfassungId = 0;
+  let erfassung = null; // { timer } solange die Pille sichtbar ist
   let gezeigt = false; // zwischen show und hide
-  let zuletzt = null; // { schluessel, ergebnis }: letzter Streifen (nur Speicher), damit der Wobble sofort Hintergrund hat
-  const schluessel = () => {
-    const b = win.getBounds();
-    return `${b.x},${b.y},${b.width}`;
-  };
+  let kette = Promise.resolve(); // show/hide nacheinander (show wartet kurz auf den Hintergrund)
+  const reihe = (f) =>
+    (kette = kette
+      .then(f)
+      .catch((fehler) => console.error('Aufnahme-Pille nicht angezeigt:', fehler.message)));
+  const erfassenAn = () => capture && !nativeTheme.prefersReducedTransparency;
   // Schwacher PC (für „Automatisch“): kein GPU-Compositing oder < 4 Kerne. Bestimmt, sobald der
   // GPU-Prozess sich meldet (vorher meldet Chromium noch Software).
   let schwach = os.availableParallelism() < 4;
@@ -51,42 +49,18 @@ function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
     schwach = os.availableParallelism() < 4 || !gpu.startsWith('enabled');
   };
   electronApp.on('gpu-info-update', gpuPruefen);
-  const wartende = new Set(); // Funktionen, die auf 'gestartet'/'gestoppt' warten
-
   const vonOverlay = (event) => win && !win.isDestroyed() && event.sender === win.webContents;
 
   const onReady = (event) => {
     if (vonOverlay(event) && win.__bereit) win.__bereit();
   };
-  const onPcm = (event, daten) => {
-    if (!vonOverlay(event)) return;
-    // Vertrauensgrenze: nur ausgerichtete Float32-Daten annehmen, alles andere verwerfen.
-    const ok =
-      ArrayBuffer.isView(daten) && daten.byteOffset % 4 === 0 && daten.byteLength % 4 === 0;
-    if (!ok) return;
-    events.emit('pcm', new Float32Array(daten.buffer, daten.byteOffset, daten.byteLength / 4));
-  };
-  const onFehler = (event, fehler) => {
-    if (!vonOverlay(event)) return;
-    aufnahmeAktiv = false;
-    events.emit('recorder-error', { name: String((fehler && fehler.name) || 'Error') });
-    for (const f of [...wartende]) f();
-  };
-  const onGemeldet = (event) => {
-    if (vonOverlay(event)) for (const f of [...wartende]) f();
-  };
-  // Erscheinen ist fertig (Anteil verworfener Bilder oder null). Erfasst wird schon seit show():
-  // der Wobble braucht den Hintergrund vor dem Aufploppen.
+  // Erscheinen ist fertig (Anteil verworfener Bilder oder null).
   const onErschienen = (event, anteil) => {
     if (!vonOverlay(event)) return;
     if (Number.isFinite(anteil) && anteil >= 0 && anteil <= 1) events.emit('animation', anteil);
   };
   ipcMain.on('overlay:ready', onReady);
   ipcMain.on('overlay:erschienen', onErschienen);
-  ipcMain.on('overlay:pcm', onPcm);
-  ipcMain.on('overlay:recorder-error', onFehler);
-  ipcMain.on('overlay:started', onGemeldet);
-  ipcMain.on('overlay:stopped', onGemeldet);
 
   function ensureWindow() {
     if (win && !win.isDestroyed()) return bereit;
@@ -107,7 +81,7 @@ function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
         contextIsolation: true,
         sandbox: true,
         nodeIntegration: false,
-        backgroundThrottling: false, // Aufnahme darf nicht gedrosselt werden
+        backgroundThrottling: false, // dauerhaft gezeigt, aber nie gedrosselt
       },
     });
     win = diese;
@@ -126,6 +100,9 @@ function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
       }, LADE_FRIST_MS);
       diese.__bereit = () => {
         clearTimeout(frist);
+        // Einmal zeigen und gezeigt lassen (Pille noch durchsichtig); showInactive: kein Fokusklau.
+        positionieren();
+        diese.showInactive();
         resolve();
       };
     });
@@ -178,6 +155,18 @@ function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
     const b = win.getBounds();
     const anzeige = screen.getDisplayNearestPoint({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
     const f = anzeige.scaleFactor;
+    const oben = b.y + (HOEHE - PILLE_HOEHE) / 2 - BAND;
+    if (grab) {
+      // Helfer (GDI, nur dieser Ausschnitt, wenige ms); die Pille selbst ist ausgenommen.
+      const r = screen.dipToScreenRect(win, {
+        x: b.x,
+        y: oben,
+        width: b.width,
+        height: PILLE_HOEHE + 2 * BAND,
+      });
+      const g = await grab({ x: r.x, y: r.y, w: r.width, h: r.height });
+      if (g) return { width: g.w, height: g.h, scale: f, bgra: g.bgra };
+    }
     const quellen = await desktopCapturer.getSources({
       types: ['screen'],
       thumbnailSize: {
@@ -187,7 +176,6 @@ function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
     });
     const quelle = quellen.find((q) => q.display_id === String(anzeige.id)) || quellen[0];
     if (!quelle || quelle.thumbnail.isEmpty()) throw new Error('keine Aufnahme');
-    const oben = b.y + (HOEHE - PILLE_HOEHE) / 2 - BAND;
     const bild = quelle.thumbnail.crop({
       x: Math.max(0, Math.round((b.x - anzeige.bounds.x) * f)),
       y: Math.max(0, Math.round((oben - anzeige.bounds.y) * f)),
@@ -198,126 +186,73 @@ function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
     return { width, height, scale: f, bgra: bild.toBitmap() };
   }
 
-  function erfassenStarten() {
-    if (!capture || erfassung || nativeTheme.prefersReducedTransparency) return;
-    const lauf = (erfassung = { id: ++erfassungId, timer: null });
+  // Eine Erfassung; null bei Fehler oder Überschreiten der Frist (dann bleibt die Pille getönt).
+  async function erfassenEinmal() {
+    const t0 = Date.now();
+    const ergebnis = await erfassen().catch(() => null);
+    const ms = Date.now() - t0;
+    events.emit('erfasst', ms);
+    return ms > ERFASSEN_FRIST_MS ? null : ergebnis;
+  }
+
+  // Auffrischen, solange die Pille sichtbar ist; `sofort`: erste Runde gleich (kein Streifen vorab).
+  function erfassenStarten(sofort) {
+    if (!erfassenAn() || erfassung) return;
+    const lauf = (erfassung = { timer: null });
     const runde = async () => {
-      const t0 = Date.now();
-      let ergebnis = null;
-      try {
-        ergebnis = await erfassen();
-      } catch {}
+      const ergebnis = await erfassenEinmal();
       if (erfassung !== lauf || !win || win.isDestroyed()) return;
-      if (ergebnis) zuletzt = { schluessel: schluessel(), ergebnis };
-      const ms = Date.now() - t0;
-      events.emit('erfasst', ms);
-      if (!ergebnis || ms > ERFASSEN_FRIST_MS) {
-        senden('overlay:backdrop', null); // zurück zum getönten Glas, kein weiterer Versuch
-        erfassung = null;
-        return;
-      }
-      senden('overlay:backdrop', ergebnis);
-      lauf.timer = setTimeout(runde, ERFASSEN_ALLE_MS);
+      senden('overlay:backdrop', ergebnis); // null: zurück zum getönten Glas, kein weiterer Versuch
+      if (!ergebnis) erfassung = null;
+      else lauf.timer = setTimeout(runde, ERFASSEN_ALLE_MS);
     };
-    runde();
+    lauf.timer = setTimeout(runde, sofort ? 0 : ERFASSEN_ALLE_MS);
   }
   function erfassenStoppen() {
     if (erfassung) clearTimeout(erfassung.timer);
     erfassung = null;
   }
 
-  // Wartet auf eine Rückmeldung des Renderers (oder die Frist).
-  const abwarten = (frist) =>
-    new Promise((resolve) => {
-      const fertig = () => {
-        clearTimeout(timer);
-        wartende.delete(fertig);
-        resolve();
-      };
-      const timer = setTimeout(fertig, frist);
-      wartende.add(fertig);
-    });
-
   Object.assign(events, {
     show(state) {
-      ensureWindow()
-        .then(() => {
-          if (!win || win.isDestroyed()) return;
-          clearTimeout(ausblendTimer);
+      reihe(async () => {
+        await ensureWindow();
+        if (!win || win.isDestroyed()) return;
+        let streifen = null;
+        if (!gezeigt) {
           gezeigt = true;
-          // Erst zeigen (noch leer), dann der Zustand: so beginnt die Animation, wenn das Fenster
-          // wirklich Bilder liefert. Größe bleibt fest; während der Aufnahme nicht mehr verschieben.
-          // showInactive: kein Fokusklau.
-          if (!win.isVisible()) {
-            positionieren();
-            win.showInactive();
-          }
-          senden('overlay:state', zustand(state));
-          if (zuletzt && zuletzt.schluessel === schluessel() && capture)
-            senden('overlay:backdrop', zuletzt.ergebnis);
-          erfassenStarten();
-        })
-        .catch((fehler) => console.error('Aufnahme-Pille nicht angezeigt:', fehler.message));
-    },
-    // Fenster vorab laden, damit schon das erste Kürzel die Pille sofort zeigt.
-    // Einmal unsichtbar zeigen (Pille ist noch durchsichtig): das erste Zeigen kostet ~200 ms
-    // (Fensterfläche anlegen) und würde sonst das erste Aufploppen verschlucken.
-    prepare() {
-      ensureWindow()
-        .then(() => {
-          if (!win || win.isDestroyed() || win.isVisible()) return;
-          const diese = win;
+          // Größe bleibt fest; während der Anzeige nicht mehr verschieben. Den Hintergrund schnell
+          // vorab holen (die Pille ist noch durchsichtig): der Wobble hat ihn ab dem ersten Bild.
           positionieren();
-          diese.showInactive();
-          if (capture && !nativeTheme.prefersReducedTransparency)
-            erfassen()
-              .then((ergebnis) => (zuletzt = { schluessel: schluessel(), ergebnis }))
-              .catch(() => {});
-          setTimeout(() => {
-            if (!gezeigt && !diese.isDestroyed()) diese.hide();
-          }, 500);
-        })
-        .catch(() => {});
+          if (grab && erfassenAn()) streifen = await erfassenEinmal();
+        }
+        senden('overlay:state', zustand(state));
+        if (streifen) senden('overlay:backdrop', streifen);
+        erfassenStarten(!streifen);
+      });
+    },
+    // Fenster vorab laden und zeigen, damit schon das erste Kürzel die Pille sofort zeigt.
+    prepare() {
+      ensureWindow().catch(() => {});
     },
     level(n) {
       senden('overlay:level', Math.max(0, Math.min(1, Number(n) || 0)));
     },
+    // Pille verschwindet im Renderer; das Fenster bleibt (durchsichtig) gezeigt.
     hide() {
-      if (!win || win.isDestroyed()) return;
-      senden('overlay:hide');
-      gezeigt = false;
-      erfassenStoppen();
-      clearTimeout(ausblendTimer);
-      const diese = win;
-      ausblendTimer = setTimeout(() => {
-        if (!diese.isDestroyed()) diese.hide();
-      }, AUSBLEND_MS);
-    },
-    async startRecording(deviceId) {
-      await ensureWindow();
-      aufnahmeAktiv = true;
-      const gemeldet = abwarten(10000);
-      senden('overlay:record-start', deviceId || null);
-      await gemeldet;
-    },
-    async stopRecording() {
-      if (!aufnahmeAktiv || !win || win.isDestroyed()) return;
-      aufnahmeAktiv = false;
-      const gemeldet = abwarten(STOPP_WARTEZEIT_MS);
-      senden('overlay:record-stop');
-      await gemeldet;
+      reihe(() => {
+        if (!win || win.isDestroyed()) return;
+        senden('overlay:hide');
+        gezeigt = false;
+        erfassenStoppen();
+      });
     },
     // Räumt Fenster und Handler ab (App-Ende, Tests).
     destroy() {
-      clearTimeout(ausblendTimer);
       erfassenStoppen();
       electronApp.removeListener('gpu-info-update', gpuPruefen);
       ipcMain.removeListener('overlay:ready', onReady);
       ipcMain.removeListener('overlay:erschienen', onErschienen);
-      ipcMain.removeListener('overlay:pcm', onPcm);
-      ipcMain.removeListener('overlay:recorder-error', onFehler);
-      ipcMain.removeListener('overlay:started', onGemeldet);
-      ipcMain.removeListener('overlay:stopped', onGemeldet);
       if (win && !win.isDestroyed()) win.destroy();
       win = null;
     },

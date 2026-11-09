@@ -129,7 +129,8 @@ const streifenOben = () => (window.innerHeight - PILLE) / 2 - BAND;
 let bulge = 1; // Faktor auf die Brechung (Tropfen-Wobble), sonst 1
 
 function linse() {
-  if (!pille.classList.contains('echt')) return;
+  // Ohne Streifen nichts zeichnen: beim Verschwinden ist er schon weg, `echt` aber noch gesetzt
+  if (!streifen || !pille.classList.contains('echt')) return;
   const s = streifen.scale;
   glas.zeichnen({
     s,
@@ -173,6 +174,8 @@ window.letterflow.overlay.onBackdrop((b) => {
 // scaleY = scaleX^−0,35), Glanz, Brechung (2,5× → 1× mit Wobble) und Schatten. Nur transform,
 // opacity, clip-path und ein Uniform; kein Layout. Der Inhalt kommt, wenn die Form fast ruht.
 // Verschwinden: kritisch gedämpft, kein Wobble. „schlicht“: CSS-Einblenden.
+// Die Uhr der Federn läuft in Bildern (dt je Bild höchstens 50 ms) ab dem ersten gezeigten Bild und
+// endet, wenn beide Federn ruhen: kommen Bilder spät, läuft die Bewegung trotzdem ganz ab.
 
 const feder = () => ({ x: 0, v: 0, w: 1, z: 1, ziel: 0 });
 function federSchritt(f, dt) {
@@ -185,8 +188,9 @@ function federSchritt(f, dt) {
 const popFeder = feder();
 const breitFeder = feder();
 const klemme = (v) => Math.max(0, Math.min(1, v));
-const SPIEL_MAX = 0.4; // s: Erscheinen endet spätestens hier
+const SPIEL_MAX = 0.8; // s Federzeit: Sicherheitsgrenze, sonst endet das Erscheinen in Ruhe (~0,5 s)
 const WEG_MAX = 0.18;
+const ruht = (f) => Math.abs(f.ziel - f.x) < 0.004 && Math.abs(f.v) < 0.05;
 const glanzEl = [pille.querySelector('.spec'), pille.querySelector('.rim')];
 const inhaltEl = [symbol, zeile1.parentElement, spur.parentElement];
 
@@ -255,15 +259,14 @@ function formLoesen() {
 
 function federLauf(rein, mitBulge) {
   if (anim) cancelAnimationFrame(anim.id);
-  const a = (anim = { t0: 0, last: 0, ruhe: 0, zeiten: [], id: 0 });
+  const a = (anim = { s: 0, last: 0, ruhe: 0, zeiten: [], id: 0 });
   const [pw, pz, bw, bz] = rein ? [0.26, 0.7, 0.32, 0.65] : [0.12, 1, 0.12, 1];
   Object.assign(popFeder, { w: (2 * Math.PI) / pw, z: pz, ziel: rein ? 1 : 0 });
   Object.assign(breitFeder, { w: (2 * Math.PI) / bw, z: bz, ziel: rein ? 1 : 0 });
   const schritt = (t) => {
     if (anim !== a) return;
-    if (!a.t0) a.t0 = a.last = t;
-    const dt = Math.min(0.05, (t - a.last) / 1000);
-    const s = (t - a.t0) / 1000;
+    const dt = a.last ? Math.min(0.05, (t - a.last) / 1000) : 0;
+    const s = (a.s += dt);
     a.last = t;
     a.zeiten.push(t);
     federSchritt(popFeder, dt);
@@ -271,7 +274,7 @@ function federLauf(rein, mitBulge) {
     if (rein && !a.ruhe && breitFeder.x >= 0.85) a.ruhe = t;
     formSetzen(rein, mitBulge, a.ruhe ? t - a.ruhe : -1e3);
     const fertig = rein
-      ? s >= SPIEL_MAX
+      ? s >= SPIEL_MAX || (s > 0.05 && ruht(popFeder) && ruht(breitFeder))
       : s >= WEG_MAX || (popFeder.x < 0.52 && breitFeder.x < 0.02);
     if (!fertig) {
       a.id = requestAnimationFrame(schritt);
@@ -397,95 +400,10 @@ window.letterflow.overlay.onHide(() => {
   }
 });
 
-// Aufwärmen: Shader und erste Zeichnung im verborgenen Fenster, damit schon das erste Aufploppen ruckelfrei läuft.
+// Aufwärmen: Shader und erste Zeichnung, solange die Pille noch durchsichtig ist, damit schon das erste Aufploppen ruckelfrei läuft.
 if (glas) {
   glas.bild({ daten: new Uint8Array(4), w: 1, h: 1 });
   glas.zeichnen({ s: 1, ox: 0, oy: 0, refraction: 60 });
 }
 
-// --- Aufnahme: nur während der Aufnahme ist das Mikrofon geöffnet ---------
-
-let aufnahme = null; // { strom, ctx, knoten }
-let startToken = 0;
-
-async function aufnahmeStarten(deviceId) {
-  await aufnahmeBeenden(false);
-  const token = ++startToken;
-  let strom = null;
-  let ctx = null;
-  try {
-    strom = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        deviceId: deviceId ? { exact: deviceId } : undefined,
-        channelCount: 1,
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false,
-      },
-    });
-    strom.getAudioTracks().forEach((t) => t.addEventListener('ended', () => spurBeendet(strom)));
-    ctx = new AudioContext({ sampleRate: 16000 });
-    if (ctx.sampleRate !== 16000) {
-      // Falsche Abtastrate würde unbemerkt falsche Daten liefern: lieber melden.
-      const fehler = new Error(`Abtastrate ${ctx.sampleRate} statt 16000`);
-      fehler.name = 'SampleRateError';
-      throw fehler;
-    }
-    await ctx.audioWorklet.addModule('recorder-worklet.js');
-    const quelle = ctx.createMediaStreamSource(strom);
-    const knoten = new AudioWorkletNode(ctx, 'recorder', { numberOfOutputs: 0 });
-    knoten.port.onmessage = (e) => {
-      if (e.data instanceof Float32Array) window.letterflow.overlay.pcm(e.data);
-    };
-    quelle.connect(knoten);
-    if (ctx.state !== 'running') await ctx.resume();
-    document.documentElement.dataset.sampleRate = String(ctx.sampleRate);
-    aufnahme = { strom, ctx, knoten };
-    if (token !== startToken) {
-      // Zwischenzeitlich gestoppt: sofort wieder schließen.
-      await aufnahmeBeenden(false);
-      return;
-    }
-    window.letterflow.overlay.started();
-  } catch (fehler) {
-    if (strom) strom.getTracks().forEach((t) => t.stop());
-    if (ctx) await ctx.close().catch(() => {});
-    window.letterflow.overlay.recorderError({ name: fehler && fehler.name });
-  }
-}
-
-// Gerät mitten in der Aufnahme abgezogen: Rest herausgeben, aufräumen und melden.
-async function spurBeendet(strom) {
-  if (!aufnahme || aufnahme.strom !== strom) return;
-  await aufnahmeBeenden(false);
-  window.letterflow.overlay.recorderError({ name: 'TrackEndedError' });
-}
-
-// Letztes Paket herausgeben, dann Mikrofon und Audiokontext freigeben.
-async function aufnahmeBeenden(melden) {
-  startToken++;
-  const a = aufnahme;
-  aufnahme = null;
-  if (a) {
-    await new Promise((fertig) => {
-      const frist = setTimeout(fertig, 500);
-      const vorher = a.knoten.port.onmessage;
-      a.knoten.port.onmessage = (e) => {
-        if (e.data === 'flushed') {
-          clearTimeout(frist);
-          fertig();
-        } else vorher(e);
-      };
-      a.knoten.port.postMessage('flush');
-    });
-    a.strom.getTracks().forEach((t) => t.stop());
-    a.knoten.disconnect();
-    await a.ctx.close().catch(() => {});
-    delete document.documentElement.dataset.sampleRate;
-  }
-  if (melden) window.letterflow.overlay.stopped();
-}
-
-window.letterflow.overlay.onRecordStart(aufnahmeStarten);
-window.letterflow.overlay.onRecordStop(() => aufnahmeBeenden(true));
 window.letterflow.overlay.ready();
