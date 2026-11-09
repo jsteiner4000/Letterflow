@@ -135,11 +135,11 @@ void main(){
     st.setProperty('--milch-a', ((hell0 ? 0.85 : 0.65) * f).toFixed(3));
     st.setProperty('--milch-b', ((hell0 ? 0.5 : 0.35) * f).toFixed(3));
     st.setProperty('--deck', deck.toFixed(3));
-    // Helligkeit des fertigen Glases: Hintergrund gemischt mit Milch und Tönung
+    // Dunkle Balken nur über hellem Grund: Helligkeit des erfassten Bereichs (roh), bei starker
+    // Deckkraft zur Tönung hin gemischt (sonst weiße Balken auf weißem Deckglas).
     const lt = leucht(ton);
-    const a = Math.min(1, deck + (1 - deck) * f * 0.5);
-    const lc = lum === null ? lt : lum * (1 - a) + lt * a;
-    pille.classList.toggle('hellgrund', lc > 0.55);
+    const lc = lum === null ? lt : lum * (1 - deck) + lt * deck;
+    pille.classList.toggle('hellgrund', lc > 0.6);
   }
 
   return { erzeugen, helligkeit, anwenden };
