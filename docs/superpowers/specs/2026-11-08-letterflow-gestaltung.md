@@ -152,3 +152,15 @@ Vorlage: die Liquid-Glass-Navigationsleiste der YouTube-App (Bild von Julius). E
 - **Kante:** kräftige, aber feine Lichtkante (heller Glanz oben links und unten rechts, dunklere Innenkante unten), weicher Außenschatten.
 - **Technik (Builder-Entscheidung mit Leitplanken):** Ein transparentes Fenster sieht den Desktop nicht. Deshalb: Pillen-Fenster mit `setContentProtection(true)` (erscheint nie in Bildschirmaufnahmen, auch nicht in der eigenen), beim Erscheinen den Bildschirmbereich unter der Pille per `desktopCapturer` erfassen und als verzerrten Hintergrund in der Pille zeichnen (WebGL- oder SVG-Verschiebungskarte), Auffrischung höchstens alle ~750 ms solange sichtbar. Die Pille erscheint sofort mit getöntem Glas; die Brechung blendet ein, sobald das Bild da ist (< 150 ms). Bilder bleiben nur im Speicher, werden nie gespeichert oder versendet. Fallback (Fehler, „Transparenz aus“, Fernwartung/RDP): getöntes Glas wie v2.
 - **Leistung:** keine Daueraufnahme, kein spürbarer CPU-Verbrauch im Leerlauf; Erfassung nur während die Pille sichtbar ist.
+
+### Pille v3 – Freigabe und Anpassbarkeit (Julius, 2026-11-09)
+
+Vorlage verbindlich: `docs/design/pille-v3.html` (+ `pille-v3-foto.png`, `pille-v3-dokument.png`) – echte Linsenberechnung (Mitte ×1,07, starke Randbiegung auf 16 px, Farbsaum ±6 %), Standard **leicht milchig**: Hintergrund im Glas mit `blur(1.2px) saturate(1.15)`, darüber Milchschicht `linear-gradient(rgba(255,255,255,.26) → .14)` (über hellem Grund `.34 → .20`), Lichtkante oben links / Gegenreflex unten rechts, weicher Schatten. Wellenform passt sich an: weiß über dunklem/buntem, dunkel `#1d1d1f` über hellem Grund (mittlere Helligkeit des erfassten Ausschnitts).
+
+**Einstellungen → neuer Bereich „Pille“** (Seitenleiste unter EINSTELLUNGEN, zwischen Diktieren und Wörterbuch) mit Live-Vorschau der Pille über einem Beispielhintergrund und diesen Reglern (Zeilen im v3-Listenstil):
+- **Milchigkeit** 0–100 % (Standard 40 %) – Weichzeichnung + Milchschicht.
+- **Durchsicht** 0–100 % (Standard 85 %) – 0 % = undurchsichtiges Glas.
+- **Lichtbrechung** 0–100 % (Standard 60 %) – Stärke der Linse (0 = flaches Glas).
+- **Tönung**: Hell (Standard), Neutral, Dunkel, Warm, Petrol – als runde Farbfelder mit Auswahlring + „Eigene Farbe“ (Farbwähler).
+- Knopf „Zurücksetzen“.
+Werte werden sofort gespeichert (`settings.pill = { frost, opacity, refraction, tint }`, validiert) und wirken ab dem nächsten Erscheinen der Pille. Barrierefreiheit: „Transparenz aus“ erzwingt Durchsicht 0.
