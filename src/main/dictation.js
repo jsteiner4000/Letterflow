@@ -11,6 +11,7 @@ const MIN_DURATION_MS = 300;
 const MAX_DURATION_MS = 5 * 60 * 1000;
 const INFO_MS = 2000;
 const WARNING_MS = 4000;
+const SUCCESS_MS = 700;
 const HELPER_FAILED_MS = 10000;
 const RESTORE_DELAY_MS = 400;
 
@@ -18,8 +19,9 @@ const MESSAGES = {
   setup: 'Einrichtung noch nicht abgeschlossen',
   loading: 'Letterflow lädt noch die Modelle …',
   limit: 'Maximal 5 Minuten – Aufnahme beendet',
-  noTextField: 'Kein Textfeld aktiv – Text liegt in der Zwischenablage',
-  windowChanged: 'Fenster gewechselt – Text liegt in der Zwischenablage',
+  // Die Pille ergänzt „Mit Strg V einfügen“.
+  noTextField: 'Kein Textfeld aktiv',
+  windowChanged: 'Fenster gewechselt',
   micBlocked:
     'Mikrofon gesperrt – in Windows unter Datenschutz › Mikrofon für Desktop-Apps erlauben',
   noMic: 'Kein Mikrofon gefunden',
@@ -38,6 +40,7 @@ class Dictation {
     helper,
     overlay,
     getEngines,
+    getAppInfo,
     getStatus,
     getSettings,
     showSetup,
@@ -48,6 +51,7 @@ class Dictation {
       helper,
       overlay,
       getEngines,
+      getAppInfo,
       getStatus,
       getSettings,
       showSetup,
@@ -130,6 +134,12 @@ class Dictation {
       }),
       focus: this.helper.focus(),
     };
+    // Programmname/-symbol parallel holen; die Pille erscheint sofort und bekommt sie nachgereicht.
+    rec.app = rec.focus.then((f) => this.getAppInfo(f)).catch(() => null);
+    rec.app.then((app) => {
+      this.lastApp = app;
+      if (this.recording === rec) this.overlay.show({ kind: 'aufnahme', app });
+    });
     this.recording = rec;
     clearTimeout(this.messageTimer);
     this.messageTimer = null;
@@ -256,7 +266,7 @@ class Dictation {
     });
     this.log(`diktat: glättung ${Date.now() - t} ms`);
     if (!text || !text.trim()) return null;
-    return { text, focus: await rec.focus };
+    return { text, focus: await rec.focus, app: await rec.app };
   }
 
   async _deliver(job) {
@@ -291,7 +301,7 @@ class Dictation {
   }
 
   // Fügt ein oder legt den Text in die Zwischenablage und warnt. Liefert die Wiederherstellung.
-  async _insert({ text, focus }) {
+  async _insert({ text, focus, app }) {
     const t = Date.now();
     if (focus.editable === 'no') {
       await clipboard.writeText(text);
@@ -306,7 +316,11 @@ class Dictation {
     this.log(
       `diktat: einfügen ${Date.now() - t} ms, ${r.ok ? 'ok' : r.reason || 'fehlgeschlagen'}`,
     );
-    if (r.ok) return snap && (() => restoreIfUnchanged(snap, text));
+    if (r.ok) {
+      const words = text.trim().split(/\s+/).length;
+      this._message('erfolg', null, SUCCESS_MS, { app, words });
+      return snap && (() => restoreIfUnchanged(snap, text));
+    }
     const windowChanged = r.reason === 'fenster-gewechselt';
     this._message(
       'warnung',
@@ -319,27 +333,27 @@ class Dictation {
   // --- Pille -------------------------------------------------------------------
 
   // Während einer Aufnahme wird die (letzte) Meldung gemerkt und danach gezeigt.
-  _message(kind, text, ms) {
+  _message(kind, text, ms, extra) {
     if (this.recording) {
-      this.pendingMessage = [kind, text, ms];
+      this.pendingMessage = [kind, text, ms, extra];
       return;
     }
     clearTimeout(this.messageTimer);
-    this.overlay.show({ kind, text });
+    this.overlay.show({ kind, text, ...extra });
     this.messageTimer = setTimeout(() => {
       this.messageTimer = null;
       this._idle();
     }, ms);
   }
 
-  // Ruhezustand der Pille: Aufnahme und Meldungen haben Vorrang, sonst „Schreibe …“ oder aus.
+  // Ruhezustand der Pille: Aufnahme und Meldungen haben Vorrang, sonst „aufbereitet …“ oder aus.
   _idle() {
     if (this.recording || this.messageTimer) return;
     if (this.pendingMessage) {
-      const [kind, text, ms] = this.pendingMessage;
+      const [kind, text, ms, extra] = this.pendingMessage;
       this.pendingMessage = null;
-      this._message(kind, text, ms);
-    } else if (this.busy > 0) this.overlay.show({ kind: 'verarbeitung' });
+      this._message(kind, text, ms, extra);
+    } else if (this.busy > 0) this.overlay.show({ kind: 'verarbeitung', app: this.lastApp });
     else this.overlay.hide();
   }
 }

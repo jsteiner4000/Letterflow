@@ -41,15 +41,15 @@ test('Aufnahme liefert 16-kHz-Pakete mit wechselndem Pegel und schließt das Mik
 test('Pille zeigt Texte und Pegel, blendet weich aus', async () => {
   await bruecke(() => global.__letterflow.overlay.show({ kind: 'aufnahme' }));
   const seite = await overlaySeite();
-  await expect(seite.locator('#text')).toHaveText('Ich höre zu …');
+  await expect(seite.locator('#zeile2')).toHaveText('Ich höre zu …');
   await expect(seite.locator('#pille')).toHaveClass(/sichtbar/);
-  await expect(seite.locator('#balken i')).toHaveCount(5);
+  await expect(seite.locator('#balken i')).toHaveCount(16);
   await bruecke(() => global.__letterflow.overlay.level(1));
   await expect
     .poll(() =>
       seite
         .locator('#balken i')
-        .nth(2)
+        .nth(7)
         .evaluate((e) => e.style.transform),
     )
     .toBe('scaleY(1)');
@@ -61,7 +61,7 @@ test('Pille zeigt Texte und Pegel, blendet weich aus', async () => {
   expect(eigenschaften).toEqual({ fokus: false, sichtbar: true });
 
   await bruecke(() => global.__letterflow.overlay.show({ kind: 'verarbeitung' }));
-  await expect(seite.locator('#text')).toHaveText('Schreibe …');
+  await expect(seite.locator('#zeile2')).toHaveText('Text wird aufbereitet …');
 
   await bruecke(() => global.__letterflow.overlay.hide());
   await expect(seite.locator('#pille')).not.toHaveClass(/sichtbar/);

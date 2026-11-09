@@ -31,6 +31,7 @@ const { EngineManager } = require('./engines');
 const { getDataDir } = require('./catalog');
 const { Helper } = require('./helper');
 const { Dictation } = require('./dictation');
+const { createAppInfo } = require('./app-info');
 const { createLog } = require('./log');
 
 if (!app.requestSingleInstanceLock()) {
@@ -195,6 +196,8 @@ if (!app.requestSingleInstanceLock()) {
     trayHandle = tray.createTray();
     enginesAnstossen(app.getPath('userData'));
     const overlay = createOverlay();
+    // Tests prüfen das erste Fenster: dort die Pille nicht vorab laden.
+    if (!testMode) overlay.prepare();
     helper = new Helper();
     helper.setPreset(einstellungen().hotkey || 'ctrl+win');
     if (testMode) {
@@ -217,6 +220,7 @@ if (!app.requestSingleInstanceLock()) {
       helper,
       overlay,
       getEngines: () => engines,
+      getAppInfo: createAppInfo({ getFileIcon: (exe, opts) => app.getFileIcon(exe, opts) }),
       getStatus,
       getSettings: einstellungen,
       showSetup: () => setup.showSetup(),

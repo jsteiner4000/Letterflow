@@ -62,6 +62,7 @@ const overlaySeite = async () => {
   return app.windows().find((w) => w.url().endsWith('overlay.html'));
 };
 const pille = async () => (await overlaySeite()).locator('#pille');
+const zeile = async (n) => (await overlaySeite()).locator(`#zeile${n}`);
 
 // Kürzel halten, bis das Mikrofon wirklich läuft, dann noch `ms` sprechen und loslassen.
 async function diktieren(ms = 1500) {
@@ -77,10 +78,12 @@ async function diktieren(ms = 1500) {
 test('Diktat wird regelbasiert geglättet eingefügt und Zwischenablage wiederhergestellt', async () => {
   await starten();
   await app.evaluate(({ clipboard }) => clipboard.writeText('alt'));
-  await fokus(TEXTFELD);
+  await fokus({ ...TEXTFELD, exe: 'C:/Fake/winword.exe', appName: 'Word' });
   await diktieren();
   await expect.poll(lastPaste, { timeout: 10000 }).toEqual({ text: 'Hallo tim.', hwnd: 42 });
   await expect.poll(zwischenablage).toBe('alt');
+  await expect(await zeile(1)).toHaveText('Eingefügt in Word');
+  await expect(await zeile(2)).toHaveText('2 Wörter');
   await expect(await pille()).not.toHaveClass(/sichtbar/);
   // Protokoll: Dauern ja, diktierter Text nie.
   await expect.poll(protokoll).toMatch(/einfügen \d+ ms, ok/);
@@ -114,11 +117,9 @@ test('kein Textfeld → Warnung und Text in Zwischenablage', async () => {
   await starten();
   await fokus({ hwnd: 42, editable: 'no', elevated: false });
   await diktieren();
-  const p = await pille();
-  await expect(p).toHaveText('Kein Textfeld aktiv – Text liegt in der Zwischenablage', {
-    timeout: 10000,
-  });
-  await expect(p).toHaveAttribute('data-kind', 'warnung');
+  await expect(await zeile(1)).toHaveText('Kein Textfeld aktiv', { timeout: 10000 });
+  await expect(await zeile(2)).toHaveText('Mit Strg V einfügen');
+  await expect(await pille()).toHaveAttribute('data-kind', 'warnung');
   expect(await zwischenablage()).toBe('Hallo tim.');
   expect(await lastPaste()).toBeNull();
 });
@@ -128,10 +129,7 @@ test('Fenster gewechselt → Warnung', async () => {
   await fokus(TEXTFELD);
   await helfer({ cmd: '__setPaste', paste: { ok: false, reason: 'fenster-gewechselt' } });
   await diktieren();
-  const p = await pille();
-  await expect(p).toHaveText('Fenster gewechselt – Text liegt in der Zwischenablage', {
-    timeout: 10000,
-  });
+  await expect(await zeile(1)).toHaveText('Fenster gewechselt', { timeout: 10000 });
   expect(await zwischenablage()).toBe('Hallo tim.');
 });
 
@@ -174,12 +172,11 @@ test('Mikrofon gesperrt → Fehlermeldung', async () => {
   await app.evaluate(() => global.__letterflow.mikrofonSperren());
   await fokus(TEXTFELD);
   await druecken();
-  const p = await pille();
-  await expect(p).toHaveText(
-    'Mikrofon gesperrt – in Windows unter Datenschutz › Mikrofon für Desktop-Apps erlauben',
-    { timeout: 10000 },
+  await expect(await zeile(1)).toHaveText('Mikrofon gesperrt', { timeout: 10000 });
+  await expect(await zeile(2)).toHaveText(
+    'in Windows unter Datenschutz › Mikrofon für Desktop-Apps erlauben',
   );
-  await expect(p).toHaveAttribute('data-kind', 'fehler');
+  await expect(await pille()).toHaveAttribute('data-kind', 'fehler');
   await loslassen();
   expect(await lastPaste()).toBeNull();
 });
@@ -223,9 +220,8 @@ test('Erkennung scheitert → Fehlermeldung statt stillem Ausblenden', async () 
   await starten({ env: { LETTERFLOW_FAKE_ASR_FEHLER: '1' } });
   await fokus(TEXTFELD);
   await diktieren();
-  const p = await pille();
-  await expect(p).toHaveText('Diktat fehlgeschlagen – bitte erneut versuchen', { timeout: 10000 });
-  await expect(p).toHaveAttribute('data-kind', 'fehler');
+  await expect(await zeile(1)).toHaveText('Diktat fehlgeschlagen', { timeout: 10000 });
+  await expect(await pille()).toHaveAttribute('data-kind', 'fehler');
   expect(await lastPaste()).toBeNull();
 });
 

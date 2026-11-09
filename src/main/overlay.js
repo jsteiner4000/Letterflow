@@ -6,10 +6,10 @@ const RENDERER = path.join(__dirname, '..', 'renderer');
 const PRELOAD = path.join(__dirname, '..', 'preload', 'preload.js');
 const BREITE = 420;
 const PILLE_HOEHE = 44;
-const HOEHE = 96; // Platz für Schatten (ca. 20 px) rundum, damit nichts hart abgeschnitten wird
+const HOEHE = 150; // Platz für Schatten (32 px Weichheit, 12 px nach unten) und den Weg beim Ein-/Ausblenden
 const LADE_FRIST_MS = 10000;
 const ABSTAND = 60; // zum unteren Rand des Bildschirms
-const AUSBLEND_MS = 200; // etwas länger als der Fade im Renderer (180 ms)
+const AUSBLEND_MS = 200; // etwas länger als das Verschwinden im Renderer (160 ms)
 const STOPP_WARTEZEIT_MS = 2000;
 
 // Aufnahme-Pille: rahmenlos, transparent, nimmt nie den Fokus. Das Mikrofon läuft im Renderer
@@ -106,6 +106,26 @@ function createOverlay() {
     });
   }
 
+  // Vertrauensgrenze zum Renderer: nur bekannte Felder in erwarteter Form weitergeben.
+  const ARTEN = new Set(['aufnahme', 'verarbeitung', 'erfolg', 'warnung', 'fehler', 'info']);
+  function zustand(state) {
+    const s = { kind: ARTEN.has(state.kind) ? state.kind : 'info' };
+    if (typeof state.text === 'string') s.text = state.text;
+    if (Number.isInteger(state.words) && state.words >= 0) s.words = state.words;
+    const app = state.app;
+    if (app && typeof app.name === 'string') {
+      const bild = app.iconDataUrl;
+      s.app = {
+        name: app.name,
+        iconDataUrl:
+          typeof bild === 'string' && bild.startsWith('data:image/png;base64,') ? bild : null,
+      };
+    }
+    // Windows „Transparenzeffekte“ aus → Glas deckend
+    s.deckend = Boolean(nativeTheme.prefersReducedTransparency);
+    return s;
+  }
+
   const senden = (kanal, wert) => {
     if (win && !win.isDestroyed()) win.webContents.send(kanal, wert);
   };
@@ -128,12 +148,16 @@ function createOverlay() {
         .then(() => {
           if (!win || win.isDestroyed()) return;
           clearTimeout(ausblendTimer);
-          senden('overlay:state', { kind: state.kind, text: state.text });
+          senden('overlay:state', zustand(state));
           positionieren();
           // showInactive: kein Fokusklau; der Renderer blendet den fertigen Inhalt weich ein.
           if (!win.isVisible()) win.showInactive();
         })
         .catch((fehler) => console.error('Aufnahme-Pille nicht angezeigt:', fehler.message));
+    },
+    // Fenster vorab laden, damit schon das erste Kürzel die Pille sofort zeigt.
+    prepare() {
+      ensureWindow().catch(() => {});
     },
     level(n) {
       senden('overlay:level', Math.max(0, Math.min(1, Number(n) || 0)));

@@ -1,27 +1,75 @@
 const pille = document.getElementById('pille');
-const textFeld = document.getElementById('text');
+const symbol = document.getElementById('symbol');
+const bild = document.getElementById('bild');
+const zeile1 = document.getElementById('zeile1');
+const zeile2 = document.getElementById('zeile2');
+const ansage = document.getElementById('ansage');
 const balken = [...document.querySelectorAll('#balken i')];
 
-const STANDARD_TEXT = { aufnahme: 'Ich höre zu …', verarbeitung: 'Schreibe …' };
-// Mittlere Balken schlagen stärker aus als die äußeren.
-const PROFIL = [0.55, 0.8, 1, 0.8, 0.55];
+const ZUSTAND_TEXT = { aufnahme: 'Ich höre zu …', verarbeitung: 'Text wird aufbereitet …' };
+// Wellenform: feste Form, die mit dem Pegel wächst (Mitte am höchsten).
+const PROFIL = [0.35, 0.55, 0.8, 0.5, 0.7, 0.95, 0.6, 1, 0.75, 0.9, 0.5, 0.8, 0.6, 0.45, 0.7, 0.4];
 const MIN_HOEHE = 0.18;
+const ruhig = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function pegelSetzen(n) {
   const pegel = Math.max(0, Math.min(1, Number(n) || 0));
+  // Weniger Bewegung: ruhiger, gleichmäßiger Pegelbalken statt Wellenform.
+  const form = ruhig() ? () => 1 : (i) => PROFIL[i];
   balken.forEach((b, i) => {
-    b.style.transform = `scaleY(${(MIN_HOEHE + (1 - MIN_HOEHE) * pegel * PROFIL[i]).toFixed(3)})`;
+    b.style.transform = `scaleY(${(MIN_HOEHE + (1 - MIN_HOEHE) * pegel * form(i)).toFixed(3)})`;
   });
 }
 
-window.letterflow.overlay.onState((state) => {
+function zeile2Setzen(state) {
+  if (state.kind === 'warnung') {
+    const taste = (t) => Object.assign(document.createElement('kbd'), { textContent: t });
+    zeile2.replaceChildren('Mit ', taste('Strg'), ' ', taste('V'), ' einfügen');
+  } else if (state.kind === 'erfolg') {
+    zeile2.textContent = state.words === 1 ? '1 Wort' : `${state.words || 0} Wörter`;
+  } else zeile2.textContent = ZUSTAND_TEXT[state.kind] || state.zweit || '';
+}
+
+function inhaltSetzen(state) {
+  const app = state.app; // undefined: Name kommt gleich, Platz bleibt frei
   pille.dataset.kind = state.kind;
-  textFeld.textContent = state.text || STANDARD_TEXT[state.kind] || '';
+  pille.classList.toggle('deckend', Boolean(state.deckend));
+  if (state.kind === 'warnung' || state.kind === 'fehler') symbol.dataset.art = 'warn';
+  else if (app && app.iconDataUrl) symbol.dataset.art = 'bild';
+  else symbol.dataset.art = app || state.kind === 'info' ? 'mono' : '';
+  if (symbol.dataset.art === 'bild') bild.src = app.iconDataUrl;
+  else bild.removeAttribute('src');
+  if (state.kind === 'erfolg') zeile1.textContent = app ? `Eingefügt in ${app.name}` : 'Eingefügt';
+  else if (ZUSTAND_TEXT[state.kind]) zeile1.textContent = app ? app.name : '';
+  else zeile1.textContent = state.text || '';
+  zeile2Setzen(state);
+  // Erfolg, Hinweise und Fehler werden angesagt (die Pille nimmt nie den Fokus).
+  const ansagen = ['erfolg', 'warnung', 'fehler'].includes(state.kind);
+  ansage.textContent = ansagen ? [zeile1.textContent, zeile2.textContent].join('. ') : '';
+}
+
+window.letterflow.overlay.onState((raw) => {
+  // Lange Meldungen „A – B“ zweizeilig, damit bei 340 px möglichst wenig gekürzt wird.
+  const [text, zweit] = String(raw.text || '').split(' – ');
+  const state = { ...raw, text, zweit };
+  const sichtbar = pille.classList.contains('sichtbar');
+  const alt = pille.offsetWidth;
+  pille.style.width = '';
+  inhaltSetzen(state);
   if (state.kind !== 'aufnahme') pegelSetzen(0);
+  if (sichtbar && !ruhig()) {
+    // Zustandswechsel: Inhalt überblenden, Breite gleitet vom alten auf den neuen Wert.
+    const neu = pille.offsetWidth;
+    pille.classList.remove('wechsel');
+    pille.style.width = `${alt}px`;
+    void pille.offsetWidth;
+    pille.style.width = `${neu}px`;
+    pille.classList.add('wechsel');
+  }
   pille.classList.add('sichtbar');
 });
 window.letterflow.overlay.onLevel(pegelSetzen);
-window.letterflow.overlay.onHide(() => pille.classList.remove('sichtbar'));
+window.letterflow.overlay.onHide(() => pille.classList.remove('sichtbar', 'wechsel'));
 
 // --- Aufnahme: nur während der Aufnahme ist das Mikrofon geöffnet ---------
 
