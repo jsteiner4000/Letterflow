@@ -1,6 +1,6 @@
 # Drittanbieter-Software und -Modelle
 
-Letterflow © 2026 Julius Steiner. Folgende Bestandteile stammen von Dritten:
+Folgende Bestandteile stammen von Dritten:
 
 | Bestandteil | Lizenz | Quelle |
 |---|---|---|
