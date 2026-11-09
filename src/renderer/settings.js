@@ -22,7 +22,7 @@ function bereichZeigen(tab, fokus = false) {
     $(t.getAttribute('aria-controls')).hidden = !an;
   }
   if (fokus) tab.focus();
-  pegelPruefen();
+  pegelStoppen();
 }
 
 for (const tab of tabs) {
@@ -171,7 +171,7 @@ $('glaettung').addEventListener('change', (e) => speichern({ smoothing: e.target
 $('autostart').addEventListener('change', (e) => speichern({ autostart: e.target.checked }));
 $('mikrofon').addEventListener('change', async (e) => {
   await speichern({ micDeviceId: e.target.value || null });
-  pegelPruefen(true);
+  if (pegel) pegelStarten(); // laufenden Test mit dem neuen Gerät fortsetzen
 });
 $('woerterbuch-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -220,11 +220,15 @@ async function mikrofoneMitNamen() {
 
 // --- Pegel ---------------------------------------------------------------
 
-// Mikrofon nur offen, solange „Diktieren“ sichtbar ist; sonst sofort schließen.
-let pegel = null; // { strom, ctx, frame }
+// Mikrofon nur auf Knopfdruck offen: endet nach 10 s, beim Seitenwechsel, Fensterwechsel oder
+// erneutem Klick.
+const PEGEL_DAUER_MS = 10000;
+let pegel = null; // { strom, ctx, frame, timer }
 
 function pegelStoppen() {
   if (!pegel) return;
+  $('pegel-test').textContent = 'Pegel testen';
+  clearTimeout(pegel.timer);
   cancelAnimationFrame(pegel.frame);
   pegel.strom?.getTracks().forEach((t) => t.stop());
   pegel.ctx?.close().catch(() => {});
@@ -233,7 +237,9 @@ function pegelStoppen() {
 }
 
 async function pegelStarten() {
-  const lauf = (pegel = {});
+  pegelStoppen();
+  const lauf = (pegel = { timer: setTimeout(pegelStoppen, PEGEL_DAUER_MS) });
+  $('pegel-test').textContent = 'Test beenden';
   const id = aktuell?.micDeviceId;
   let strom;
   try {
@@ -241,7 +247,7 @@ async function pegelStarten() {
       audio: id ? { deviceId: { exact: id } } : true,
     });
   } catch {
-    if (pegel === lauf) pegel = null;
+    if (pegel === lauf) pegelStoppen();
     return;
   }
   if (pegel !== lauf) return strom.getTracks().forEach((t) => t.stop()); // inzwischen gestoppt
@@ -263,13 +269,12 @@ async function pegelStarten() {
   zeichnen();
 }
 
-function pegelPruefen(neu = false) {
-  const sichtbar = !$('seite-diktieren').hidden && document.visibilityState === 'visible';
-  if (!sichtbar || neu) pegelStoppen();
-  if (sichtbar && !pegel && aktuell) pegelStarten();
-}
-
-document.addEventListener('visibilitychange', () => pegelPruefen());
+$('pegel-test').addEventListener('click', () => (pegel ? pegelStoppen() : pegelStarten()));
+window.addEventListener('blur', pegelStoppen);
+window.addEventListener('pagehide', pegelStoppen);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') pegelStoppen();
+});
 
 // --- System --------------------------------------------------------------
 
@@ -330,7 +335,6 @@ api.settings.onChanged((s) => {
   }
   await mikrofoneLaden();
   anzeigen(aktuell);
-  pegelPruefen();
   api
     .info()
     .then((info) => ($('version').textContent = `Version ${info.version}`))

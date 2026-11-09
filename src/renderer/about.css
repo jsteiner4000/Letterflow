@@ -27,6 +27,11 @@ summary {
   cursor: pointer;
   border-radius: 8px;
 }
-details p {
-  margin-top: 8px;
+.lizenzen {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
