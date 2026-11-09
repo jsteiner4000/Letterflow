@@ -107,19 +107,17 @@ function createOverlay() {
   }
 
   // Vertrauensgrenze zum Renderer: nur bekannte Felder in erwarteter Form weitergeben.
+  const BILD_URL = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/;
   const ARTEN = new Set(['aufnahme', 'verarbeitung', 'erfolg', 'warnung', 'fehler', 'info']);
   function zustand(state) {
     const s = { kind: ARTEN.has(state.kind) ? state.kind : 'info' };
-    if (typeof state.text === 'string') s.text = state.text;
+    if (typeof state.text === 'string') s.text = state.text.slice(0, 200);
     if (Number.isInteger(state.words) && state.words >= 0) s.words = state.words;
     const app = state.app;
     if (app && typeof app.name === 'string') {
       const bild = app.iconDataUrl;
-      s.app = {
-        name: app.name,
-        iconDataUrl:
-          typeof bild === 'string' && bild.startsWith('data:image/png;base64,') ? bild : null,
-      };
+      const bildOk = typeof bild === 'string' && bild.length <= 64 * 1024 && BILD_URL.test(bild);
+      s.app = { name: app.name.slice(0, 80), iconDataUrl: bildOk ? bild : null };
     }
     // Windows „Transparenzeffekte“ aus → Glas deckend
     s.deckend = Boolean(nativeTheme.prefersReducedTransparency);

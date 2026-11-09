@@ -137,8 +137,12 @@ class Dictation {
       focus: this.helper.focus(),
     };
     // Programmname/-symbol parallel holen; die Pille erscheint sofort und bekommt sie nachgereicht.
+    // Nur das Ergebnis des neuesten Diktats zählt: eine ältere, langsamere Abfrage zeigt nie ihr Programm.
+    this.lastRec = rec;
+    this.lastApp = undefined;
     rec.app = rec.focus.then((f) => this.getAppInfo(f)).catch(() => null);
     rec.app.then((app) => {
+      if (this.lastRec !== rec) return;
       this.lastApp = app;
       if (this.recording === rec) this.overlay.show({ kind: 'aufnahme', app });
     });
