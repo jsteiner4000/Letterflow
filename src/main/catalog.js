@@ -18,7 +18,7 @@ function getDataDir() {
 // `urlBase`/`overrides` ersetzen im Test Adresse (urlBase/<id>), Prüfsumme und Größe.
 function requiredFiles({ backend, tier, dataDir = getDataDir(), urlBase, overrides = {} }) {
   const eintraege = MODELS.filter(
-    (m) => m.id.startsWith('parakeet-') || (tier === 'gruendlich' && m.id === 'llama-gruendlich'),
+    (m) => m.id.startsWith('parakeet-') || m.id === `llama-${tier}`,
   ).map((m) => ({
     id: m.id,
     dest: path.join(dataDir, 'models', ...m.file.split('/')),

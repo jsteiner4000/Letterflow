@@ -10,6 +10,7 @@ Folgende Bestandteile stammen von Dritten:
 | LLVM OpenMP (in den llama.cpp-Paketen) | Apache 2.0 mit LLVM-Ausnahme | https://openmp.llvm.org |
 | NVIDIA Parakeet TDT 0.6B v3 (Modell) | CC BY 4.0 | https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3 |
 | Qwen3-4B-Instruct-2507 (Modell) | Apache 2.0 | https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507 |
+| Qwen3-1.7B (Modell) | Apache 2.0 | https://huggingface.co/Qwen/Qwen3-1.7B |
 | Inter (Schrift) | SIL OFL 1.1 | https://github.com/rsms/inter |
 | Outfit (Schrift) | SIL OFL 1.1 | https://github.com/Outfitio/Outfit-Fonts |
 | Newsreader (Schrift) | SIL OFL 1.1 | https://github.com/productiontype/Newsreader |
@@ -20,7 +21,7 @@ Modell von NVIDIA (https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3), Lizenz C
 
 ## Textglättung: Qwen3
 
-Qwen3-4B-Instruct-2507 des Qwen-Teams (Alibaba Cloud), Apache 2.0. Verwendet wird die quantisierte GGUF-Fassung (Q4_K_M) von Unsloth.
+Qwen3-4B-Instruct-2507 („Gründlich“) und Qwen3-1.7B („Ausgewogen“, Denkmodus abgeschaltet) des Qwen-Teams (Alibaba Cloud), Apache 2.0. Verwendet werden die quantisierten GGUF-Fassungen (Q4_K_M) von Unsloth.
 
 ## Lizenztexte
 

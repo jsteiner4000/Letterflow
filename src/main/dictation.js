@@ -73,6 +73,7 @@ class Dictation {
     this.keysReleased = Promise.resolve(); // Einfügen erst, wenn das Kürzel losgelassen ist
     this.releaseKeys = () => {};
     this.helperHandlers = {
+      'hotkey-tap': () => this._tap(),
       'hotkey-down': () => this._down(),
       'hotkey-up': () => this._up(),
       'hotkey-cancel': () => this._cancel(),
@@ -93,6 +94,7 @@ class Dictation {
     for (const [n, f] of Object.entries(this.helperHandlers)) this.helper.off(n, f);
     for (const [n, f] of Object.entries(this.recorderHandlers)) this.recorder.off(n, f);
     clearTimeout(this.messageTimer);
+    clearTimeout(this.tapTimer);
     const rec = this.recording;
     if (rec) {
       this._end(rec);
@@ -101,6 +103,16 @@ class Dictation {
   }
 
   // --- Kürzel ------------------------------------------------------------------
+
+  // Umschalten: schon das erste Antippen maskieren (Win öffnet sonst das Startmenü); ohne zweites
+  // Antippen gibt eine Sekunde später die Maske wieder frei.
+  _tap() {
+    this.helper.setMask(true);
+    clearTimeout(this.tapTimer);
+    this.tapTimer = setTimeout(() => {
+      if (!this.recording) this.helper.setMask(false);
+    }, 1000);
+  }
 
   _down() {
     // Auch ohne Aufnahme maskieren, sonst öffnet das Loslassen von Win das Startmenü.

@@ -60,9 +60,9 @@ Verworfen: Python + faster-whisper – keine AMD-GPU-Unterstützung. Gewählt ha
 
 ### Ablauf eines Diktats
 
-1. **Taste gedrückt** (STRG+WIN): Aufnahme startet sofort, kleine Aufnahme-Anzeige erscheint (Pegel-Animation). Beim Drücken merkt sich die App das aktive Fenster und prüft, ob ein Textfeld fokussiert ist.
+1. **Taste gedrückt** (STRG+WIN; im Modus „Umschalten“: zweimal schnell getippt, höchstens 400 ms zwischen den Druckanfängen; ein einzelnes Antippen tut nichts, Tippen dazwischen verwirft es): Aufnahme startet sofort, kleine Aufnahme-Anzeige erscheint (Pegel-Animation). Beim Drücken merkt sich die App das aktive Fenster und prüft, ob ein Textfeld fokussiert ist.
 2. **Während des Sprechens**: Audio wird an Sprechpausen in Abschnitte geteilt; fertige Abschnitte werden schon im Hintergrund erkannt, damit beim Loslassen nur noch der letzte Rest fehlt.
-3. **Taste losgelassen**: letzter Abschnitt wird erkannt, Gesamttext geht an die Glättung.
+3. **Taste losgelassen** (Modus „Umschalten“: ein neuer Druck der Sprechtaste; Esc bricht in beiden Modi ab): letzter Abschnitt wird erkannt, Gesamttext geht an die Glättung.
 4. **Glättung** – je nach Stufe per Regeln oder durch das lokale Sprachmodell. Hängt das Sprachmodell länger als ein Zeitlimit oder schlägt fehl, wird der regelbasiert geglättete Text verwendet – nie geht Text verloren.
 5. **Einfügen**: Zwischenablage sichern → Text setzen → STRG+V senden → alte Zwischenablage wiederherstellen. Nur wenn das Fenster von Schritt 1 noch aktiv ist.
 6. **Kein Textfeld / Fenster gewechselt**: Text bleibt in der Zwischenablage, die Anzeige zeigt eine Warnung im App-Stil („Kein Textfeld aktiv – Text liegt in der Zwischenablage“).
@@ -79,15 +79,15 @@ Verworfen: Python + faster-whisper – keine AMD-GPU-Unterstützung. Gewählt ha
 
 - **Stufe „Schnell“** – feste Regeln, kein Sprachmodell, ca. 1 s Gesamtzeit: Füllwörter („ähm“, „äh“, „öhm“, „hm“, „uh“, „um“ …) raus, Wörterbuch-Schreibweisen, Leerzeichen/Satzzeichen bereinigen, Satzanfang groß, Satzende-Zeichen. Selbstkorrekturen („Montag, nein, Dienstag“) werden hier **nicht** angewendet.
 - **Stufe „Gründlich“** – llama.cpp `llama-server` mit **Qwen3-4B-Instruct-2507** (Q4_K_M, Apache 2.0). Fester System-Prompt: nur umschreiben, nie antworten; Füllwörter raus, Selbstkorrekturen anwenden, Satzzeichen, Sprachmix behalten, Wörterbuch-Schreibweisen einhalten, keine Inhalte hinzufügen. Diktat wird klar als Daten markiert. Fallback bei Zeitüberschreitung/Fehler: Stufe „Schnell“.
-- **„Automatisch“** (Standard): „Gründlich“ auf PCs mit NVIDIA-Grafikkarte oder einer Grafikkarte mit ≥ 6 GB eigenem Grafikspeicher, sonst „Schnell“. In den Einstellungen jederzeit fest auf „Schnell“ oder „Gründlich“ stellbar.
-- Das kleine 1,7B-Modell entfällt (gemessen: zu ungenau).
+- **Stufe „Ausgewogen“** (0.24, Julius: „Gründlich“ legt den Laptop lahm, „Schnell“ ist etwas schwach) – derselbe `llama-server`-Weg mit **Qwen3-1.7B** (Q4_K_M, Apache 2.0, Denkmodus aus über `enable_thinking: false`), gleicher Prompt und gleiche Wächter, Rückfall auf die Regeln. Schonend: immer nur Prozessor (kein `-ngl`), halbe physische Kerne (mind. 2), Kontext 2048, Prozesspriorität „niedriger als normal“ (`--prio -1`), einmal geladen und warm gehalten. Gemessen auf dem Entwickler-Laptop (nur Prozessor): WER 12,5 % statt 13,8 % bei „Schnell“, nie schlechter als „Schnell“, Glättung im Median 0,9 s, bereit nach 2,7 s (`docs/messungen.md`). Ein Wächter entfernt stehengebliebene Füllwörter aus jeder Modellausgabe.
+- **„Automatisch“** (Standard): „Gründlich“ auf PCs mit NVIDIA-Grafikkarte oder einer Grafikkarte mit ≥ 6 GB eigenem Grafikspeicher; sonst „Ausgewogen“ bei ≥ 8 GB Arbeitsspeicher (gemessen ≥ 7 GiB, weil Windows Grafikspeicher abzieht) und ≥ 4 Kernen (≥ 8 Threads); sonst „Schnell“. In den Einstellungen jederzeit fest auf eine Stufe stellbar; gespeicherte Stufen bleiben. Die Erstwahl beim ersten Start bietet alle drei an, die passende ist vorgewählt („empfohlen“).
 - Glättung in den Einstellungen abschaltbar (dann der unveränderte Parakeet-Text).
 
 ### Hardware
 
 - Spracherkennung läuft immer auf dem Prozessor (schnell genug, keine GPU-Builds nötig).
 - Für die Glättung „Gründlich“: NVIDIA vorhanden → CUDA-Build von llama.cpp; sonst Vulkan-Build; Selbsttest schlägt fehl → CPU-Build. Ergebnis wird angezeigt (Einstellungen: „Läuft auf: Grafikkarte (Vulkan)“).
-- Das Glättungsmodell wird nur geladen (und nur heruntergeladen), wenn die Stufe „Gründlich“ aktiv ist.
+- Das Glättungsmodell wird nur geladen (und nur heruntergeladen), wenn „Ausgewogen“ (1,1 GB) oder „Gründlich“ (2,5 GB) aktiv ist; ein Wechsel zwischen beiden tauscht das Modell.
 - Modelle bleiben geladen, solange die App läuft (sofortige Reaktion). Leerlauf ohne Rechenlast.
 
 ### Oberfläche

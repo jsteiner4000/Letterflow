@@ -420,3 +420,21 @@ Verworfen: Schwelle 1,2 s statt 0,7 s (bei 0,9-s-Pausen WER 17,3 %, 5 Punkte; be
 ## Pille hinter anderen Fenstern (Version 0.23.0)
 
 Beobachtet (Julius, vor einem Neustart): Die Pille lag hinter anderen Fenstern. Ursache vermutlich: Das Aufnahme-Fenster bleibt seit 0.22.0 dauerhaft gezeigt; „immer oben“ wird nur einmal beim Anlegen gesetzt, andere oberste Fenster (Vollbild, Bildschirmwechsel) schieben sich davor. Behebung: Bei jedem Zeigen `setAlwaysOnTop(true, 'screen-saver')` und `moveTop()` (ohne Fokus). Nicht nachgestellt.
+
+## Glättung „Ausgewogen“: Modellwahl (Version 0.24.0)
+
+Entwickler-Laptop (Ryzen 7 7730U, 8 Kerne/16 Threads, 16 GB, Vega-iGPU – vermutlich das Gerät, auf dem „Gründlich“ zu schwer war), nur Prozessor (`--cpu`, kein `-ngl`), Testsatz mit echter Stimme (20 Sätze, `testdata/stimme`). Je Kandidat ein Lauf mit `npx electron scripts/eval.js --tier schnell,ausgewogen --cpu --modell <gguf>`; „Ausgewogen“ mit 4 Threads (halbe physische Kerne), `-c 2048`, `--prio -1`. WER ohne, „streng“ mit Groß-/Kleinschreibung und Satzzeichen. „Schlechter als Schnell“ = Sätze mit höherer WER als die Regeln. Bereit = Start von Erkennung + llama-server inkl. Aufwärmen.
+
+| Stufe / Modell | Größe | WER | streng | Glättung Median (max) | Bereit | schlechter als Schnell |
+|---|---|---|---|---|---|---|
+| Schnell (Regeln) | – | 13,8 % | 21,2 % | 0 s | – | – |
+| Qwen2.5-1.5B-Instruct Q4_K_M | 1,12 GB | 11,6 % | 16,4 % | 0,75 s (1,42) | 2,9 s | 4 (stehengebliebenes „Ähm“, „bitte“ gestrichen, „Ich ignoriere …“ ergänzt) |
+| gemma-3-1b-it Q4_K_M | 0,81 GB | 15,8 % | 19,0 % | 0,71 s (1,13) | 2,9 s | 2 (Satz umformuliert: „Die Datei werde ich morgen früh schicken.“) |
+| Qwen3-1.7B Q4_K_M (Denkmodus aus) | 1,11 GB | 13,1 % | 18,4 % | 1,02 s (1,34) | 2,9 s | 1 (stehengebliebenes „Ähm“) |
+| **Qwen3-1.7B + Füllwort-Wächter** (gewählt) | 1,11 GB | **12,5 %** | **17,4 %** | **0,90 s (1,22)** | **2,7 s** | **0** |
+| Gründlich, Qwen3-4B-Instruct-2507, nur Prozessor (8 Threads) | 2,50 GB | 6,5 % | 7,6 % | 1,79 s (2,44) | 4,1 s | 1 („noch“ gestrichen) |
+
+- Gewählt: **Qwen3-1.7B** (unsloth, Apache 2.0, schon im Modellordner des Laptops). Als einziges Modell in keinem Satz schlechter als die Regeln, inhaltlich nie umformuliert. Qwen2.5-1.5B ist im Mittel etwas genauer, ändert aber Inhalte („bitte“ fehlt, „Ich“ ergänzt); gemma-3-1b schreibt Sätze um und ist im Mittel nicht besser als „Schnell“ (Lizenz zudem Gemma-Nutzungsbedingungen statt Apache).
+- Neuer Wächter für alle Modell-Stufen: stehengebliebene Füllwörter („Ähm“, „äh“) werden zeilenweise aus der Modellausgabe entfernt, Zeilenanfang wieder groß. Das ändert die Zeilen 16 und 20 des Testsatzes; der zweite Lauf (unterste Ausgewogen-Zeile) ist mit Wächter.
+- Selbstkorrekturen („Datei, nein, den Link“) wendet auch das 1,7B-Modell kaum an (Selbstkorrektur-Sätze: 45,8 % wie die Regeln); das bleibt „Gründlich“ vorbehalten.
+- Speicher (Schätzung, nicht gemessen): Modell 1,1 GB + KV-Cache bei 2048 Token ≈ 0,23 GB; Abschnitt 5.2 maß für Qwen3-1.7B auf dem Prozessor 2,2 GB Spitze bei 4096 Token Kontext.

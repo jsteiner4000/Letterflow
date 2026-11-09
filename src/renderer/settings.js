@@ -4,23 +4,28 @@ const $ = (id) => document.getElementById(id);
 let aktuell = null;
 let letzterStatus = null;
 
-// Sprechtaste als Tastenkappen: [Strg] rechts · [Strg] + [Win] · [Strg] + [Umschalt]
+// Sprechtaste als Tastenkappen: [Strg rechts] · [Strg] + [Win] · [Strg] + [Umschalt]
 const KAPPE = {
   rctrl: [['Strg', 'rechts']],
   'ctrl+win': [['Strg'], ['Win']],
   'ctrl+shift': [['Strg'], ['Umschalt']],
 };
+const neu = (tag, className, textContent) =>
+  Object.assign(document.createElement(tag), { className, textContent });
 function kappenZeigen(ziel, hotkey) {
   const teile = [];
   for (const [taste, zusatz] of KAPPE[hotkey] || []) {
-    if (teile.length)
-      teile.push(
-        Object.assign(document.createElement('span'), { className: 'plus', textContent: '+' }),
-      );
-    teile.push(Object.assign(document.createElement('kbd'), { textContent: taste }));
-    if (zusatz) teile.push(Object.assign(document.createElement('small'), { textContent: zusatz }));
+    if (teile.length) teile.push(neu('span', 'plus', '+'));
+    const kappe = neu('span', 'kappe', '');
+    kappe.append(neu('span', 'taste', taste));
+    if (zusatz) kappe.append(neu('small', '', zusatz));
+    teile.push(kappe);
   }
   ziel.replaceChildren(...teile);
+  ziel.setAttribute(
+    'aria-label',
+    `Sprechtaste ${(KAPPE[hotkey] || []).map((k) => k.join(' ')).join(' plus ')} – ändern`,
+  );
 }
 
 // --- Bereiche (Seitenleiste) ---------------------------------------------
@@ -67,6 +72,11 @@ function anzeigen(s) {
     r.disabled = !s.smoothing;
   }
   kappenZeigen($('kappe'), s.hotkey);
+  $('tastenmodus').value = s.hotkeyMode;
+  $('sprechtaste-text').textContent =
+    s.hotkeyMode === 'umschalten'
+      ? 'Zweimal tippen, sprechen, einmal tippen – der Text erscheint am Cursor'
+      : 'Gedrückt halten, sprechen, loslassen – der Text erscheint am Cursor';
   $('glaettung').checked = s.smoothing;
   $('autostart').checked = s.autostart;
   pilleAnzeigen(s.pill);
@@ -279,19 +289,20 @@ $('pille-zurueck').addEventListener('click', () =>
 for (const r of document.querySelectorAll('input[name="hotkey"]')) {
   r.addEventListener('change', () => speichern({ hotkey: r.value }));
 }
-// Würde die Wahl ein fehlendes Gründlich-Modell (2,5 GB) laden, vorher fragen.
+$('tastenmodus').addEventListener('change', (e) => speichern({ hotkeyMode: e.target.value }));
+// Würde die Wahl ein fehlendes Sprachmodell laden, vorher fragen.
+const DOWNLOAD = {
+  ausgewogen: { titel: 'Ausgewogene Glättung laden?', text: 'Einmalig 1,1 GB, danach offline.' },
+  gruendlich: { titel: 'Gründliche Glättung laden?', text: 'Einmalig 2,5 GB, danach offline.' },
+};
 async function stufeWaehlen(wert) {
   let st = letzterStatus;
   try {
     st = await api.status.get();
   } catch {}
-  const gruendlich = wert === 'gruendlich' || (wert === 'auto' && st?.autoTier === 'gruendlich');
-  if (gruendlich && st?.gruendlichFehlt) {
-    const laden = await window.bestaetigen({
-      titel: 'Gründliche Glättung laden?',
-      text: 'Einmalig 2,5 GB, danach offline.',
-      ja: 'Laden',
-    });
+  const stufe = wert === 'auto' ? st?.autoTier : wert;
+  if (DOWNLOAD[stufe] && st?.[`${stufe}Fehlt`]) {
+    const laden = await window.bestaetigen({ ...DOWNLOAD[stufe], ja: 'Laden' });
     if (!laden) return anzeigen(aktuell); // vorige Stufe wieder anzeigen
   }
   speichern({ smoothingModel: wert });
@@ -300,12 +311,16 @@ async function stufeWaehlen(wert) {
 for (const r of document.querySelectorAll('input[name="smoothingModel"]')) {
   r.addEventListener('change', () => stufeWaehlen(r.value));
 }
-$('kuerzel-aendern').addEventListener('click', (e) => {
+// Ändern-Knopf und Tastenkappe klappen die Auswahl der Sprechtaste auf und zu.
+function kuerzelWahlUmschalten() {
   const offen = $('kuerzel-wahl').hidden;
   $('kuerzel-wahl').hidden = !offen;
-  e.currentTarget.setAttribute('aria-expanded', String(offen));
+  for (const k of [$('kuerzel-aendern'), $('kappe')])
+    k.setAttribute('aria-expanded', String(offen));
   if (offen) $('kuerzel-wahl').querySelector('input:checked')?.focus();
-});
+}
+$('kuerzel-aendern').addEventListener('click', kuerzelWahlUmschalten);
+$('kappe').addEventListener('click', kuerzelWahlUmschalten);
 $('ueber').addEventListener('click', () => api.about());
 $('glaettung').addEventListener('change', (e) => speichern({ smoothing: e.target.checked }));
 $('autostart').addEventListener('change', (e) => speichern({ autostart: e.target.checked }));
@@ -438,7 +453,7 @@ const STATUSZEILE = {
   fehler: 'Fehler – wird neu gestartet',
   fehlt: 'Einrichtung nicht abgeschlossen',
 };
-const STUFE_TEXT = { schnell: 'Schnell', gruendlich: 'Gründlich' };
+const STUFE_TEXT = { schnell: 'Schnell', ausgewogen: 'Ausgewogen', gruendlich: 'Gründlich' };
 
 function statusAnzeigen(st) {
   letzterStatus = st;
@@ -452,7 +467,9 @@ function statusAnzeigen(st) {
   $('status-glaettung').textContent =
     st.tier === 'gruendlich'
       ? `Glättung: Gründlich auf ${BACKEND_TEXT[st.backend] || 'Prozessor'}${st.rueckfall ? ' (Rückfall, Grafikkarte nicht nutzbar)' : ''}`
-      : 'Glättung: Schnell (Regeln)';
+      : st.tier === 'ausgewogen'
+        ? 'Glättung: Ausgewogen auf Prozessor'
+        : 'Glättung: Schnell (Regeln)';
   $('status-engine').textContent = ENGINE_TEXT[st.engines] || ENGINE_TEXT.fehlt;
 }
 

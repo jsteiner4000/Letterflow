@@ -1,5 +1,6 @@
-// Auswertung des Testsatzes: npx electron scripts/eval.js [--tier schnell|gruendlich|beide]
-// Liest testdata/stimme/<id>.wav, schreibt Abschnitt 13 in docs/messungen.md.
+// Auswertung des Testsatzes: npx electron scripts/eval.js [--tier schnell,ausgewogen,gruendlich|beide]
+//   [--cpu] (Grafikkarte nicht nutzen) [--modell <gguf>] (anderes Modell für „ausgewogen“) [--aus <datei.md>]
+// Liest testdata/stimme/<id>.wav, schreibt Abschnitt 13 in docs/messungen.md (oder nach --aus).
 const { app } = require('electron');
 const fs = require('fs');
 const path = require('path');
@@ -12,6 +13,10 @@ const { getDataDir } = require('../src/main/catalog');
 const root = path.join(__dirname, '..');
 const i = process.argv.indexOf('--tier');
 const wahl = i >= 0 ? process.argv[i + 1] : 'beide';
+const option = (name) => {
+  const k = process.argv.indexOf(name);
+  return k >= 0 ? process.argv[k + 1] : undefined;
+};
 const KORREKTUR = new Set(['16', '19', '20']); // Selbstkorrektur: bei „schnell“ nicht in der WER-Mitte
 const wavPfad = (id) => path.join(root, 'testdata', 'stimme', id + '.wav');
 
@@ -22,9 +27,15 @@ const woerter = (t) =>
     .replace(/[^\p{L}\p{N}\s]/gu, '')
     .split(/\s+/)
     .filter(Boolean);
-function wer(erw, ist) {
-  const a = woerter(erw);
-  const b = woerter(ist);
+// Streng: Groß-/Kleinschreibung und Satzzeichen zählen mit (Satzzeichen als eigene Wörter).
+const streng = (t) =>
+  t
+    .replace(/([.,!?;:])/g, ' $1 ')
+    .split(/\s+/)
+    .filter(Boolean);
+function wer(erw, ist, zerlegen = woerter) {
+  const a = zerlegen(erw);
+  const b = zerlegen(ist);
   let d = Array.from({ length: b.length + 1 }, (_, j) => j);
   for (let x = 1; x <= a.length; x++) {
     const neu = [x];
@@ -55,14 +66,24 @@ async function lauf() {
   }
   if (da.length < satz.length)
     console.log(`Hinweis: ${satz.length - da.length} Sätze ohne Aufnahme übersprungen.`);
-  const tiers = wahl === 'beide' ? ['schnell', 'gruendlich'] : [wahl];
+  const tiers = wahl === 'beide' ? ['schnell', 'gruendlich'] : wahl.split(',');
   const hw = await detectHardware(undefined, { dataDir: getDataDir() });
+  if (process.argv.includes('--cpu')) hw.backend = 'cpu';
+  if (option('--modell')) {
+    const eintrag = require('../models.json').find((m) => m.id === 'llama-ausgewogen');
+    eintrag.file = path
+      .relative(path.join(getDataDir(), 'models'), path.resolve(option('--modell')))
+      .split(path.sep)
+      .join('/');
+  }
   const manager = new EngineManager({
     dataDir: getDataDir(),
     backend: hw.backend,
-    tier: tiers.includes('gruendlich') ? 'gruendlich' : 'schnell',
+    tier: tiers.find((t) => t !== 'schnell') || 'schnell',
   });
+  const s0 = Date.now();
   await manager.start();
+  const startMs = Date.now() - s0;
   const zeilen = [];
   const glaetten = (t, text) =>
     polish(text, { tier: t, llamaUrl: manager.llamaUrl, llamaKey: manager.llamaKey });
@@ -79,7 +100,14 @@ async function lauf() {
       for (const t of tiers) {
         const p0 = Date.now();
         const text = await glaetten(t, roh);
-        z.t[t] = { text, wer: wer(s.erwartet, text), lat: tAsr + (Date.now() - p0) };
+        const glatt = Date.now() - p0;
+        z.t[t] = {
+          text,
+          wer: wer(s.erwartet, text),
+          streng: wer(s.erwartet, text, streng),
+          glatt,
+          lat: tAsr + glatt,
+        };
       }
       zeilen.push(z);
       console.log(
@@ -92,16 +120,14 @@ async function lauf() {
   }
 
   let md = '## 13. Testsatz mit echter Stimme (Task 11)\n\n';
-  md += `Gemessen am ${new Date().toISOString().slice(0, 10)}, ${zeilen.length} Sätze, Backend ${hw.backend}. Latenz = Loslassen→Text (Erkennung + Glättung).\n\n`;
+  const modell = option('--modell') ? `, Modell ${path.basename(option('--modell'))}` : '';
+  md += `Gemessen am ${new Date().toISOString().slice(0, 10)}, ${zeilen.length} Sätze, Backend ${hw.backend}${modell}. Latenz = Loslassen→Text (Erkennung + Glättung); Start bis bereit ${sek(startMs)}. „streng“ = WER mit Groß-/Kleinschreibung und Satzzeichen.\n\n`;
   for (const t of tiers) {
     const alle = zeilen.map((z) => z.t[t]);
     const ohne = zeilen.filter((z) => !KORREKTUR.has(z.id)).map((z) => z.t[t]);
     const kor = zeilen.filter((z) => KORREKTUR.has(z.id)).map((z) => z.t[t]);
-    md +=
-      t === 'schnell'
-        ? `- **schnell**: mittlere WER ${pr(mittel(ohne.map((x) => x.wer)))} (ohne Selbstkorrektur-Sätze; nur diese: ${pr(mittel(kor.map((x) => x.wer)))})`
-        : `- **${t}**: mittlere WER ${pr(mittel(alle.map((x) => x.wer)))} (alle Sätze)`;
-    md += `, Median-Latenz ${sek(median(alle.map((x) => x.lat)))}\n`;
+    md += `- **${t}**: mittlere WER ${pr(mittel(alle.map((x) => x.wer)))} (alle Sätze; ohne Selbstkorrektur-Sätze ${pr(mittel(ohne.map((x) => x.wer)))}, nur diese ${pr(mittel(kor.map((x) => x.wer)))})`;
+    md += `, streng ${pr(mittel(alle.map((x) => x.streng)))}, Median-Latenz ${sek(median(alle.map((x) => x.lat)))} (Glättung allein ${sek(median(alle.map((x) => x.glatt)))}, langsamste ${sek(Math.max(...alle.map((x) => x.glatt)))})\n`;
   }
   md += `- **roh** (Parakeet ohne Glättung): mittlere WER ${pr(mittel(zeilen.map((z) => z.werRoh)))}\n\n`;
   md += `| Nr. | Erwartet | Roh | ${tiers.map((t) => `${t} (WER, Zeit)`).join(' | ')} |\n`;
@@ -114,6 +140,8 @@ async function lauf() {
         .join(' | ') +
       ' |\n';
 
+  console.log(md.slice(0, md.indexOf('| Nr.')));
+  if (option('--aus')) return fs.writeFileSync(option('--aus'), md);
   const datei = path.join(root, 'docs', 'messungen.md');
   let alt = fs.readFileSync(datei, 'utf8');
   const k = alt.indexOf('## 13. Testsatz mit echter Stimme');

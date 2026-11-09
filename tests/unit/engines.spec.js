@@ -5,6 +5,7 @@ const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const { launchApp } = require('../e2e/helpers');
+const MODELS_JSON = require('../../models.json').filter((m) => m.id.startsWith('llama-'));
 
 let app;
 let dataDir;
@@ -67,6 +68,21 @@ test('auf dem Prozessor kein -ngl', async () => {
   const id = await erzeugen('gruendlich', 'cpu');
   await E((_e, i) => global.__letterflow.engines.start(i), id);
   expect(await E((_e, i) => global.__letterflow.engines.llamaArgs(i), id)).not.toContain('-ngl');
+});
+
+test('Ausgewogen: kleines Modell schonend auf dem Prozessor, Wechsel zu Gründlich lädt das große', async () => {
+  const id = await erzeugen('ausgewogen', 'vulkan');
+  await E((_e, i) => global.__letterflow.engines.start(i), id);
+  expect(await status(id)).toBe('bereit');
+  const args = await E((_e, i) => global.__letterflow.engines.llamaArgs(i), id);
+  expect(args).not.toContain('-ngl');
+  expect(args).toEqual(expect.arrayContaining(['--prio', '-1', '-c', '2048']));
+  expect(args[args.indexOf('-m') + 1]).toContain(MODELS_JSON[0].file);
+  await E((_e, i) => global.__letterflow.engines.setTier(i, 'gruendlich'), id);
+  expect(await status(id)).toBe('bereit');
+  const neu = await E((_e, i) => global.__letterflow.engines.llamaArgs(i), id);
+  expect(neu[neu.indexOf('-m') + 1]).toContain(MODELS_JSON[1].file);
+  expect(neu).toContain('-ngl');
 });
 
 test('Schlüssel und Port wechseln bei jedem Start', async () => {

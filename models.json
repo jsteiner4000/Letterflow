@@ -32,6 +32,14 @@
     "license": "CC-BY-4.0"
   },
   {
+    "id": "llama-ausgewogen",
+    "file": "Qwen3-1.7B-Q4_K_M.gguf",
+    "url": "https://huggingface.co/unsloth/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q4_K_M.gguf",
+    "sha256": "b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897",
+    "bytes": 1107409472,
+    "license": "Apache-2.0"
+  },
+  {
     "id": "llama-gruendlich",
     "file": "Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
     "url": "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_M.gguf",

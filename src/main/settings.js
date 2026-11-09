@@ -3,6 +3,7 @@ const path = require('node:path');
 
 const DEFAULTS = {
   hotkey: 'rctrl',
+  hotkeyMode: 'halten', // halten: gedrückt halten · umschalten: doppelt tippen startet, einmal tippen beendet
   micDeviceId: null,
   smoothing: true,
   smoothingModel: 'auto',
@@ -21,7 +22,8 @@ const DEFAULTS = {
 };
 
 const HOTKEYS = ['rctrl', 'ctrl+win', 'ctrl+shift'];
-const MODELS = ['auto', 'schnell', 'gruendlich'];
+const MODELS = ['auto', 'schnell', 'ausgewogen', 'gruendlich'];
+const HOTKEY_MODES = ['halten', 'umschalten'];
 const TINTS = ['hell', 'neutral', 'dunkel', 'warm', 'petrol'];
 const ANIMATIONS = ['auto', 'an', 'aus'];
 
@@ -49,6 +51,7 @@ function pill(v) {
 // Prüft je Feld; ungültige Werte ergeben undefined (= Standardwert).
 const VALIDATORS = {
   hotkey: (v) => (HOTKEYS.includes(v) ? v : undefined),
+  hotkeyMode: (v) => (HOTKEY_MODES.includes(v) ? v : undefined),
   micDeviceId: (v) => (v === null || (typeof v === 'string' && v !== '') ? v : undefined),
   smoothing: (v) => (typeof v === 'boolean' ? v : undefined),
   smoothingModel: (v) => (MODELS.includes(v) ? v : undefined),

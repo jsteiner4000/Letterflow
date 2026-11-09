@@ -32,10 +32,11 @@ function fehlerMelden(code, auto = false) {
 }
 
 let frage = null; // löst mit der gewählten Glättungsstufe auf, solange die Erstwahl offen ist
+let empfohlen = 'schnell'; // Stufe, die „Automatisch“ auf diesem PC wählen würde
 
-ipcMain.handle('setup:plan', () => (frage ? { frage: true } : plan));
+ipcMain.handle('setup:plan', () => (frage ? { frage: true, empfohlen } : plan));
 ipcMain.handle('setup:waehlen', (_event, wahl) => {
-  if (frage && (wahl === 'gruendlich' || wahl === 'schnell')) frage(wahl);
+  if (frage && ['schnell', 'ausgewogen', 'gruendlich'].includes(wahl)) frage(wahl);
 });
 ipcMain.handle('setup:retry', () => {
   if (wiederholen) wiederholen();
@@ -134,13 +135,14 @@ async function ausfuehren(fehlend) {
 }
 
 // Erster Start (noch keine Modelle, Stufe nie gewählt): Person wählt die Glättungsstufe, bevor etwas geladen wird.
-// aktuell(): gespeicherte Stufe; speichern(patch): Einstellungen sichern.
-async function ersteWahl({ aktuell, speichern }) {
+// aktuell(): gespeicherte Stufe; speichern(patch): Einstellungen sichern; auto: Stufe von „Automatisch“.
+async function ersteWahl({ aktuell, speichern, auto }) {
   if (testMode && !process.env.LETTERFLOW_CATALOG_URL_BASE) return;
   if (aktuell() !== 'auto') return;
   const dataDir = getDataDir();
   const liste = requiredFiles({ backend: 'cpu', tier: 'schnell', dataDir, ...katalogOptionen() });
   if (!missingFiles(dataDir, liste).length) return;
+  empfohlen = auto;
   const wahl = await new Promise((fertig) => {
     frage = fertig;
     windows.openSetup();
@@ -196,10 +198,10 @@ const testAusfallNaechstes = () => {
 
 const isComplete = () => phase === 'fertig';
 
-// Fehlen Dateien, die nur die Stufe „Gründlich“ braucht (Sprachmodell, ggf. CUDA-Engine)?
-function gruendlichFehlt(backend) {
+// Fehlen Dateien, die nur diese Stufe braucht (Sprachmodell, bei Gründlich ggf. CUDA-Engine)?
+function stufeFehlt(backend, tier) {
   const dataDir = getDataDir();
-  const liste = requiredFiles({ backend, tier: 'gruendlich', dataDir, ...katalogOptionen() });
+  const liste = requiredFiles({ backend, tier, dataDir, ...katalogOptionen() });
   return (
     missingFiles(
       dataDir,
@@ -214,5 +216,5 @@ module.exports = {
   showSetup,
   isComplete,
   testAusfallNaechstes,
-  gruendlichFehlt,
+  stufeFehlt,
 };

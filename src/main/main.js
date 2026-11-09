@@ -78,9 +78,10 @@ if (!app.requestSingleInstanceLock()) {
       rueckfall: engines ? engines.fallback : false,
       // Für die Stufenwahl: was „Automatisch“ hier wählt und ob Gründlich erst laden müsste.
       autoTier: hardware
-        ? chooseSmoothingTier(hardware.devices, hardware.dedicatedVramMiB, 'auto')
+        ? chooseSmoothingTier(hardware.devices, hardware.dedicatedVramMiB, 'auto', hardware)
         : null,
-      gruendlichFehlt: setup.gruendlichFehlt(hardware ? hardware.backend : 'cpu'),
+      gruendlichFehlt: setup.stufeFehlt(hardware ? hardware.backend : 'cpu', 'gruendlich'),
+      ausgewogenFehlt: setup.stufeFehlt('cpu', 'ausgewogen'),
     };
   }
 
@@ -89,6 +90,7 @@ if (!app.requestSingleInstanceLock()) {
       hardware.devices,
       hardware.dedicatedVramMiB,
       loadSettings(dir).smoothingModel,
+      hardware,
     );
 
   // Hardware erkennen, Dateien nachladen, Engines starten. Die Stufe wird nach der
@@ -100,6 +102,7 @@ if (!app.requestSingleInstanceLock()) {
     await setup.ersteWahl({
       aktuell: () => loadSettings(dir).smoothingModel,
       speichern: (patch) => saveSettings(dir, patch),
+      auto: chooseSmoothingTier(hardware.devices, hardware.dedicatedVramMiB, 'auto', hardware),
     });
     for (;;) {
       hardware.tier = aktuelleStufe(dir);
@@ -154,6 +157,7 @@ if (!app.requestSingleInstanceLock()) {
       hardware.devices,
       hardware.dedicatedVramMiB,
       settings.smoothingModel,
+      hardware,
     );
     if (!engines) {
       hardware.tier = neu;
@@ -179,7 +183,8 @@ if (!app.requestSingleInstanceLock()) {
       }
       stufePruefen(settings);
       // Neues Kürzel gilt sofort, ohne Neustart.
-      if (helper && settings.hotkey !== helper.preset) helper.setPreset(settings.hotkey);
+      if (helper && (settings.hotkey !== helper.preset || settings.hotkeyMode !== helper.mode))
+        helper.setPreset(settings.hotkey, settings.hotkeyMode);
       try {
         applyAutostart(settings);
       } catch (fehler) {
@@ -230,7 +235,7 @@ if (!app.requestSingleInstanceLock()) {
       recorder.prepare();
     }
     helper = new Helper();
-    helper.setPreset(einstellungen().hotkey || 'rctrl');
+    helper.setPreset(einstellungen().hotkey || 'rctrl', einstellungen().hotkeyMode);
     if (testMode) {
       // Tests drücken nie echte Tasten: Ersatz-Helfer mit gleichem Protokoll.
       const fake = path.join(__dirname, '..', '..', 'tests', 'fakes', 'fake-helper.js');

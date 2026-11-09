@@ -431,3 +431,97 @@ main {
 .farbe.eigene.gewaehlt span {
   background: var(--c);
 }
+
+/* Sprechtaste als echte Tastenkappe: Unterkante wie eine physische Taste, gibt beim Drücken nach.
+   Klick klappt die Auswahl der Sprechtaste auf (wie „Ändern“). */
+.kappe-knopf {
+  --kante: rgba(30, 25, 20, 0.16);
+  --kante-unten: rgba(30, 25, 20, 0.2);
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 0 0 2px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+.kappe-knopf .plus {
+  font:
+    400 13px/1 'Inter',
+    sans-serif;
+  color: var(--ink-2);
+}
+.kappe {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 5px;
+  min-width: 44px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font:
+    600 13px/32px 'Inter',
+    sans-serif;
+  white-space: nowrap;
+  background: linear-gradient(180deg, var(--btn), var(--card));
+  box-shadow:
+    inset 0 0 0 1px var(--kante),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 2px 0 var(--kante-unten),
+    0 3px 6px rgba(30, 25, 20, 0.06);
+  transition:
+    box-shadow var(--fade),
+    transform var(--press);
+}
+.kappe small {
+  font:
+    500 11px/32px 'Inter',
+    sans-serif;
+  color: var(--ink-2);
+}
+.kappe-knopf:hover .kappe {
+  --kante: rgba(30, 25, 20, 0.28);
+}
+.kappe-knopf:active .kappe {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 0 0 1px var(--kante),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 0 0 var(--kante-unten);
+}
+@media (prefers-color-scheme: dark) {
+  .kappe-knopf {
+    --kante: rgba(255, 250, 240, 0.09);
+    --kante-unten: rgba(0, 0, 0, 0.5);
+  }
+  .kappe {
+    box-shadow:
+      inset 0 0 0 1px var(--kante),
+      inset 0 1px 0 rgba(255, 250, 240, 0.06),
+      0 2px 0 var(--kante-unten),
+      0 3px 6px rgba(0, 0, 0, 0.25);
+  }
+  .kappe-knopf:hover .kappe {
+    --kante: rgba(255, 250, 240, 0.2);
+  }
+  .kappe-knopf:active .kappe {
+    box-shadow:
+      inset 0 0 0 1px var(--kante),
+      inset 0 1px 0 rgba(255, 250, 240, 0.06),
+      0 0 0 var(--kante-unten);
+  }
+}
+@media (forced-colors: active) {
+  .kappe {
+    border: 1px solid ButtonText;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kappe-knopf:active .kappe {
+    transform: none;
+  }
+}

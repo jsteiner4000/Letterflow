@@ -62,13 +62,22 @@ test('AMD-iGPU nimmt Vulkan', () =>
 test('CPU-Build ohne Gerät nimmt CPU', () =>
   expect(chooseBackend(parseDevices(fixture('list-devices-cpu')), false)).toBe('cpu'));
 
-test('Vega-Laptop bekommt automatisch schnell', () => {
+const GiB = 1024 ** 3;
+test('Vega-Laptop: ausgewogen ab 8 GB und 4 Kernen, sonst schnell', () => {
   const vram = parseDedicatedVram(fixture('reg-query-vega'));
   expect(vram).toBeLessThan(6144);
-  expect(chooseSmoothingTier(parseDevices(fixture('list-devices-vega')), vram, 'auto')).toBe(
-    'schnell',
-  );
+  const geraete = parseDevices(fixture('list-devices-vega'));
+  const stufe = (ramBytes, threads) =>
+    chooseSmoothingTier(geraete, vram, 'auto', { ramBytes, threads });
+  expect(stufe(7.4 * GiB, 16)).toBe('ausgewogen'); // „8 GB“ mit reserviertem Grafikspeicher
+  expect(stufe(6 * GiB, 16)).toBe('schnell');
+  expect(stufe(16 * GiB, 4)).toBe('schnell'); // 2 Kerne mit 4 Threads
 });
+
+test('Einstellung "ausgewogen" gilt unabhängig von der Hardware', () =>
+  expect(chooseSmoothingTier([nvidia], 0, 'ausgewogen', { ramBytes: 0, threads: 1 })).toBe(
+    'ausgewogen',
+  ));
 
 test('8-GB-Grafikkarte bekommt automatisch gründlich', () =>
   expect(chooseSmoothingTier([amd], parseDedicatedVram(fixture('reg-query-8gb')), 'auto')).toBe(
@@ -92,6 +101,8 @@ test('Testmodus: feste Hardware ohne Prozesse', async () => {
       tier: 'schnell',
       devices: [],
       dedicatedVramMiB: 0,
+      ramBytes: 0,
+      threads: 0,
     });
   } finally {
     delete process.env.LETTERFLOW_FAKE_ENGINES;

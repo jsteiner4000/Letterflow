@@ -23,6 +23,7 @@ class Helper extends EventEmitter {
     this.pending = new Map();
     this.machine = createHotkeyMachine('rctrl');
     this.preset = 'rctrl';
+    this.mode = 'halten';
     this.mask = false;
     this.backoffMs = BACKOFF_MS;
     this.failures = [];
@@ -54,7 +55,7 @@ class Helper extends EventEmitter {
       this._resolveAll();
       // Stürzt der Helfer bei gehaltenem Kürzel ab, muss die App die Aufnahme abbrechen
       const r = this.machine.reset();
-      this.machine = createHotkeyMachine(this.preset);
+      this.machine = createHotkeyMachine(this.preset, this.mode);
       this.mask = false;
       if (r) this.emit('hotkey-' + r);
       if (this.stopped) return;
@@ -121,9 +122,10 @@ class Helper extends EventEmitter {
     });
   }
 
-  setPreset(preset) {
+  setPreset(preset, mode = 'halten') {
     this.preset = preset;
-    this.machine = createHotkeyMachine(preset);
+    this.mode = mode;
+    this.machine = createHotkeyMachine(preset, mode);
   }
 
   focus() {

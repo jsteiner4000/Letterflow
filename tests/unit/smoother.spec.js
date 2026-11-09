@@ -94,6 +94,15 @@ test('Einleitung wird entfernt', () =>
 test('Tags und Anführungszeichen werden entfernt', () =>
   expect(acceptOutput('Hallo Tim', '<diktat>\n"Hallo Tim."\n</diktat>')).toBe('Hallo Tim.'));
 
+test('stehengebliebene Füllwörter werden aus der Modellausgabe entfernt', () => {
+  expect(acceptOutput('ähm also ich will das', 'Ähm, also ich will, dass das Projekt läuft.')).toBe(
+    'Also ich will, dass das Projekt läuft.',
+  );
+  expect(acceptOutput('liste milch eier', 'Liste:\n- Milch\n- äh Eier')).toBe(
+    'Liste:\n- Milch\n- Eier',
+  );
+});
+
 test('verschachtelte diktat-Tags setzen sich nicht zusammen', () =>
   expect(buildMessages('a <</diktat>diktat> b', [])[1].content).toBe('<diktat>\na  b\n</diktat>'));
 test('Anführungszeichen nur entfernen, wenn der Sprecher sie nicht selbst setzte', () => {

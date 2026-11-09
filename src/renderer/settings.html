@@ -93,9 +93,18 @@
             <div class="zeile">
               <div class="text">
                 <b id="l-sprechtaste">Sprechtaste</b>
-                <span>Gedrückt halten, sprechen, loslassen – der Text erscheint am Cursor</span>
+                <span id="sprechtaste-text"
+                  >Gedrückt halten, sprechen, loslassen – der Text erscheint am Cursor</span
+                >
               </div>
-              <span id="kappe" class="tasten"></span>
+              <button
+                id="kappe"
+                class="kappe-knopf"
+                type="button"
+                title="Sprechtaste ändern"
+                aria-expanded="false"
+                aria-controls="kuerzel-wahl"
+              ></button>
               <button
                 id="kuerzel-aendern"
                 class="knopf"
@@ -145,6 +154,19 @@
                 ></label
               >
             </div>
+            <div class="zeile">
+              <div class="text">
+                <b id="l-tastenmodus">Bedienung</b>
+                <span>Umschalten: zweimal tippen startet, einmal tippen beendet</span>
+              </div>
+              <span class="auswahl">
+                <select id="tastenmodus" aria-labelledby="l-tastenmodus">
+                  <option value="halten">Halten</option>
+                  <option value="umschalten">Umschalten</option>
+                </select>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+              </span>
+            </div>
           </div>
 
           <h2>Glättung</h2>
@@ -179,6 +201,14 @@
                 <input type="radio" name="smoothingModel" value="schnell" />
                 <span class="kreis" aria-hidden="true"></span>
                 <span class="text"><b>Schnell</b><span>Sofort, ohne Selbstkorrekturen</span></span>
+              </label>
+              <label class="zeile wahl">
+                <input type="radio" name="smoothingModel" value="ausgewogen" />
+                <span class="kreis" aria-hidden="true"></span>
+                <span class="text"
+                  ><b>Ausgewogen</b
+                  ><span>Etwas genauer, schont den PC · lädt einmalig 1,1 GB</span></span
+                >
               </label>
               <label class="zeile wahl">
                 <input type="radio" name="smoothingModel" value="gruendlich" />

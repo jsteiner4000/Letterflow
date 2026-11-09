@@ -43,6 +43,17 @@ $('erneut').addEventListener('click', () => {
 function planAnzeigen(plan) {
   if (!plan) return;
   if (plan.frage) {
+    // Die zum PC passende Stufe ist vorgewählt und als empfohlen markiert.
+    const empfohlen = document.querySelector(`input[name=stufe][value="${plan.empfohlen}"]`);
+    if (empfohlen && !$('wahl').querySelector('.empfohlen')) {
+      empfohlen.checked = true;
+      empfohlen.parentElement.querySelector('b').append(
+        Object.assign(document.createElement('span'), {
+          className: 'empfohlen',
+          textContent: ' (empfohlen)',
+        }),
+      );
+    }
     $('wahl').hidden = false;
     return;
   }

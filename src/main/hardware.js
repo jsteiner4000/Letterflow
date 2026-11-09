@@ -1,12 +1,16 @@
 // Hardware-Erkennung: Grafikgeräte (llama-server --list-devices), Grafikspeicher (Registry),
-// daraus Backend (cpu/vulkan/cuda) und Glättungsstufe (schnell/gruendlich).
+// daraus Backend (cpu/vulkan/cuda) und Glättungsstufe (schnell/ausgewogen/gruendlich).
 const { execFile } = require('node:child_process');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { promisify } = require('node:util');
 
 const SOFTWARE_RENDERER = /llvmpipe|lavapipe|swiftshader|software|microsoft basic/i;
 const GRUENDLICH_MIN_VRAM_MIB = 6144;
+// „8 GB“-Rechner melden wegen reservierten Grafikspeichers weniger; 7 GiB lässt sie durch.
+const AUSGEWOGEN_MIN_RAM = 7 * 1024 ** 3;
+const AUSGEWOGEN_MIN_THREADS = 8; // ≈ 4 Kerne (2 Threads je Kern, wie in engines.js angenommen)
 const ABFRAGE_TIMEOUT_MS = 10000;
 
 function vendorVon(name) {
@@ -46,11 +50,18 @@ function chooseBackend(devices, cudaInstalled) {
   return devices.length ? 'vulkan' : 'cpu';
 }
 
-function chooseSmoothingTier(devices, dedicatedVramMiB, setting) {
-  if (setting === 'schnell' || setting === 'gruendlich') return setting;
-  const stark =
-    devices.some((d) => d.vendor === 'nvidia') || dedicatedVramMiB >= GRUENDLICH_MIN_VRAM_MIB;
-  return stark ? 'gruendlich' : 'schnell';
+function chooseSmoothingTier(
+  devices,
+  dedicatedVramMiB,
+  setting,
+  { ramBytes = 0, threads = 0 } = {}, // aus detectHardware
+) {
+  if (['schnell', 'ausgewogen', 'gruendlich'].includes(setting)) return setting;
+  if (devices.some((d) => d.vendor === 'nvidia') || dedicatedVramMiB >= GRUENDLICH_MIN_VRAM_MIB)
+    return 'gruendlich';
+  return ramBytes >= AUSGEWOGEN_MIN_RAM && threads >= AUSGEWOGEN_MIN_THREADS
+    ? 'ausgewogen'
+    : 'schnell';
 }
 
 // Ordner der gebündelten Engines (Entwicklung: resources/, paketiert: Ressourcen-Ordner).
@@ -90,11 +101,18 @@ async function vramAuslesen() {
   }
 }
 
-// Liefert { backend, tier, devices, dedicatedVramMiB }. `dataDir` dient nur dazu, eine
+// Liefert { backend, tier, devices, dedicatedVramMiB, ramBytes, threads }. `dataDir` dient nur dazu, eine
 // nachgeladene CUDA-Engine zu finden.
 async function detectHardware(setting, { dataDir } = {}) {
   if (process.env.LETTERFLOW_FAKE_ENGINES === '1')
-    return { backend: 'cpu', tier: 'schnell', devices: [], dedicatedVramMiB: 0 };
+    return {
+      backend: 'cpu',
+      tier: 'schnell',
+      devices: [],
+      dedicatedVramMiB: 0,
+      ramBytes: 0,
+      threads: 0,
+    };
   const [devices, dedicatedVramMiB] = await Promise.all([
     geraeteAuslesen(path.join(bundledEnginesDir(), 'vulkan', 'llama', 'llama-server.exe')),
     vramAuslesen(),
@@ -102,11 +120,13 @@ async function detectHardware(setting, { dataDir } = {}) {
   const cudaInstalled = Boolean(
     dataDir && fs.existsSync(path.join(dataDir, 'engines', 'cuda', 'llama', 'llama-server.exe')),
   );
+  const rechner = { ramBytes: os.totalmem(), threads: os.availableParallelism() };
   return {
     backend: chooseBackend(devices, cudaInstalled),
-    tier: chooseSmoothingTier(devices, dedicatedVramMiB, setting),
+    tier: chooseSmoothingTier(devices, dedicatedVramMiB, setting, rechner),
     devices,
     dedicatedVramMiB,
+    ...rechner,
   };
 }
 

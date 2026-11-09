@@ -186,6 +186,13 @@ Werte werden sofort gespeichert (`settings.pill = { frost, opacity, refraction, 
 
 ### Pille 0.23 – dezenterer Rand, Lieblingswerte (Julius, 2026-11-09) – ersetzt Abweichendes oben
 
-- **Rand:** Der helle Ring wirkte künstlich. Jetzt wie Apple-Glas zurückhaltend: oben ein Lichtsaum (1 Gerätepixel, weiß 30 %, über hellem Grund 45 %), ringsum nur eine kaum sichtbare Kante (weiß 8 %, über hellem Grund schwarz 10 %), innen unten leichte Abdunklung (6 %); kein Gegenreflex unten rechts, kein innerer Schein. Glanz oben links halb so stark (18 %). Linse und Brechung unverändert. Vergleich: `docs/design/ist/rand-vorher-nachher.png`.
+- **Rand:** ~~dezenter Lichtsaum statt Vollring~~ – in 0.24 zurückgenommen, siehe unten.
 - **Standard der Pille:** Milchigkeit 25, Durchsicht 34, Lichtbrechung 62, Tönung dunkel, Abdunkeln an (50 %), Animation automatisch. Gespeicherte Werte bleiben.
 - **Ersatz-Symbol:** Programm unbekannt, kein Textfeld oder Programm ohne eigenes Symbol (leeres Windows-Symbol) → Letterflow-Symbol (`assets/icon.png`) statt „ℓ“-Plakette.
+
+### 0.24 – Rand wieder wie 0.22, Tastenkappe (Julius, 2026-11-09) – ersetzt Abweichendes oben
+
+- **Rand der Pille:** wieder der Stand von 0.22 (Lichtkante oben links 75 %, Gegenreflex unten rechts 35 %, Vollring 35 %, innerer Schein; Glanz oben links 35 %). Einzige Abweichung: über dunklem Grund (Pille ohne `hellgrund`, dieselbe Helligkeitserkennung wie für Schrift und Abdunkeln) ist der helle Ring etwa 28 % schwächer (54 % / 25 % / 25 %), damit er weniger künstlich wirkt. Über hellem Grund exakt wie 0.22. Vergleich (CSS-Nachbau ohne Linse): `docs/design/ist/rand-0.24.png`.
+- **Sprechtaste als Tastenkappe:** eine echte Taste als Knopf – 32 px hoch, Radius 8, Fläche als leichter Verlauf `--btn` → `--card`, feine Kante, 2 px Unterkante wie eine physische Taste; beim Drücken sinkt sie 2 px ein. Beschriftung Inter 600 13 px, Zusatz („rechts“) 11 px in `--ink-2` in derselben Kappe; Kombinationen als zwei Kappen mit dünnem „+“. Hover: Kante kräftiger; Fokus: Fokusring der App. Hell und dunkel über die vorhandenen Farben. Ein Klick klappt wie „Ändern“ die Auswahl der Sprechtaste auf. Fotos: `docs/design/ist/einstellungen-taste-900.png`, `-1700.png`, `-dunkel.png`.
+- **Bedienung:** neue Zeile unter der Sprechtaste, Auswahl „Halten“ (Standard) / „Umschalten“; der Hinweis unter „Sprechtaste“ passt sich an.
+- **Glättung:** drei Stufen in der Reihenfolge Schnell · Ausgewogen · Gründlich (plus Automatisch); Ausgewogen fragt vor dem Laden von 1,1 GB wie Gründlich.

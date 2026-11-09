@@ -111,3 +111,63 @@ test('reset meldet cancel nur bei gehaltenem Kürzel', () => {
   expect(m.reset()).toBe('cancel');
   expect(feedAll(m, [key('lctrl', true), key('lwin', true)])).toEqual([null, 'down']);
 });
+
+// Umschalten: Ereignisse mit Zeitpunkt [ereignis, ms]
+const feedZeit = (m, evs) => evs.map(([e, t]) => m.feed(e, t));
+
+test('Umschalten: doppelt tippen startet, einmal drücken beendet', () => {
+  const m = createHotkeyMachine('rctrl', 'umschalten');
+  const start = [
+    [key('rctrl', true), 0],
+    [key('rctrl', true), 30], // Tastenwiederholung
+    [key('rctrl', false), 80],
+    [key('rctrl', true), 250],
+    [key('rctrl', false), 330],
+    [{ ev: 'other' }, 2000], // Tippen/Fensterwechsel während des Diktats bricht nicht ab
+  ];
+  expect(feedZeit(m, start)).toEqual(['tap', null, null, 'down', null, null]);
+  expect(
+    feedZeit(m, [
+      [key('rctrl', true), 5000],
+      [key('rctrl', true), 5040],
+      [key('rctrl', false), 5100],
+    ]),
+  ).toEqual(['up', null, null]);
+  // danach startet ein einzelnes Antippen nichts
+  expect(
+    feedZeit(m, [
+      [key('rctrl', true), 6000],
+      [key('rctrl', false), 6080],
+    ]),
+  ).toEqual(['tap', null]);
+});
+
+test('Umschalten: einzelnes oder zu langsames Antippen und Strg+Taste starten nichts', () => {
+  const m = createHotkeyMachine('rctrl', 'umschalten');
+  const evs = [
+    [key('rctrl', true), 0],
+    [key('rctrl', false), 80],
+    [key('rctrl', true), 600], // zu spät: neues erstes Antippen
+    [{ ev: 'other' }, 650], // Strg+C
+    [key('rctrl', false), 700],
+    [key('rctrl', true), 800], // nach Strg+C zählt nur ein neues erstes Antippen
+    [key('rctrl', false), 850],
+    [{ ev: 'other' }, 900], // Tippen verwirft das Doppeltippen
+    [key('rctrl', true), 950],
+  ];
+  expect(feedZeit(m, evs)).toEqual(['tap', null, 'tap', null, null, 'tap', null, null, 'tap']);
+});
+
+test('Umschalten: Esc bricht das laufende Diktat ab, reset meldet cancel', () => {
+  const m = createHotkeyMachine('rctrl', 'umschalten');
+  const doppelt = (t) => [
+    [key('rctrl', true), t],
+    [key('rctrl', false), t + 50],
+    [key('rctrl', true), t + 150],
+    [key('rctrl', false), t + 200],
+  ];
+  feedZeit(m, doppelt(0));
+  expect(m.feed({ ev: 'esc' }, 1000)).toBe('cancel');
+  expect(feedZeit(m, doppelt(2000))).toEqual(['tap', null, 'down', null]);
+  expect(m.reset()).toBe('cancel');
+});

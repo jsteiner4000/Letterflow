@@ -23,8 +23,16 @@ test('kaputte Datei wird gesichert und ersetzt', () => {
 });
 
 test('ungültige Werte werden verworfen', () => {
-  const s = saveSettings(dir, { hotkey: 'alt+f4', dictionary: ['Kubernetes', 42, ''] });
+  const s = saveSettings(dir, {
+    hotkey: 'alt+f4',
+    hotkeyMode: 'tippen',
+    dictionary: ['Kubernetes', 42, ''],
+  });
   expect(s.hotkey).toBe('rctrl');
+  expect(s.hotkeyMode).toBe('halten');
+  expect(
+    saveSettings(dir, { hotkeyMode: 'umschalten', smoothingModel: 'ausgewogen' }),
+  ).toMatchObject({ hotkeyMode: 'umschalten', smoothingModel: 'ausgewogen' });
   expect(s.dictionary).toEqual(['Kubernetes']);
 });
 

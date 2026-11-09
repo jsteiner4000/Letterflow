@@ -1,5 +1,5 @@
-// Glättung des erkannten Textes: Stufe „schnell“ mit festen Regeln, Stufe „gründlich“ über den lokalen
-// llama-server. Das Modell bekommt den Diktattext nur als Material im <diktat>-Block; bei Zeitüberschreitung,
+// Glättung des erkannten Textes: Stufe „schnell“ mit festen Regeln, „ausgewogen“ und „gründlich“ über den
+// lokalen llama-server (kleines bzw. großes Modell). Das Modell bekommt den Diktattext nur als Material im <diktat>-Block; bei Zeitüberschreitung,
 // Fehler oder verdächtiger Ausgabe fällt alles auf die Regeln zurück.
 
 const BASE_TIMEOUT_MS = 10000;
@@ -111,6 +111,20 @@ function acceptOutput(input, output) {
     if (q) t = q.slice(1).find((x) => x !== undefined);
     t = t.trim();
   }
+  // Kleine Modelle lassen „Ähm“ gern stehen: zeilenweise entfernen, Zeilenanfang wieder groß.
+  t = t
+    .split('\n')
+    .map((z) => {
+      const ohne = z.replace(FILLER, ' ');
+      if (ohne === z) return z;
+      return ohne
+        .replace(/ {2,}/g, ' ')
+        .replace(/ ([,.!?;:])/g, '$1')
+        .replace(/^\s*(\p{Ll})/u, (_m, c) => c.toUpperCase())
+        .trimEnd();
+    })
+    .join('\n')
+    .trim();
   if (!t) return null;
   const n = countWords(String(input));
   const m = countWords(t);
@@ -153,7 +167,7 @@ async function smooth(url, apiKey, text, { dictionary = [], timeoutMs } = {}) {
 
 async function polish(text, { tier, enabled, dictionary = [], llamaUrl, llamaKey } = {}) {
   if (enabled === false) return text;
-  if (tier === 'gruendlich' && llamaUrl)
+  if ((tier === 'ausgewogen' || tier === 'gruendlich') && llamaUrl)
     return (await smooth(llamaUrl, llamaKey, text, { dictionary })).text;
   return cleanRules(text, dictionary);
 }

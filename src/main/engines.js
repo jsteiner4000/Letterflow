@@ -29,6 +29,10 @@ const FAKES = path.join(__dirname, '..', '..', 'tests', 'fakes');
 const standardThreads = () => Math.min(8, Math.max(2, Math.floor(os.availableParallelism() / 2)));
 // Physische Kerne für llama-server (Annahme: 2 Threads je Kern, wie bei Ryzen/Core mit SMT).
 const physischeKerne = () => Math.max(1, Math.floor(os.availableParallelism() / 2));
+// Stufen mit Sprachmodell; „Ausgewogen“ läuft bewusst nur auf dem Prozessor, mit halben Kernen und
+// niedriger Priorität, damit schwache Laptops bedienbar bleiben.
+const LLAMA_MODELL = { ausgewogen: 'llama-ausgewogen', gruendlich: 'llama-gruendlich' };
+const mitLlama = (tier) => Object.hasOwn(LLAMA_MODELL, tier);
 
 function freierPort() {
   return new Promise((resolve, reject) => {
@@ -87,12 +91,10 @@ class EngineManager extends EventEmitter {
     return this._status;
   }
   get llamaUrl() {
-    return this.tier === 'gruendlich' && this._llama
-      ? `http://127.0.0.1:${this._llama.port}`
-      : null;
+    return mitLlama(this.tier) && this._llama ? `http://127.0.0.1:${this._llama.port}` : null;
   }
   get llamaKey() {
-    return this.tier === 'gruendlich' && this._llama ? this._llama.key : null;
+    return mitLlama(this.tier) && this._llama ? this._llama.key : null;
   }
   get llamaArgs() {
     return this._llama ? this._llama.args : null;
@@ -115,7 +117,7 @@ class EngineManager extends EventEmitter {
   _aktualisieren() {
     let neu = 'startet';
     if (this._fehler) neu = 'fehler';
-    else if (!this._beenden && this._asrReady && (this.tier !== 'gruendlich' || this._llama?.ready))
+    else if (!this._beenden && this._asrReady && (!mitLlama(this.tier) || this._llama?.ready))
       neu = 'bereit';
     this._setStatus(neu);
   }
@@ -165,7 +167,7 @@ class EngineManager extends EventEmitter {
     if (stopNr !== this._stopNr) throw new Error('Die Engines wurden gestoppt.');
     this._setStatus('startet');
     this._workerStarten();
-    if (this.tier === 'gruendlich') this._llamaStarten();
+    if (mitLlama(this.tier)) this._llamaStarten();
     await this._warteAufEnde();
     if (this._status === 'fehler') throw new Error('Die Engines konnten nicht gestartet werden.');
   }
@@ -191,10 +193,12 @@ class EngineManager extends EventEmitter {
     this._gewuenscht = tier;
     for (const w of [...this._warter]) if (w.tier && w.tier !== tier) w.abbrechen();
     if (tier === this.tier) return;
-    if (tier === 'gruendlich') {
+    if (mitLlama(tier)) {
       if (this._prepare) await this._prepare({ backend: this.backend, tier });
       if (this._gewuenscht !== tier || this._beenden) return; // inzwischen überholt
       this.tier = tier;
+      await this._llamaBeenden(); // Wechsel zwischen Ausgewogen und Gründlich: anderes Modell
+      if (this._gewuenscht !== tier || this._beenden) return;
       this._fehler = false;
       this._absturzZeiten.llama = [];
       this._aktualisieren();
@@ -223,7 +227,7 @@ class EngineManager extends EventEmitter {
     ));
     liste.push(jetzt);
     if (liste.length >= MAX_ABSTUERZE) {
-      if (art === 'llama' && this.backend === 'vulkan') {
+      if (art === 'llama' && this.backend === 'vulkan' && this.tier === 'gruendlich') {
         console.error('llama-server stürzt auf Vulkan ab, Rückfall auf den Prozessor.');
         this.backend = 'cpu';
         this._fallback = true;
@@ -241,7 +245,7 @@ class EngineManager extends EventEmitter {
     const wartezeit = this._verzoegerungen[nr - 1];
     this._spaeter(wartezeit, () => {
       if (art === 'worker') this._workerStarten();
-      else if (this.tier === 'gruendlich') this._llamaStarten();
+      else if (mitLlama(this.tier)) this._llamaStarten();
     });
   }
 
@@ -331,9 +335,10 @@ class EngineManager extends EventEmitter {
   // --- llama-server -----------------------------------------------------------
 
   _llamaExe() {
-    return this.backend === 'cuda'
+    const backend = this.tier === 'gruendlich' ? this.backend : 'cpu';
+    return backend === 'cuda'
       ? path.join(this.dataDir, 'engines', 'cuda', 'llama', LLAMA_EXE)
-      : path.join(bundledEnginesDir(), this.backend, 'llama', LLAMA_EXE);
+      : path.join(bundledEnginesDir(), backend, 'llama', LLAMA_EXE);
   }
 
   async _llamaStarten() {
@@ -346,10 +351,10 @@ class EngineManager extends EventEmitter {
       return this._abgestuerzt('llama');
     }
     // Wurde inzwischen beendet oder umgeschaltet (_llamaBeenden zählt den Lauf hoch), nichts starten.
-    if (lauf !== this._llamaLauf || this._beenden || this.tier !== 'gruendlich' || this._llama)
-      return;
+    if (lauf !== this._llamaLauf || this._beenden || !mitLlama(this.tier) || this._llama) return;
     const key = crypto.randomBytes(24).toString('hex');
-    const modell = MODELS.find((m) => m.id === 'llama-gruendlich');
+    const gruendlich = this.tier === 'gruendlich';
+    const modell = MODELS.find((m) => m.id === LLAMA_MODELL[this.tier]);
     const args = [
       '-m',
       path.join(this.dataDir, 'models', ...modell.file.split('/')),
@@ -358,13 +363,15 @@ class EngineManager extends EventEmitter {
       '--port',
       String(port),
       '-t',
-      String(physischeKerne()),
+      String(gruendlich ? physischeKerne() : Math.max(2, Math.floor(physischeKerne() / 2))),
       '-c',
-      '4096',
+      gruendlich ? '4096' : '2048',
       '--api-key',
       key,
     ];
-    if (this.backend !== 'cpu') args.push('-ngl', '99');
+    if (!gruendlich)
+      args.push('--prio', '-1'); // unter normal: Vordergrund-Programme gehen vor
+    else if (this.backend !== 'cpu') args.push('-ngl', '99');
 
     let exe = this._llamaExe();
     let vollArgs = args;
@@ -387,7 +394,7 @@ class EngineManager extends EventEmitter {
     });
     if (typeof logFd === 'number') fs.closeSync(logFd);
     // Das Starten dauert einen Moment; wurde währenddessen beendet oder umgeschaltet, wieder abräumen.
-    if (lauf !== this._llamaLauf || this._beenden || this.tier !== 'gruendlich') {
+    if (lauf !== this._llamaLauf || this._beenden || !mitLlama(this.tier)) {
       child.kill();
       return;
     }

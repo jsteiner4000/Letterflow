@@ -97,6 +97,8 @@ test('Stufenwechsel während der Einrichtung geht nicht verloren', async () => {
   const win = app.windows().find((w) => w.url().includes('settings.html'));
   // Einrichtung läuft noch (Parakeet wird geladen), jetzt auf Gründlich umstellen.
   expect(await app.evaluate(() => global.__letterflow.status().engines)).toBe('fehlt');
+  // Erst wenn die gespeicherte Wahl angezeigt wird, hört die Seite auf Klicks (unter Last sonst zu früh).
+  await expect(win.getByRole('radio', { name: /^Schnell/ })).toBeChecked();
   await win.getByRole('radio', { name: /^Gründlich/ }).click();
   await win.getByRole('dialog').getByRole('button', { name: 'Laden' }).click();
   await expect
