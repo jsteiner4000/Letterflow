@@ -76,7 +76,7 @@ test('Diktat wird regelbasiert geglättet eingefügt und Zwischenablage wiederhe
   await diktieren();
   await expect.poll(lastPaste, { timeout: 10000 }).toEqual({ text: 'Hallo tim.', hwnd: 42 });
   await expect.poll(zwischenablage).toBe('alt');
-  await expect(await zeile(1)).toHaveText('Eingefügt in Word');
+  await expect(await zeile(1)).toHaveText('Eingefügt');
   await expect(await zeile(2)).toHaveText('2 Wörter');
   await expect(await pille()).not.toHaveClass(/sichtbar/);
   // Protokoll: Dauern ja, diktierter Text nie.

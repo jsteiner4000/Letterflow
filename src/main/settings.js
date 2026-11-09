@@ -8,10 +8,28 @@ const DEFAULTS = {
   smoothingModel: 'auto',
   dictionary: [],
   autostart: true,
+  pill: { frost: 40, opacity: 85, refraction: 60, tint: 'hell' },
 };
 
 const HOTKEYS = ['rctrl', 'ctrl+win', 'ctrl+shift'];
 const MODELS = ['auto', 'schnell', 'gruendlich'];
+const TINTS = ['hell', 'neutral', 'dunkel', 'warm', 'petrol'];
+
+// Glas der Pille: Regler 0–100 (ungültig → Standard), Tönung Name oder eigene Farbe #rrggbb.
+function pill(v) {
+  const q = v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+  const d = DEFAULTS.pill;
+  const regler = (k) =>
+    Number.isFinite(q[k]) ? Math.round(Math.min(100, Math.max(0, q[k]))) : d[k];
+  const ok =
+    TINTS.includes(q.tint) || (typeof q.tint === 'string' && /^#[0-9a-f]{6}$/i.test(q.tint));
+  return {
+    frost: regler('frost'),
+    opacity: regler('opacity'),
+    refraction: regler('refraction'),
+    tint: ok ? q.tint.toLowerCase() : d.tint,
+  };
+}
 
 // Prüft je Feld; ungültige Werte ergeben undefined (= Standardwert).
 const VALIDATORS = {
@@ -31,6 +49,7 @@ const VALIDATORS = {
         ]
       : undefined,
   autostart: (v) => (typeof v === 'boolean' ? v : undefined),
+  pill,
 };
 
 function sanitize(raw) {

@@ -20,7 +20,11 @@ Beim ersten Start lädt Letterflow einmalig die Sprachmodelle herunter (ca. 0,7 
 
 ## Einstellungen
 
-Über das Symbol im Infobereich öffnen. Dort stellst du Tastenkürzel, Mikrofon, Glättung („Schnell“/„Gründlich“), Wörterbuch und den Start mit Windows ein. Unter „Text glätten“ steht, ob Grafikkarte oder Prozessor genutzt wird.
+Über das Symbol im Infobereich öffnen. Dort stellst du Tastenkürzel, Mikrofon, Glättung („Schnell“/„Gründlich“), Wörterbuch und den Start mit Windows ein. Unter „Pille“ passt du das Glas der Aufnahme-Anzeige an (Milchigkeit, Durchsicht, Lichtbrechung, Tönung). Unter „Text glätten“ steht, ob Grafikkarte oder Prozessor genutzt wird.
+
+## Datenschutz
+
+Für den Glaseffekt liest die Pille, solange sie sichtbar ist, den Bildschirmbereich direkt hinter sich – nur im Arbeitsspeicher, nie gespeichert oder gesendet (bei „Transparenzeffekte aus“ in Windows entfällt das).
 
 ## Hilfe bei Problemen
 

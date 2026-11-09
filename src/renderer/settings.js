@@ -22,6 +22,7 @@ function bereichZeigen(tab, fokus = false) {
     $(t.getAttribute('aria-controls')).hidden = !an;
   }
   if (fokus) tab.focus();
+  if (tab.id === 'tab-pille' && aktuell) pilleAnzeigen(aktuell.pill); // Breite erst jetzt messbar
   pegelStoppen();
 }
 
@@ -55,6 +56,7 @@ function anzeigen(s) {
   $('kappe').textContent = KAPPE[s.hotkey] || '';
   $('glaettung').checked = s.smoothing;
   $('autostart').checked = s.autostart;
+  pilleAnzeigen(s.pill);
   $('mikrofon').value = s.micDeviceId ?? '';
   eintraegeAnzeigen(s.dictionary);
 }
@@ -130,6 +132,111 @@ function speichern(patchOderFunktion) {
   warteschlange = lauf.catch(() => {});
   return lauf;
 }
+
+// --- Pille: Vorschau (gleicher Glas-Code wie das Aufnahme-Fenster, festes Beispielbild) ---------
+
+const PILLE_STANDARD = { frost: 40, opacity: 85, refraction: 60, tint: 'hell' };
+const BILD_B = 640;
+const BILD_H = 170;
+const BILD_S = 2;
+const vorschau = $('vorschau');
+const vorschauGlas = window.PilleGlas.erzeugen($('vorschau-glas'));
+const beispiel = $('vorschau-bild');
+let pilleStand = { ...PILLE_STANDARD };
+let beispielHell = null;
+
+function beispielZeichnen() {
+  const x = beispiel.getContext('2d');
+  x.scale(BILD_S, BILD_S);
+  const g = x.createLinearGradient(0, 0, BILD_B, BILD_H);
+  g.addColorStop(0, '#c9774e');
+  g.addColorStop(0.5, '#3a5f7a');
+  g.addColorStop(1, '#1d2b38');
+  x.fillStyle = g;
+  x.fillRect(0, 0, BILD_B, BILD_H);
+  x.fillStyle = '#f3d2b8';
+  x.beginPath();
+  x.arc(BILD_B * 0.22, BILD_H * 0.55, 56, 0, 7);
+  x.fill();
+  x.fillStyle = '#fff';
+  x.fillRect(BILD_B * 0.5, 0, BILD_B * 0.5, BILD_H);
+  x.fillStyle = '#222';
+  x.font = '600 16px Georgia, serif';
+  x.fillText('Hallo Tim, ich schicke dir', BILD_B * 0.53, 52);
+  x.fillText('das Recap nach dem Standup.', BILD_B * 0.53, 84);
+  x.fillStyle = '#2b579a';
+  x.fillRect(BILD_B * 0.53, 112, 90, 26);
+  x.fillStyle = '#e8a33d';
+  x.fillRect(BILD_B * 0.53 + 102, 112, 70, 26);
+  if (vorschauGlas) vorschauGlas.bild(beispiel);
+}
+
+const WELLE = Array.from({ length: 22 }, (_, i) =>
+  Math.min(1, 0.2 + 0.8 * Math.abs(Math.sin((i + 1) * 0.9) * Math.cos((i + 1) * 0.37))),
+);
+[...document.querySelectorAll('#vorschau-balken i')].forEach((b, i) => {
+  b.style.transform = `scaleY(${WELLE[i].toFixed(2)})`;
+});
+
+function vorschauAnzeigen() {
+  const breite = vorschau.offsetWidth || 217;
+  const s = BILD_S;
+  const ox = Math.round(((BILD_B - breite) / 2) * s);
+  const oy = Math.round(((BILD_H - 52) / 2) * s);
+  const cfg = { ...pilleStand };
+  if (matchMedia('(prefers-reduced-transparency: reduce)').matches) cfg.opacity = 0;
+  if (beispielHell === null || beispielHell.breite !== breite) {
+    const px = beispiel.getContext('2d').getImageData(ox, oy, Math.round(breite * s), 52 * s);
+    beispielHell = {
+      breite,
+      wert: window.PilleGlas.helligkeit(px.data, px.width, 0, 0, px.width, px.height, false),
+    };
+  }
+  window.PilleGlas.anwenden(vorschau, cfg, beispielHell.wert);
+  const echt = Boolean(vorschauGlas) && !matchMedia('(forced-colors: active)').matches;
+  if (echt) vorschauGlas.zeichnen({ breite, hoehe: 52, s, ox, oy, refraction: cfg.refraction });
+  vorschau.classList.toggle('echt', echt);
+}
+
+const HEX = /^#[0-9a-f]{6}$/i;
+function pilleAnzeigen(p) {
+  pilleStand = p;
+  for (const k of ['frost', 'opacity', 'refraction']) {
+    $(`p-${k}`).value = p[k];
+    $(`w-${k}`).textContent = `${p[k]} %`;
+  }
+  for (const r of document.querySelectorAll('input[name="tint"]')) r.checked = r.value === p.tint;
+  const eigene = HEX.test(p.tint);
+  $('p-eigen').value = eigene ? p.tint : '#ffffff';
+  $('p-eigen').closest('.farbe').classList.toggle('gewaehlt', eigene);
+  $('p-eigen')
+    .closest('.farbe')
+    .style.setProperty('--c', eigene ? p.tint : 'transparent');
+  vorschauAnzeigen();
+}
+
+beispielZeichnen();
+
+for (const k of ['frost', 'opacity', 'refraction']) {
+  $(`p-${k}`).addEventListener('input', (e) => {
+    pilleStand = { ...pilleStand, [k]: Number(e.target.value) };
+    $(`w-${k}`).textContent = `${e.target.value} %`;
+    vorschauAnzeigen();
+  });
+  $(`p-${k}`).addEventListener('change', () =>
+    speichern((s) => ({ pill: { ...s.pill, [k]: pilleStand[k] } })),
+  );
+}
+for (const r of document.querySelectorAll('input[name="tint"]'))
+  r.addEventListener('change', () => speichern((s) => ({ pill: { ...s.pill, tint: r.value } })));
+$('p-eigen').addEventListener('input', (e) => {
+  pilleStand = { ...pilleStand, tint: e.target.value };
+  pilleAnzeigen(pilleStand);
+});
+$('p-eigen').addEventListener('change', (e) =>
+  speichern((s) => ({ pill: { ...s.pill, tint: e.target.value } })),
+);
+$('pille-zurueck').addEventListener('click', () => speichern({ pill: PILLE_STANDARD }));
 
 // --- Eingaben ------------------------------------------------------------
 

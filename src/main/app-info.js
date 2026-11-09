@@ -10,7 +10,8 @@ function cleanName(appName, exe) {
 }
 
 // getFileIcon: (exe, opts) => Promise<NativeImage> (in der App: electron.app.getFileIcon)
-function createAppInfo({ getFileIcon }) {
+// scale: Bildschirmskalierung; das Symbol wird auf 28 × scale verkleinert (scharf in der Pille).
+function createAppInfo({ getFileIcon, scale = () => 1 }) {
   const cache = new Map();
   return async function getAppInfo({ exe, appName } = {}) {
     const name = cleanName(appName, exe);
@@ -18,7 +19,11 @@ function createAppInfo({ getFileIcon }) {
     if (!cache.has(exe)) {
       let url = null;
       try {
-        url = (await getFileIcon(exe, { size: 'small' })).toDataURL();
+        const bild = await getFileIcon(exe, { size: 'large' });
+        const px = Math.round(28 * scale());
+        url = (
+          bild.resize ? bild.resize({ width: px, height: px, quality: 'best' }) : bild
+        ).toDataURL();
       } catch {}
       cache.set(exe, url);
     }

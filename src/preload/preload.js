@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('letterflow', {
     ready: () => ipcRenderer.send('overlay:ready'),
     onState: (cb) => ipcRenderer.on('overlay:state', (_event, state) => cb(state)),
     onLevel: (cb) => ipcRenderer.on('overlay:level', (_event, n) => cb(n)),
+    onBackdrop: (cb) => ipcRenderer.on('overlay:backdrop', (_event, b) => cb(b)),
     onHide: (cb) => ipcRenderer.on('overlay:hide', () => cb()),
     onRecordStart: (cb) => ipcRenderer.on('overlay:record-start', (_event, id) => cb(id)),
     onRecordStop: (cb) => ipcRenderer.on('overlay:record-stop', () => cb()),

@@ -370,3 +370,11 @@ Gemessen am 2026-11-09, 20 Sätze, Backend vulkan. Latenz = Loslassen→Text (Er
 - Metrik: Bindestriche zählen als Leerzeichen, Groß-/Kleinschreibung und Satzzeichen egal, Listenstriche entfallen.
 - Prompt: nur echte Füllwörter weg („bitte“/„noch“ bleiben), nie übersetzen, Listen mit „- “, drei Beispiele (u. a. Englisch bleibt Englisch). Erste Fassung mit nur deutschen Beispielen übersetzte englische Sätze ins Deutsche; mit englischem Beispiel behoben.
 - Parakeet (nur Erkennung, ohne Selbstkorrektur-Sätze, neue Metrik): greedy 11.0 % / 278 ms; modified_beam_search (4 Pfade) 15.9 % / 322 ms, (8 Pfade) 15.9 % / 402 ms, also schlechter; `blankPenalty` 0.25–1: 8.1 % / ~290 ms, 2: 10.4 %, 3: 12.7 %. Gewählt: greedy mit `blankPenalty: 0.5`. Nur 17 Sätze, Wert daher grob.
+
+## Glas-Pille: Bildschirmerfassung (Version 0.18.0)
+
+Gemessen auf diesem Laptop (Bildschirm 125 %), echte Pille, 11 Erfassungen in ca. 9 s (Auffrischung alle 750 ms, `desktopCapturer` + Ausschnitt):
+
+- **Erfassungsdauer:** Median **111 ms**, Maximum 162 ms (die erste). Unter dem Ziel von 250 ms; die Frist von 400 ms wurde nie erreicht. Die Pille erscheint sofort getönt, die Brechung blendet nach ca. 0,12–0,17 s ein.
+- **CPU während die Pille sichtbar ist:** im Mittel **ca. 3,6 %** (Summe aller Electron-Prozesse, Prozent eines Kerns; erste Sekunde 8,7 %), mit Erfassung, WebGL-Linse und Wellenform. Im Leerlauf (Pille aus) 0, denn die Erfassung läuft nur bei sichtbarer Pille.
+- Zeichnen der Linse: WebGL-Shader, einmal je Erfassung und bei Zustandswechsel. Kein Canvas-Ersatz: ohne WebGL bleibt es beim getönten Glas.

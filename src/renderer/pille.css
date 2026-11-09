@@ -1,0 +1,372 @@
+/* Pille (Glas v3, Vorlage docs/design/pille-v3.html): gemeinsam für das Aufnahme-Fenster und die
+   Vorschau in den Einstellungen. Farben/Stärken kommen als Variablen aus pille-glas.js. */
+.pille {
+  --text: #f4fbf9;
+  --text-2: #d3e2df;
+  --live: #5eead4;
+  --live-ink: #5eead4;
+  --warn: #fdba74;
+  --warn-ink: #1f0f04;
+  --t: 255, 255, 255; /* Tönung als r, g, b */
+  --blur: 1.2px;
+  --milch-a: 0.26;
+  --milch-b: 0.14;
+  --deck: 0.06;
+  --w: 217px;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  height: 52px;
+  max-width: 340px;
+  padding: 0 18px 0 12px;
+  border-radius: 26px;
+  overflow: hidden;
+  color: var(--text);
+  white-space: nowrap;
+  /* Getöntes Glas: sofort da, bis (oder falls nie) die Brechung eingeblendet wird */
+  background: rgba(var(--t), 0.72);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.3),
+    0 2px 6px rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  transition: width 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.pille.hellgrund {
+  --text: #1d1d1f;
+  --text-2: #3d3d42;
+  --live-ink: #0f766e;
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.18),
+    0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+/* Glasschichten: Linse (Canvas), Milch + Deckkraft, Glanz, Kante */
+.glas {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  filter: blur(var(--blur)) saturate(1.15);
+  transition: opacity 250ms ease-out;
+}
+.pille.echt .glas {
+  opacity: 1;
+}
+.milch,
+.spec,
+.rim {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.milch {
+  z-index: -2;
+  background:
+    linear-gradient(rgba(var(--t), var(--deck)), rgba(var(--t), var(--deck))),
+    linear-gradient(180deg, rgba(var(--t), var(--milch-a)), rgba(var(--t), var(--milch-b)));
+}
+.spec {
+  z-index: -1;
+  background: radial-gradient(60% 90% at 18% 0%, rgba(255, 255, 255, 0.35), transparent 55%);
+  mix-blend-mode: screen;
+}
+.rim {
+  z-index: 5;
+  box-shadow:
+    inset 1.5px 1.5px 1px rgba(255, 255, 255, 0.75),
+    inset -1px -1px 1px rgba(255, 255, 255, 0.35),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.35),
+    inset 0 -8px 14px rgba(0, 0, 0, 0.1),
+    inset 0 8px 16px rgba(255, 255, 255, 0.1);
+}
+.pille.hellgrund .rim {
+  box-shadow:
+    inset 1.5px 1.5px 1px rgba(255, 255, 255, 0.9),
+    inset -1px -1px 1px rgba(255, 255, 255, 0.6),
+    inset 0 0 0 0.5px rgba(0, 0, 0, 0.18),
+    inset 0 -8px 14px rgba(0, 0, 0, 0.06);
+}
+
+/* Liquid-Drop: Tropfen (Kreis 52 px) ploppt auf, dehnt sich zur vollen Breite, Inhalt blendet ein.
+   Verschwinden rückwärts und schneller. */
+.pille.sichtbar {
+  opacity: 1;
+  animation: tropfen 200ms linear both;
+}
+.pille.weg {
+  animation: tropfen 130ms linear reverse both;
+}
+@keyframes tropfen {
+  0% {
+    opacity: 0;
+    transform: scale(0.55);
+    clip-path: inset(0 calc(50% - 26px) round 26px);
+    animation-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1);
+    clip-path: inset(0 calc(50% - 26px) round 26px);
+    animation-timing-function: cubic-bezier(0.3, 0, 0.2, 1);
+  }
+  85% {
+    transform: scaleX(1.04);
+    clip-path: inset(0 round 26px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    clip-path: inset(0 round 26px);
+  }
+}
+.pille.sichtbar .symbol ~ * {
+  animation: inhalt 80ms ease-out 120ms both;
+}
+@keyframes inhalt {
+  from {
+    opacity: 0;
+  }
+}
+
+/* --- Symbol: nur das Programmsymbol (scharf, 28 px) ----------------------------- */
+.symbol {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+}
+.symbol img {
+  display: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+}
+.symbol[data-art='bild'] img {
+  display: block;
+}
+.symbol[data-art='mono'] {
+  background: linear-gradient(160deg, #14b8a6, #0f766e);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.symbol[data-art='mono']::before {
+  content: 'ℓ';
+  font:
+    600 17px/1 'Outfit',
+    sans-serif;
+  color: #fff;
+}
+.symbol[data-art='warn'] {
+  border-radius: 50%;
+  background: var(--warn);
+}
+.symbol[data-art='warn']::before {
+  content: '!';
+  font:
+    800 16px/1 'Inter',
+    sans-serif;
+  color: var(--warn-ink);
+}
+
+/* --- Text (nur Erfolg, Hinweise, Fehler) ----------------------------------------- */
+.meta {
+  display: none;
+  min-width: 0;
+  flex-direction: column;
+  margin-left: 10px;
+}
+.pille[data-kind='erfolg'] .meta,
+.pille[data-kind='warnung'] .meta,
+.pille[data-kind='fehler'] .meta,
+.pille[data-kind='info'] .meta {
+  display: flex;
+}
+.zeile1,
+.zeile2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.zeile1 {
+  font:
+    600 13px/18px 'Inter',
+    sans-serif;
+}
+.zeile2 {
+  font:
+    500 12px/16px 'Inter',
+    sans-serif;
+  color: var(--text-2);
+}
+.zeile2:empty {
+  display: none;
+}
+kbd {
+  font:
+    600 11px/14px 'Inter',
+    sans-serif;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.35);
+  color: var(--text);
+}
+.pille.wechsel .meta,
+.pille.wechsel .rechts {
+  animation: einblenden 150ms ease-out;
+}
+@keyframes einblenden {
+  from {
+    opacity: 0;
+  }
+}
+
+/* --- Rechts: Wellenform + Leuchtpunkt / Lader / Häkchen --------------------------- */
+.rechts {
+  flex: none;
+  display: none;
+  align-items: center;
+  gap: 14px;
+  margin-left: 16px;
+}
+.pille[data-kind='aufnahme'] .rechts,
+.pille[data-kind='verarbeitung'] .rechts,
+.pille[data-kind='erfolg'] .rechts {
+  display: flex;
+}
+.pille[data-kind='erfolg'] .rechts {
+  margin-left: 12px;
+}
+.balken,
+.lader,
+.haken,
+.punkt {
+  display: none;
+}
+.pille[data-kind='aufnahme'] .balken {
+  display: flex;
+}
+.pille[data-kind='aufnahme'] .punkt,
+.pille[data-kind='verarbeitung'] .lader,
+.pille[data-kind='erfolg'] .haken {
+  display: grid;
+}
+.balken {
+  align-items: center;
+  gap: 2.5px;
+  height: 30px;
+}
+/* Wellenform wie in der Vorlage: weiß mit weichem Leuchten, über hellem Grund dunkel ohne Leuchten. */
+.balken i {
+  display: block;
+  width: 3px;
+  height: 30px;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.55);
+  transform: scaleY(0.18);
+}
+.pille.hellgrund .balken i {
+  background: #1d1d1f;
+  box-shadow: none;
+}
+.punkt {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--live);
+  box-shadow: 0 0 8px var(--live);
+}
+.pille.hellgrund .punkt {
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.3);
+}
+.lader {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent, var(--live-ink));
+  mask: radial-gradient(circle, transparent 6px, #000 7.5px);
+  animation: drehen 0.9s linear infinite;
+}
+@keyframes drehen {
+  to {
+    transform: rotate(1turn);
+  }
+}
+.haken {
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(94, 234, 212, 0.2);
+  box-shadow: inset 0 0 0 1px var(--live-ink);
+}
+.haken svg {
+  width: 13px;
+  height: 13px;
+  stroke: var(--live-ink);
+  stroke-width: 2.6;
+  fill: none;
+}
+
+/* --- Barrierefreiheit ------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  .pille.sichtbar,
+  .pille.weg {
+    animation: none;
+    transition: opacity 160ms ease-out;
+  }
+  .pille.weg {
+    opacity: 0;
+  }
+  .pille.sichtbar .symbol ~ *,
+  .pille.wechsel .meta,
+  .pille.wechsel .rechts,
+  .lader {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .pille {
+    forced-color-adjust: none;
+    background: Canvas;
+    color: CanvasText;
+    border: 1px solid CanvasText;
+    box-shadow: none;
+    --text: CanvasText;
+    --text-2: CanvasText;
+    --live-ink: CanvasText;
+  }
+  .glas,
+  .milch,
+  .spec,
+  .rim {
+    display: none;
+  }
+  kbd {
+    box-shadow: none;
+    border: 1px solid CanvasText;
+  }
+  .balken i,
+  .punkt,
+  .lader {
+    background: Highlight;
+    box-shadow: none;
+  }
+  .haken {
+    background: none;
+  }
+  .symbol[data-art='warn'] {
+    background: Mark;
+  }
+  .symbol[data-art='warn']::before {
+    color: MarkText;
+  }
+}

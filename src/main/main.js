@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, session, clipboard, screen } = require('electron');
 const path = require('node:path');
 
 const testMode = process.env.LETTERFLOW_TEST === '1';
@@ -195,7 +195,7 @@ if (!app.requestSingleInstanceLock()) {
     registerIpc();
     trayHandle = tray.createTray();
     enginesAnstossen(app.getPath('userData'));
-    const overlay = createOverlay();
+    const overlay = createOverlay({ getSettings: einstellungen, capture: !testMode });
     // Tests prüfen das erste Fenster: dort die Pille nicht vorab laden.
     if (!testMode) overlay.prepare();
     helper = new Helper();
@@ -220,7 +220,10 @@ if (!app.requestSingleInstanceLock()) {
       helper,
       overlay,
       getEngines: () => engines,
-      getAppInfo: createAppInfo({ getFileIcon: (exe, opts) => app.getFileIcon(exe, opts) }),
+      getAppInfo: createAppInfo({
+        getFileIcon: (exe, opts) => app.getFileIcon(exe, opts),
+        scale: () => screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).scaleFactor,
+      }),
       getStatus,
       getSettings: einstellungen,
       showSetup: () => setup.showSetup(),

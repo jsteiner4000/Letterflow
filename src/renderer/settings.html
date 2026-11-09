@@ -8,6 +8,7 @@
     />
     <title>Letterflow – Einstellungen</title>
     <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="pille.css" />
     <link rel="stylesheet" href="settings.css" />
   </head>
   <body>
@@ -25,6 +26,18 @@
             <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z" />
             <path d="M19 11a7 7 0 0 1-14 0M12 18v3" /></svg
           >Diktieren
+        </button>
+        <button
+          role="tab"
+          id="tab-pille"
+          aria-controls="seite-pille"
+          aria-selected="false"
+          tabindex="-1"
+          type="button"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="8" width="18" height="8" rx="4" /></svg
+          >Pille
         </button>
         <button
           role="tab"
@@ -181,6 +194,122 @@
           </div>
         </section>
 
+        <!-- Pille -->
+        <section id="seite-pille" role="tabpanel" aria-labelledby="tab-pille" hidden>
+          <h1>Pille</h1>
+          <p class="lead">So sieht die Anzeige beim Diktieren aus</p>
+          <div class="buehne" aria-hidden="true">
+            <canvas id="vorschau-bild" class="buehne-bild" width="1280" height="340"></canvas>
+            <div id="vorschau" class="pille sichtbar" data-kind="aufnahme">
+              <canvas id="vorschau-glas" class="glas"></canvas>
+              <span class="milch"></span><span class="spec"></span>
+              <span class="symbol" data-art="mono"></span>
+              <span class="rechts">
+                <span id="vorschau-balken" class="balken"
+                  ><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i
+                  ><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i
+                ></span>
+                <span class="punkt"></span>
+              </span>
+              <span class="rim"></span>
+            </div>
+          </div>
+          <div class="gruppe">
+            <div class="zeile">
+              <div class="text">
+                <b id="l-frost">Milchigkeit</b>
+                <span>Weichzeichnung und Milchschicht im Glas</span>
+              </div>
+              <input
+                type="range"
+                id="p-frost"
+                class="schieber"
+                min="0"
+                max="100"
+                step="1"
+                aria-labelledby="l-frost"
+              />
+              <output id="w-frost" class="wert" for="p-frost"></output>
+            </div>
+            <div class="zeile">
+              <div class="text">
+                <b id="l-opacity">Durchsicht</b>
+                <span>Bei 0 % ist das Glas undurchsichtig</span>
+              </div>
+              <input
+                type="range"
+                id="p-opacity"
+                class="schieber"
+                min="0"
+                max="100"
+                step="1"
+                aria-labelledby="l-opacity"
+              />
+              <output id="w-opacity" class="wert" for="p-opacity"></output>
+            </div>
+            <div class="zeile">
+              <div class="text">
+                <b id="l-refraction">Lichtbrechung</b>
+                <span>Wie stark der Hintergrund an den Rändern gebogen wird</span>
+              </div>
+              <input
+                type="range"
+                id="p-refraction"
+                class="schieber"
+                min="0"
+                max="100"
+                step="1"
+                aria-labelledby="l-refraction"
+              />
+              <output id="w-refraction" class="wert" for="p-refraction"></output>
+            </div>
+            <div class="zeile">
+              <div class="text">
+                <b id="l-tint">Tönung</b>
+                <span>Grundfarbe des Glases</span>
+              </div>
+              <div class="farben" role="radiogroup" aria-labelledby="l-tint">
+                <label class="farbe" title="Hell"
+                  ><input type="radio" name="tint" value="hell" aria-label="Hell" /><span
+                    style="--c: #ffffff"
+                  ></span
+                ></label>
+                <label class="farbe" title="Neutral"
+                  ><input type="radio" name="tint" value="neutral" aria-label="Neutral" /><span
+                    style="--c: #c8cad0"
+                  ></span
+                ></label>
+                <label class="farbe" title="Dunkel"
+                  ><input type="radio" name="tint" value="dunkel" aria-label="Dunkel" /><span
+                    style="--c: #16181c"
+                  ></span
+                ></label>
+                <label class="farbe" title="Warm"
+                  ><input type="radio" name="tint" value="warm" aria-label="Warm" /><span
+                    style="--c: #ffd6aa"
+                  ></span
+                ></label>
+                <label class="farbe" title="Petrol"
+                  ><input type="radio" name="tint" value="petrol" aria-label="Petrol" /><span
+                    style="--c: #0f766e"
+                  ></span
+                ></label>
+                <label class="farbe eigene" title="Eigene Farbe"
+                  ><input type="color" id="p-eigen" aria-label="Eigene Farbe" /><span></span
+                ></label>
+              </div>
+            </div>
+          </div>
+          <div class="gruppe">
+            <div class="zeile">
+              <div class="text">
+                <b>Standardwerte</b><span>Setzt das Glas der Pille zurück</span>
+              </div>
+              <button id="pille-zurueck" class="knopf" type="button">Zurücksetzen</button>
+            </div>
+          </div>
+        </section>
+
         <!-- Wörterbuch -->
         <section id="seite-woerterbuch" role="tabpanel" aria-labelledby="tab-woerterbuch" hidden>
           <h1>Wörterbuch</h1>
@@ -233,6 +362,7 @@
         </section>
       </div>
     </main>
+    <script src="pille-glas.js"></script>
     <script src="confirm.js"></script>
     <script src="settings.js"></script>
   </body>

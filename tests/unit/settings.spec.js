@@ -90,3 +90,13 @@ test('dauerhafter Umbenennen-Fehler wirft und lässt die alte Datei unversehrt',
   }
   expect(loadSettings(dir).hotkey).toBe('ctrl+win');
 });
+
+test('Pille: Regler begrenzt, Tönung geprüft, Rest Standard', () => {
+  expect(DEFAULTS.pill).toEqual({ frost: 40, opacity: 85, refraction: 60, tint: 'hell' });
+  const s = saveSettings(dir, {
+    pill: { frost: 150, opacity: -5, refraction: 'x', tint: '#ABCDEF' },
+  });
+  expect(s.pill).toEqual({ frost: 100, opacity: 0, refraction: 60, tint: '#abcdef' });
+  expect(saveSettings(dir, { pill: { tint: 'rot' } }).pill).toEqual(DEFAULTS.pill);
+  expect(saveSettings(dir, { pill: 5 }).pill).toEqual(DEFAULTS.pill);
+});

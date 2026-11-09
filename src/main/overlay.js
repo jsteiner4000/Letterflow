@@ -1,11 +1,14 @@
-const { BrowserWindow, ipcMain, screen, nativeTheme } = require('electron');
+const { BrowserWindow, ipcMain, screen, nativeTheme, desktopCapturer } = require('electron');
 const { EventEmitter } = require('node:events');
 const path = require('node:path');
 
 const RENDERER = path.join(__dirname, '..', 'renderer');
 const PRELOAD = path.join(__dirname, '..', 'preload', 'preload.js');
 const BREITE = 420;
-const PILLE_HOEHE = 44;
+const PILLE_HOEHE = 52;
+const BAND = 16; // Rand (DIP) über und unter der Pille im erfassten Streifen; der Renderer kennt ihn auch
+const ERFASSEN_ALLE_MS = 750;
+const ERFASSEN_FRIST_MS = 400; // länger: gilt als Fehler, die Pille bleibt getönt
 const HOEHE = 150; // Platz für Schatten (32 px Weichheit, 12 px nach unten) und den Weg beim Ein-/Ausblenden
 const LADE_FRIST_MS = 10000;
 const ABSTAND = 60; // zum unteren Rand des Bildschirms
@@ -14,12 +17,18 @@ const STOPP_WARTEZEIT_MS = 2000;
 
 // Aufnahme-Pille: rahmenlos, transparent, nimmt nie den Fokus. Das Mikrofon läuft im Renderer
 // (AudioContext 16 kHz + AudioWorklet), die PCM-Pakete kommen als 'pcm' (Float32Array) heraus.
-function createOverlay() {
+//
+// Echtes Glas: Das Fenster ist von Bildschirmaufnahmen ausgenommen (setContentProtection). Solange die
+// Pille sichtbar ist, wird der Streifen unter ihr erfasst und nur im Speicher an den Renderer gegeben,
+// der ihn durch die Linse zeichnet. Nichts wird gespeichert oder gesendet.
+function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
   const events = new EventEmitter();
   let win = null;
   let bereit = null; // Promise: Renderer ist initialisiert
   let ausblendTimer = null;
   let aufnahmeAktiv = false;
+  let erfassung = null; // { id, timer } solange die Pille sichtbar ist
+  let erfassungId = 0;
   const wartende = new Set(); // Funktionen, die auf 'gestartet'/'gestoppt' warten
 
   const vonOverlay = (event) => win && !win.isDestroyed() && event.sender === win.webContents;
@@ -73,6 +82,7 @@ function createOverlay() {
       },
     });
     win = diese;
+    diese.setContentProtection(true);
     diese.setAlwaysOnTop(true, 'screen-saver');
     diese.setIgnoreMouseEvents(true);
     diese.on('closed', () => {
@@ -121,12 +131,65 @@ function createOverlay() {
     }
     // Windows „Transparenzeffekte“ aus → Glas deckend
     s.deckend = Boolean(nativeTheme.prefersReducedTransparency);
+    s.pille = getSettings().pill;
     return s;
   }
 
   const senden = (kanal, wert) => {
     if (win && !win.isDestroyed()) win.webContents.send(kanal, wert);
   };
+
+  // Streifen unter der Pille erfassen (Bildschirm unter dem Fenster, in Bildpunkten des Bildschirms).
+  async function erfassen() {
+    const b = win.getBounds();
+    const anzeige = screen.getDisplayNearestPoint({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
+    const f = anzeige.scaleFactor;
+    const quellen = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: {
+        width: Math.round(anzeige.size.width * f),
+        height: Math.round(anzeige.size.height * f),
+      },
+    });
+    const quelle = quellen.find((q) => q.display_id === String(anzeige.id)) || quellen[0];
+    if (!quelle || quelle.thumbnail.isEmpty()) throw new Error('keine Aufnahme');
+    const oben = b.y + (HOEHE - PILLE_HOEHE) / 2 - BAND;
+    const bild = quelle.thumbnail.crop({
+      x: Math.max(0, Math.round((b.x - anzeige.bounds.x) * f)),
+      y: Math.max(0, Math.round((oben - anzeige.bounds.y) * f)),
+      width: Math.round(b.width * f),
+      height: Math.round((PILLE_HOEHE + 2 * BAND) * f),
+    });
+    const { width, height } = bild.getSize();
+    return { width, height, scale: f, bgra: bild.toBitmap() };
+  }
+
+  function erfassenStarten() {
+    if (!capture || erfassung || nativeTheme.prefersReducedTransparency) return;
+    const lauf = (erfassung = { id: ++erfassungId, timer: null });
+    const runde = async () => {
+      const t0 = Date.now();
+      let ergebnis = null;
+      try {
+        ergebnis = await erfassen();
+      } catch {}
+      if (erfassung !== lauf || !win || win.isDestroyed()) return;
+      const ms = Date.now() - t0;
+      events.emit('erfasst', ms);
+      if (!ergebnis || ms > ERFASSEN_FRIST_MS) {
+        senden('overlay:backdrop', null); // zurück zum getönten Glas, kein weiterer Versuch
+        erfassung = null;
+        return;
+      }
+      senden('overlay:backdrop', ergebnis);
+      lauf.timer = setTimeout(runde, ERFASSEN_ALLE_MS);
+    };
+    runde();
+  }
+  function erfassenStoppen() {
+    if (erfassung) clearTimeout(erfassung.timer);
+    erfassung = null;
+  }
 
   // Wartet auf eine Rückmeldung des Renderers (oder die Frist).
   const abwarten = (frist) =>
@@ -150,6 +213,7 @@ function createOverlay() {
           positionieren();
           // showInactive: kein Fokusklau; der Renderer blendet den fertigen Inhalt weich ein.
           if (!win.isVisible()) win.showInactive();
+          erfassenStarten();
         })
         .catch((fehler) => console.error('Aufnahme-Pille nicht angezeigt:', fehler.message));
     },
@@ -163,6 +227,7 @@ function createOverlay() {
     hide() {
       if (!win || win.isDestroyed()) return;
       senden('overlay:hide');
+      erfassenStoppen();
       clearTimeout(ausblendTimer);
       const diese = win;
       ausblendTimer = setTimeout(() => {
@@ -186,6 +251,7 @@ function createOverlay() {
     // Räumt Fenster und Handler ab (App-Ende, Tests).
     destroy() {
       clearTimeout(ausblendTimer);
+      erfassenStoppen();
       ipcMain.removeListener('overlay:ready', onReady);
       ipcMain.removeListener('overlay:pcm', onPcm);
       ipcMain.removeListener('overlay:recorder-error', onFehler);
