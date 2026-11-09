@@ -142,3 +142,13 @@ Nach dem Praxistest. Verbindliche Vorlagen: `docs/design/einstellungen-v3.html` 
 
 **Pille v2:** nur Programmsymbol (kein Name), Höhe 52 px, Radius 26, Symbol 28 px scharf (`app.getFileIcon(exe, { size: 'large' })`, auf 28 × Bildschirmskalierung verkleinert), Wellenform 22 Balken à 3 px / Abstand 2,5 px, Höhe 30 px, empfindlicher (leise Stimme sichtbar; logarithmische Pegelkurve, schnelleres Ansprechen, sanfteres Abklingen), Leuchtpunkt rechts. Erfolg: Symbol + „Eingefügt“ / „{n} Wörter“ + Häkchen. Warnung/Fehler mit Text wie bisher. Glas wie `pille-glas.html`.
 **Erscheinen „Liquid-Drop“:** Glastropfen (Kreis 52 px, Start-Skalierung ≈ 0,55) ploppt in ≈ 90 ms auf, dehnt sich in ≈ 110 ms zur vollen Breite mit minimalem Nachfedern (≈ 1,04), danach blenden Wellenform und Punkt ein (≈ 80 ms); gesamt < 0,3 s. Verschwinden rückwärts, schneller. Reduzierte Bewegung: nur Einblenden.
+
+## Pille v3 – echtes Glas mit Lichtbrechung (Julius, 2026-11-09)
+
+Vorlage: die Liquid-Glass-Navigationsleiste der YouTube-App (Bild von Julius). Ersetzt die Glas-Werte von Pille v2; Inhalt (nur Symbol, Wellenform, Zustände, Liquid-Drop) bleibt.
+
+- **Klar wie echtes Glas:** kaum Tönung (dunkler Schleier nur so stark, dass Symbol und Wellenform lesbar bleiben), der Hintergrund ist deutlich zu sehen.
+- **Lichtbrechung:** Was hinter der Pille liegt, wird wie durch eine dicke Glaslinse **verzogen** – zur Mitte leicht vergrößert, zum Rand hin stark gestaucht/gebogen (Linsen-Rand), leichte Unschärfe, minimale Farbsäume an der Kante.
+- **Kante:** kräftige, aber feine Lichtkante (heller Glanz oben links und unten rechts, dunklere Innenkante unten), weicher Außenschatten.
+- **Technik (Builder-Entscheidung mit Leitplanken):** Ein transparentes Fenster sieht den Desktop nicht. Deshalb: Pillen-Fenster mit `setContentProtection(true)` (erscheint nie in Bildschirmaufnahmen, auch nicht in der eigenen), beim Erscheinen den Bildschirmbereich unter der Pille per `desktopCapturer` erfassen und als verzerrten Hintergrund in der Pille zeichnen (WebGL- oder SVG-Verschiebungskarte), Auffrischung höchstens alle ~750 ms solange sichtbar. Die Pille erscheint sofort mit getöntem Glas; die Brechung blendet ein, sobald das Bild da ist (< 150 ms). Bilder bleiben nur im Speicher, werden nie gespeichert oder versendet. Fallback (Fehler, „Transparenz aus“, Fernwartung/RDP): getöntes Glas wie v2.
+- **Leistung:** keine Daueraufnahme, kein spürbarer CPU-Verbrauch im Leerlauf; Erfassung nur während die Pille sichtbar ist.
