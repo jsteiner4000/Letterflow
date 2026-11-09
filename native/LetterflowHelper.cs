@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -95,6 +96,11 @@ namespace Letterflow
         public static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);
         [DllImport("kernel32.dll")]
         public static extern bool CloseHandle(IntPtr h);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        public static extern bool QueryFullProcessImageName(IntPtr proc, int flags, StringBuilder sb, ref int size);
+        public delegate bool EnumProc(IntPtr hWnd, IntPtr lParam);
+        [DllImport("user32.dll")]
+        public static extern bool EnumChildWindows(IntPtr parent, EnumProc proc, IntPtr lParam);
         [DllImport("advapi32.dll", SetLastError = true)]
         public static extern bool OpenProcessToken(IntPtr proc, uint access, out IntPtr token);
         [DllImport("advapi32.dll", SetLastError = true)]
@@ -365,18 +371,76 @@ namespace Letterflow
             long hwnd = fg.ToInt64();
             bool elevated = false;
             string editable = "unknown";
+            string exe = null, appName = null;
             if (fg != IntPtr.Zero)
             {
                 uint pid;
                 Native.GetWindowThreadProcessId(fg, out pid);
                 elevated = IsElevated(pid);
+                ProgramOf(fg, pid, out exe, out appName);
                 StringBuilder sb = new StringBuilder(256);
                 Native.GetClassName(fg, sb, 256);
                 string cls = sb.ToString();
                 if (elevated || cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd") editable = "no";
                 else editable = ProbeEditable();
             }
-            return "{\"hwnd\":" + hwnd + ",\"editable\":\"" + editable + "\",\"elevated\":" + (elevated ? "true" : "false") + "}";
+            return "{\"hwnd\":" + hwnd + ",\"editable\":\"" + editable + "\",\"elevated\":" + (elevated ? "true" : "false")
+                + ",\"exe\":" + JsonStr(exe) + ",\"appName\":" + JsonStr(appName) + "}";
+        }
+
+        static string JsonStr(string s)
+        {
+            if (s == null) return "null";
+            StringBuilder b = new StringBuilder("\"");
+            foreach (char ch in s)
+            {
+                if (ch == '\\' || ch == '"') b.Append('\\').Append(ch);
+                else if (ch < 0x20) b.Append("\\u").Append(((int)ch).ToString("x4"));
+                else b.Append(ch);
+            }
+            return b.Append('"').ToString();
+        }
+
+        static string ExePath(uint pid)
+        {
+            IntPtr proc = Native.OpenProcess(0x1000, false, pid); // PROCESS_QUERY_LIMITED_INFORMATION
+            if (proc == IntPtr.Zero) return null; // z. B. erhöhter Prozess
+            try
+            {
+                StringBuilder sb = new StringBuilder(1024);
+                int size = sb.Capacity;
+                return Native.QueryFullProcessImageName(proc, 0, sb, ref size) ? sb.ToString() : null;
+            }
+            finally { Native.CloseHandle(proc); }
+        }
+
+        // Pfad und Anzeigename des Programms hinter dem Fenster; nie der Fenstertitel
+        static void ProgramOf(IntPtr fg, uint pid, out string exe, out string appName)
+        {
+            exe = null; appName = null;
+            try
+            {
+                exe = ExePath(pid);
+                // UWP: Das Vordergrundfenster gehört dem ApplicationFrameHost, die App steckt in einem Kindfenster
+                if (exe != null && Path.GetFileName(exe).Equals("ApplicationFrameHost.exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    string inner = null;
+                    Native.EnumChildWindows(fg, delegate(IntPtr child, IntPtr lp)
+                    {
+                        uint cp;
+                        Native.GetWindowThreadProcessId(child, out cp);
+                        if (cp == pid) return true;
+                        inner = ExePath(cp);
+                        return inner == null;
+                    }, IntPtr.Zero);
+                    if (inner != null) exe = inner;
+                }
+                if (exe == null) return;
+                string desc = null;
+                try { desc = FileVersionInfo.GetVersionInfo(exe).FileDescription; } catch { }
+                appName = !string.IsNullOrWhiteSpace(desc) ? desc.Trim() : Path.GetFileNameWithoutExtension(exe);
+            }
+            catch { }
         }
 
         // UI Automation mit hartem Timeout von 300 ms

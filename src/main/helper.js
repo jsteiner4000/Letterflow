@@ -10,7 +10,7 @@ const PASTE_TIMEOUT_MS = 4000; // der Helfer wartet bis zu 3 s, bis die Tasten l
 const BACKOFF_MS = [300, 1000, 3000, 10000];
 const MAX_FAILURES = 5;
 const FAILURE_WINDOW_MS = 60000;
-const FOCUS_FALLBACK = { hwnd: 0, editable: 'unknown', elevated: false };
+const FOCUS_FALLBACK = { hwnd: 0, editable: 'unknown', elevated: false, exe: null, appName: null };
 const PASTE_FALLBACK = { ok: false, reason: null };
 
 class Helper extends EventEmitter {

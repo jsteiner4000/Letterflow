@@ -23,7 +23,13 @@ test('Helfer-Protokoll: focus-Anfrage bekommt Antwort', async () => {
   const h = startFake({});
   await waitEvent(h, 'ready');
   const f = await h.focus();
-  expect(f).toEqual({ hwnd: 42, editable: 'no', elevated: false });
+  expect(f).toEqual({
+    hwnd: 42,
+    editable: 'no',
+    elevated: false,
+    exe: 'C:/Fake/app.exe',
+    appName: 'Fake App',
+  });
 });
 
 test('paste liefert das Ergebnis des Helfers', async () => {
@@ -36,7 +42,13 @@ test('Helfer antwortet nicht → unknown nach 1 s', async () => {
   const h = startFake({ FAKE_HELPER_SILENT: '1' });
   await waitEvent(h, 'ready');
   const t = Date.now();
-  expect(await h.focus()).toEqual({ hwnd: 0, editable: 'unknown', elevated: false });
+  expect(await h.focus()).toEqual({
+    hwnd: 0,
+    editable: 'unknown',
+    elevated: false,
+    exe: null,
+    appName: null,
+  });
   expect(Date.now() - t).toBeGreaterThanOrEqual(900);
   expect(await h.paste(1)).toEqual({ ok: false, reason: null });
 });

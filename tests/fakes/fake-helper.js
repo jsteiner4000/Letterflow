@@ -4,7 +4,13 @@
 // Mit FAKE_HELPER_SILENT=1 werden id-Anfragen nicht beantwortet.
 const readline = require('node:readline');
 
-let focus = { hwnd: 42, editable: 'no', elevated: false };
+let focus = {
+  hwnd: 42,
+  editable: 'no',
+  elevated: false,
+  exe: 'C:/Fake/app.exe',
+  appName: 'Fake App',
+};
 let paste = { ok: true, reason: null };
 const silent = process.env.FAKE_HELPER_SILENT === '1';
 const out = (o) => process.stdout.write(JSON.stringify(o) + '\n');
