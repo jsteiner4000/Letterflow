@@ -46,6 +46,7 @@ class Dictation {
     showSetup,
     restartEngines,
     log,
+    setTrayState = () => {},
   }) {
     Object.assign(this, {
       helper,
@@ -57,6 +58,7 @@ class Dictation {
       showSetup,
       restartEngines,
       log,
+      setTrayState,
     });
     this.recording = null; // Diktat, dessen Kürzel gerade gehalten wird
     this.capture = null; // Diktat, das gerade PCM vom Mikrofon bekommt
@@ -141,6 +143,7 @@ class Dictation {
       if (this.recording === rec) this.overlay.show({ kind: 'aufnahme', app });
     });
     this.recording = rec;
+    this.setTrayState('hoert');
     clearTimeout(this.messageTimer);
     this.messageTimer = null;
     this.overlay.show({ kind: 'aufnahme' });
@@ -226,7 +229,10 @@ class Dictation {
 
   _end(rec) {
     clearTimeout(rec.limitTimer);
-    if (this.recording === rec) this.recording = null;
+    if (this.recording === rec) {
+      this.recording = null;
+      this.setTrayState('bereit');
+    }
   }
 
   _finish(rec, limitReached) {
@@ -339,6 +345,7 @@ class Dictation {
       return;
     }
     clearTimeout(this.messageTimer);
+    if (kind === 'warnung' || kind === 'fehler') this.setTrayState('hinweis');
     this.overlay.show({ kind, text, ...extra });
     this.messageTimer = setTimeout(() => {
       this.messageTimer = null;

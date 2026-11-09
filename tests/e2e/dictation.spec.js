@@ -253,3 +253,13 @@ test('Engine-Neustart während der Aufnahme → Erkennung nutzt die neuen Engine
   await loslassen();
   await expect.poll(lastPaste, { timeout: 10000 }).toEqual({ text: 'Hallo tim.', hwnd: 42 });
 });
+
+test('Taskleisten-Symbol: während der Aufnahme „hört zu“, danach „bereit“', async () => {
+  await starten();
+  const tooltip = () => app.evaluate(() => global.__letterflow.trayTooltip());
+  await fokus({ ...TEXTFELD, exe: 'C:/Fake/winword.exe', appName: 'Word' });
+  await druecken();
+  await expect.poll(tooltip).toBe('Letterflow – hört zu');
+  await loslassen();
+  await expect.poll(tooltip).toBe('Letterflow – bereit');
+});

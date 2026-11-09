@@ -227,6 +227,7 @@ if (!app.requestSingleInstanceLock()) {
       restartEngines: () =>
         enginesNeustarten().catch((fehler) => console.error('Neustart fehlgeschlagen:', fehler)),
       log: createLog(path.join(getDataDir(), 'logs')),
+      setTrayState: tray.setState,
     });
     app.on('before-quit', (event) => {
       if (beendet || !engines) return;
@@ -254,7 +255,7 @@ if (!app.requestSingleInstanceLock()) {
           werte: aufnahme.pakete.reduce((n, p) => n + p.length, 0),
           rms: aufnahme.pakete.map((p) => Math.sqrt(p.reduce((n, v) => n + v * v, 0) / p.length)),
         }),
-        trayTooltip: () => tray.TOOLTIP,
+        trayTooltip: () => tray.tooltip(),
         openAbout: () => windows.openAbout(),
         openSettings: () => windows.openSettings(),
         // Test: Einrichtungsfenster öffnen und sofort (mehrfach) schließen, während es noch lädt.

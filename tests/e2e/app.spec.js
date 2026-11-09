@@ -18,7 +18,7 @@ async function starten(optionen) {
 
 test('startet mit Taskleisten-Symbol und nur einer Instanz', async () => {
   const { app, dataDir } = await starten();
-  expect(await app.evaluate(() => global.__letterflow.trayTooltip())).toBe('Letterflow');
+  expect(await app.evaluate(() => global.__letterflow.trayTooltip())).toBe('Letterflow – bereit');
   const second = spawnInstance(dataDir);
   await expect.poll(() => second.exitCode).toBe(0);
 });
