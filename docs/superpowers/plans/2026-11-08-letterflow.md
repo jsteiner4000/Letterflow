@@ -469,6 +469,57 @@ test('Stille wird verworfen', async () => { /* Fake-Audio stumm → kein paste, 
 
 ---
 
+## Gestaltung (R1–R4) – Spec: `docs/superpowers/specs/2026-11-08-letterflow-gestaltung.md`
+
+Gilt für alle R-Tasks: Vorlagen `docs/design/einstellungen-hell.html` (App, Tokens hell **und** dunkel aus der Spec) und `docs/design/pille-glas.html` (Pille). Skalen aus Spec-Abschnitt „Aus einem Guss“ (Schrift, Abstände 4/8/12/16/24/32, Radien 22/12/8/6/5, Farbrollen `--accent`/`--live`) sind verbindlich – keine anderen Werte, keine fest eingetragenen Farben in Komponenten. Julius' Wunsch: **Tests schlank halten** – bestehende Tests an neue Beschriftungen anpassen, neue Tests nur, wo sie eine neue Logik festnageln. Jede R-Task endet mit Screenshots der betroffenen Fenster/Zustände in `docs/design/ist/` (hell + dunkel, per Playwright-Testbrücke), die der Controller Julius zeigt.
+
+### Task R1: App-Fenster im neuen Stil (Einstellungen, Einrichtung, Über)
+
+**Files:** Modify `src/renderer/style.css` (Tokens hell/dunkel + Schriften), `src/renderer/settings.{html,css,js}`, `src/renderer/setup.{html,css}`, `src/renderer/about.{html,css}`, `src/main/windows.js` (Einstellungsfenster 880×600, min. 880×560; Hintergrundfarbe aus Tokens), `tests/e2e/settings.spec.js`, `tests/e2e/setup.spec.js`, `tests/e2e/app.spec.js`. Create `src/renderer/fonts/` (Outfit + Inter als woff2, variable, mit `OFL.txt` je Schrift; Quelle: offizielle Repos google/fonts bzw. rsms/inter; SHA-256 in `src/renderer/fonts/QUELLEN.md`), `src/renderer/confirm.js` (kleiner App-Dialog im Fenster, keine Systemdialoge).
+
+**Interfaces:**
+- Einstellungen: Seitenleiste mit drei Bereichen **Diktieren · Wörterbuch · Allgemein** (Tastatur bedienbar, Pfeiltasten/Tab), Status-Zeile unten. Inhalt „Diktieren“ exakt wie Vorlage (Texte aus Spec), „Ändern“ öffnet die drei Tastenkürzel zur Wahl; Schalter „Text glätten“ im Abschnittskopf, aus → Stufen blass/deaktiviert; „Auf diesem PC: {Schnell|Gründlich}“ aus `status.get().tier`; Mikrofon-Abschnitt mit Gerätewahl und Pegelanzeige (Pegel nur, solange die Seite sichtbar ist, über die bestehende Aufnahme-Infrastruktur oder ein eigenes kurzlebiges `getUserMedia` im Fenster; Mikrofon schließen beim Verlassen der Seite).
+- Wahl „Gründlich“ (oder „Automatisch“, wenn es dadurch gründlich wird), solange das Modell fehlt → `confirm.js`-Dialog „Gründliche Glättung laden? Einmalig 2,5 GB, danach offline.“ mit „Laden“/„Abbrechen“; Abbrechen setzt die vorige Stufe zurück.
+- „Allgemein“: „Mit Windows starten“, Systemangaben (bestehende Texte), Version, Knopf „Über Letterflow“.
+- Hell/dunkel nach `nativeTheme` (CSS `prefers-color-scheme`), Fokus-Rahmen 2 px `--focus` auf allen Bedienelementen, Hover/Druck-Rückmeldung (Druck = `:active` scale .98, 100 ms), `prefers-reduced-motion` ohne Bewegung, `forced-colors` lesbar.
+
+- [ ] **Step 1:** Bestehende E2E-Tests an die neue Struktur anpassen (Navigation zu „Allgemein“ für Autostart usw.) und einen Test ergänzen: „Gründlich ohne Modell fragt vorher; Abbrechen behält die alte Stufe“. → FAIL.
+- [ ] **Step 2:** Umsetzen. **Step 3:** `npm test` grün. **Step 4:** Screenshots hell/dunkel (Diktieren, Wörterbuch, Allgemein, Dialog, Einrichtung, Über) nach `docs/design/ist/`; Abgleich mit Vorlage, Abweichungen beheben.
+- [ ] **Step 5:** Format; Commit `Neues Design für Einstellungen, Einrichtung und Über-Dialog; Version 0.12.0`.
+
+### Task R2: Helfer meldet Zielprogramm (Name und Symbol)
+
+**Files:** Modify `native/LetterflowHelper.cs`, `src/main/helper.js`, `tests/fakes/fake-helper.js`, `tests/unit/helper.spec.js`. Create `src/main/app-info.js`, `tests/unit/app-info.spec.js`.
+
+**Interfaces:**
+- `focus`-Antwort erweitert um `exe` (voller Pfad der Prozessdatei des Vordergrundfensters, `null` wenn nicht lesbar, z. B. bei erhöhten Prozessen) und `appName` (`FileVersionInfo.FileDescription`, sonst Dateiname ohne `.exe`; nie der Fenstertitel).
+- `app-info.js` → `getAppInfo({ exe, appName }): Promise<{ name: string, iconDataUrl: string|null }>` – Symbol per `app.getFileIcon(exe, { size: 'small' })` → `toDataURL()`, Ergebnis je `exe` zwischengespeichert; Fehler → `null` (Pille zeigt dann das Ersatz-Monogramm). Name auf 60 Zeichen begrenzt; leer → „Unbekanntes Programm“.
+- [ ] **Step 1:** Unit-Test: Name-Fallbacks (leer, nur Dateiname, sehr lang) und Cache (zweiter Aufruf ruft `getFileIcon` nicht erneut). → FAIL. **Step 2:** Umsetzen, `npm run helper`, Smoke mit `scripts/helper-probe.js` (focus liefert `appName`/`exe` für ein normales Fenster). **Step 3:** `npm test` grün.
+- [ ] **Step 4:** Format; Commit `Pille kennt das Zielprogramm; Version 0.13.0`.
+
+### Task R3: Glas-Pille mit allen Zuständen
+
+**Files:** Modify `src/renderer/overlay.{html,css,js}`, `src/main/overlay.js`, `src/main/dictation.js`, `tests/e2e/dictation.spec.js`, `tests/e2e/overlay.spec.js`.
+
+**Interfaces:**
+- `overlay.show(state)` erweitert: `{ kind: 'aufnahme'|'verarbeitung'|'erfolg'|'warnung'|'fehler', app?: { name, iconDataUrl }, text?: string, words?: number }`. Optik exakt nach `pille-glas.html`, Maße/Abstände/Texte nach Spec (Tabelle „Zustände und Texte“): Zeile 1 Programmname bzw. „Eingefügt in {Programm}“ / „Kein Textfeld aktiv“ / „Fenster gewechselt“, Zeile 2 Zustand bzw. „{n} Wörter“ / „Mit [Strg] [V] einfügen“; fester rechter Platz 76 px; max. 340 px mit Ellipse; Ersatz-Monogramm.
+- `dictation.js`: `getAppInfo` beim hotkey-down (parallel zum Fokus), Erfolgs-Zustand 700 ms nach erfolgreichem Einfügen mit Wortzahl (Leerzeichen-getrennt, ≥1), Warnungen 4 s. Bestehende Fehlertexte bleiben.
+- Bewegung nach Spec (Erscheinen ≤ 1 Frame sichtbar ab hotkey-down, Federn ohne Überschwinger, Verschwinden schneller, gleicher Weg nach unten, Schimmer nur einmal beim Erscheinen); `prefers-reduced-motion` und reduzierte Transparenz (Glas deckend `#151B1A`) beachten; Live-Region für Erfolg/Warnung. Fenstergröße so, dass Schatten nicht abgeschnitten wird.
+- [ ] **Step 1:** E2E anpassen: Erfolg zeigt „Eingefügt in Word“ + Wortzahl (Fake-Helfer liefert `appName: 'Word'`), Warnung zeigt „Mit Strg V einfügen“. → FAIL. **Step 2:** Umsetzen. **Step 3:** `npm test` grün. **Step 4:** Screenshots aller Zustände über hellem, buntem und schwarzem Hintergrund nach `docs/design/ist/`.
+- [ ] **Step 5:** Format; Commit `Glas-Pille mit Programmname, Erfolg und Hinweisen; Version 0.14.0`.
+
+### Task R4: Taskleisten-Symbol mit Zuständen
+
+**Files:** Create `assets/tray-{bereit,hoert,hinweis}-{hell,dunkel}.ico` (aus `branding/`, 16/20/24/32 px, keine Verläufe/Glow), `scripts/make-tray-icons.js` falls nötig. Modify `src/main/tray.js`, `src/main/dictation.js` (Zustand melden), `tests/e2e/app.spec.js`.
+
+**Interfaces:** `tray.setState('bereit'|'hoert'|'hinweis')` – Symbol passend zum Windows-Modus, Tooltip „Letterflow – bereit“ / „Letterflow – hört zu“ / „Letterflow – Hinweis“; Hinweis fällt nach 4 s auf „bereit“ zurück.
+- [ ] **Step 1:** Test: während der Aufnahme ist der Tooltip „Letterflow – hört zu“, danach „Letterflow – bereit“. → FAIL. **Step 2:** Umsetzen. **Step 3:** `npm test` grün; Symbole bei 16 px als Screenshot nach `docs/design/ist/`.
+- [ ] **Step 4:** Format; Commit `Taskleisten-Symbol zeigt Zustand; Version 0.15.0`.
+
+Nach R4: impeccable `audit` der echten Fenster (Screenshots aus `docs/design/ist/`), Befunde beheben.
+
+---
+
 ### Task 11: Qualitäts-Testsatz und Feinabstimmung
 
 **Files:**
