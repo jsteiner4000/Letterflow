@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--side:#F4F2EE;--bg:#FFFFFF;--card:#F6F4F0;--sel:#EBE8E2;--line:rgba(30,25,20,.08);--ink:#1D1B18;--ink-2:#6B675F;--ink-3:#8E8A82;--off:#D9D5CD;--on:#1D1B18;--knob:#FFFFFF;--btn:#FFFFFF;--btn-edge:rgba(30,25,20,.14);--focus:#1D1B18}
+:root.dark{--side:#1E1D1B;--bg:#252422;--card:#2C2B28;--sel:#33322F;--line:rgba(255,250,240,.07);--ink:#EFECE6;--ink-2:#A39F97;--ink-3:#7F7B74;--off:#4A4843;--on:#EFECE6;--knob:#252422;--btn:#33322F;--btn-edge:rgba(255,250,240,.10);--focus:#EFECE6}
+*{box-sizing:border-box;margin:0}
+body{font-family:Inter,sans-serif;font-size:13px;line-height:18px;color:var(--ink);background:var(--bg);width:880px;height:600px;overflow:hidden;display:grid;grid-template-columns:208px 1fr}
+aside{background:var(--side);padding:20px 12px 16px;display:flex;flex-direction:column}
+.lab{font:500 11px Inter;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin:0 10px 8px}
+.lab+nav{margin-bottom:20px}
+nav a{display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border-radius:8px;font:500 13.5px Inter;color:var(--ink);text-decoration:none}
+nav a.on{background:var(--sel)}
+nav svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6}
+.ver{margin-top:auto;display:flex;align-items:center;justify-content:space-between;padding:0 10px;font-size:12px;color:var(--ink-3)}
+.ver i{width:7px;height:7px;border-radius:50%;background:#3E9A6E;display:inline-block;margin-right:6px}
+main{padding:40px 40px}
+h1{font:400 30px/36px Newsreader,serif;letter-spacing:-.01em;margin-bottom:24px}
+h2{font:600 13px Inter;margin:0 0 8px 2px;color:var(--ink)}
+.card{background:var(--card);border-radius:12px;margin-bottom:24px}
+.row{display:flex;align-items:center;gap:16px;padding:14px 18px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row .t{flex:1}.row .t b{display:block;font:600 13.5px Inter}.row .t span{color:var(--ink-2);font-size:13px}
+.tg{flex:none;width:38px;height:22px;border-radius:99px;background:var(--off);position:relative}
+.tg:after{content:'';position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.tg.on{background:var(--on)}.tg.on:after{left:19px;background:var(--knob)}
+.rd{flex:none;width:18px;height:18px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink-3)}
+.rd.on{box-shadow:inset 0 0 0 5px var(--on)}
+kbd{font:600 12.5px Inter;padding:4px 9px;border-radius:6px;background:var(--btn);box-shadow:inset 0 0 0 1px var(--btn-edge),0 1px 0 var(--btn-edge)}
+.btn{font:500 13px Inter;padding:6px 12px;border-radius:8px;background:var(--btn);box-shadow:inset 0 0 0 1px var(--btn-edge)}
+.sel{display:flex;align-items:center;gap:8px;font:500 13px Inter;padding:6px 10px 6px 12px;border-radius:8px;background:var(--btn);box-shadow:inset 0 0 0 1px var(--btn-edge)}
+.sel svg{width:12px;height:12px;stroke:var(--ink-2);fill:none;stroke-width:2}
+.muted{color:var(--ink-3)}
+</style></head><body>
+<aside>
+ <div class="lab">Einstellungen</div>
+ <nav>
+  <a class="on" href="#"><svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3"/></svg>Diktieren</a>
+  <a href="#"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/></svg>Wörterbuch</a>
+  <a href="#"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Allgemein</a>
+ </nav>
+ <div class="lab">Info</div>
+ <nav>
+  <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>Über Letterflow</a>
+ </nav>
+ <div class="ver"><span><i></i>Letterflow v0.16.1</span></div>
+</aside>
+<main>
+ <h1>Diktieren</h1>
+ <div class="card">
+  <div class="row"><div class="t"><b>Sprechtaste</b><span>Gedrückt halten, sprechen, loslassen – der Text erscheint am Cursor</span></div><kbd>Rechte Strg</kbd><span class="btn">Ändern</span></div>
+ </div>
+ <h2>Glättung</h2>
+ <div class="card">
+  <div class="row"><div class="t"><b>Text glätten</b><span>Entfernt „ähm“, setzt Satzzeichen und deine Schreibweisen</span></div><span class="tg on"></span></div>
+  <div class="row"><span class="rd on"></span><div class="t"><b>Automatisch</b><span>Wählt nach deinem PC – hier: Schnell</span></div></div>
+  <div class="row"><span class="rd"></span><div class="t"><b>Schnell</b><span>Sofort, ohne Selbstkorrekturen</span></div></div>
+  <div class="row"><span class="rd"></span><div class="t"><b>Gründlich</b><span>Wendet auch „Montag, nein, Dienstag“ an · lädt einmalig 2,5 GB</span></div></div>
+ </div>
+ <h2>Mikrofon</h2>
+ <div class="card">
+  <div class="row"><div class="t"><b>Eingabegerät</b><span>Wird nur während der Aufnahme geöffnet</span></div><span class="btn">Pegel testen</span><span class="sel">Windows-Standard<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span></div>
+ </div>
+</main>
+</body></html>

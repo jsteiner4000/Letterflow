@@ -126,3 +126,19 @@ Alle Fenster und die Pille nutzen **nur** diese Werte (Entwurf `docs/design/eins
 - **Farbrollen:** `--accent` (App: Auswahl, Schalter, Fokus) und `--live` `#5EEAD4` (nur Live: Wellenform, Erfolgshäkchen, Taskleisten-Symbol „hört zu“). Keine weiteren Mint-/Türkis-Töne.
 - **Material:** Pille = schwerstes Material (dunkel getönt), Karten = leichtes Glas, Seitenleiste = Grundfläche ohne eigenes Glas. Nie helles Glas auf hellem Glas.
 - **Bewegung:** kritisch gedämpfte Federn (Dämpfung 1,0, Reaktion 0,3–0,4 s), keine Überschwinger; Verschwinden schneller als Erscheinen; Erscheinen und Verschwinden auf demselben Weg (nach unten, 6 px + Skalierung 0,96). **Reaktion ohne Verzögerung:** Die Pille ist spätestens im nächsten Frame nach dem Tastendruck sichtbar; Knöpfe reagieren beim Drücken (`:active`), nicht erst beim Loslassen.
+
+## Überarbeitung v3 (Julius, 2026-11-09) – ersetzt Abweichendes oben
+
+Nach dem Praxistest. Verbindliche Vorlagen: `docs/design/einstellungen-v3.html` (+ `-hell.png`, `-dunkel.png`) und `docs/design/pille-v2.html` (+ `.png`).
+
+**App-Fenster (Designsprache nach Julius' Referenz):**
+- Warm-neutrale Farben, einfarbig: Seitenleiste `#F4F2EE`, Inhalt `#FFFFFF`, Gruppenflächen `#F6F4F0`, gewählter Menüpunkt `#EBE8E2`, Trennlinien `rgba(30,25,20,.08)`, Text `#1D1B18` / `#6B675F` / `#8E8A82`. Dunkel: `#1E1D1B` / `#252422` / `#2C2B28` / `#33322F`, Text `#EFECE6` / `#A39F97` / `#7F7B74` (alle Tokens in der Vorlage). **Kein Petrol in der Bedienung** – Schalter/Auswahlkreise schwarz (dunkel: hell); Petrol nur im Logo und in der Pille.
+- Seitentitel in **Newsreader** (Serifen, 400, 30/36, −0,01em; SIL OFL, mitgeliefert); Text Inter. Outfit entfällt in den App-Fenstern.
+- Seitenleiste: Abschnittsnamen „EINSTELLUNGEN“ (Diktieren, Wörterbuch, Allgemein) und „INFO“ (Über Letterflow) in 11 px Großbuchstaben; feine Liniensymbole; aktiver Punkt als gefülltes Feld; unten „Letterflow v{Version}“ mit Statuspunkt (grün bereit, grau startet, orange Einrichtung/Fehler; Text als Tooltip).
+- Inhalt als **Listen-Gruppen** (Fläche, Radius 12, Zeilen 14/18 px Innenabstand, Trennlinien): Zeile = Titel (Inter 600 13,5) + Erklärtext (Inter 13, `--ink-2`) links, Bedienelement rechts. Glättungsstufen als Listenzeilen mit Auswahlkreis („Automatisch – Wählt nach deinem PC – hier: {Stufe}“, „Schnell“, „Gründlich – … · lädt einmalig 2,5 GB“). Schalter „Text glätten“ als erste Zeile der Gruppe „Glättung“. Mikrofon: Zeile „Eingabegerät“ mit „Pegel testen“ und Auswahl.
+- Einrichtung, Über-Dialog und Rückfrage-Dialog in derselben Sprache.
+
+**Sprechtaste:** Standard ist **Rechte Strg** (`hotkey: 'rctrl'`); Strg+Win und Strg+Umschalt bleiben wählbar. Gespeicherte Einstellungen bleiben unverändert.
+
+**Pille v2:** nur Programmsymbol (kein Name), Höhe 52 px, Radius 26, Symbol 28 px scharf (`app.getFileIcon(exe, { size: 'large' })`, auf 28 × Bildschirmskalierung verkleinert), Wellenform 22 Balken à 3 px / Abstand 2,5 px, Höhe 30 px, empfindlicher (leise Stimme sichtbar; logarithmische Pegelkurve, schnelleres Ansprechen, sanfteres Abklingen), Leuchtpunkt rechts. Erfolg: Symbol + „Eingefügt“ / „{n} Wörter“ + Häkchen. Warnung/Fehler mit Text wie bisher. Glas wie `pille-glas.html`.
+**Erscheinen „Liquid-Drop“:** Glastropfen (Kreis 52 px, Start-Skalierung ≈ 0,55) ploppt in ≈ 90 ms auf, dehnt sich in ≈ 110 ms zur vollen Breite mit minimalem Nachfedern (≈ 1,04), danach blenden Wellenform und Punkt ein (≈ 80 ms); gesamt < 0,3 s. Verschwinden rückwärts, schneller. Reduzierte Bewegung: nur Einblenden.
