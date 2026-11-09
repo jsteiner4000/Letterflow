@@ -24,11 +24,16 @@ win:
   target: nsis
   icon: assets/letterflow.ico
   artifactName: Letterflow-Setup-${version}.${ext}
+# Geführter Installer auf Deutsch: Frage nach der Desktop-Verknüpfung und Abschlussseite mit
+# „Letterflow starten“ (build/installer.nsh); Desktop-Verknüpfung legt das Skript an.
 nsis:
-  oneClick: true
+  oneClick: false
   perMachine: false
   allowElevation: false
-  createDesktopShortcut: always
+  allowToChangeInstallationDirectory: false
+  installerLanguages: [de_DE]
+  language: '1031'
+  createDesktopShortcut: false
   createStartMenuShortcut: true
   installerIcon: assets/letterflow.ico
   uninstallerIcon: assets/letterflow.ico

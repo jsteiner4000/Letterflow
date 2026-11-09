@@ -93,10 +93,10 @@ test('dauerhafter Umbenennen-Fehler wirft und lässt die alte Datei unversehrt',
 
 test('Pille: Regler begrenzt, Tönung geprüft, Rest Standard', () => {
   expect(DEFAULTS.pill).toEqual({
-    frost: 40,
-    opacity: 85,
-    refraction: 60,
-    tint: 'hell',
+    frost: 25,
+    opacity: 34,
+    refraction: 62,
+    tint: 'dunkel',
     autoDarken: true,
     autoDarkenStrength: 50,
     animation: 'auto',

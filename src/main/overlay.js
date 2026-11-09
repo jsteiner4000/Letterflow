@@ -218,6 +218,10 @@ function createOverlay({ getSettings = () => ({}), capture = true, grab = null }
       reihe(async () => {
         await ensureWindow();
         if (!win || win.isDestroyed()) return;
+        // Das Fenster bleibt dauerhaft gezeigt; andere Fenster (z. B. nach Bildschirmwechsel oder
+        // Vollbild) können sich davorschieben. Daher bei jedem Zeigen wieder ganz nach oben.
+        win.setAlwaysOnTop(true, 'screen-saver');
+        win.moveTop();
         let streifen = null;
         if (!gezeigt) {
           gezeigt = true;

@@ -6,7 +6,8 @@ Diktieren auf Windows: Taste halten, sprechen, loslassen – der Text erscheint 
 
 1. `Letterflow-Setup-<Version>.exe` ausführen. Es wird keine Administrator-Berechtigung gebraucht.
 2. Windows zeigt eventuell eine blaue Warnung (SmartScreen), weil das Programm nicht signiert ist. Auf **Weitere Informationen** klicken, dann auf **Trotzdem ausführen**.
-3. Danach startet Letterflow; Verknüpfungen auf dem Desktop und im Startmenü sind angelegt.
+3. Der Installer fragt, ob zusätzlich zum Startmenü eine Verknüpfung auf dem Desktop angelegt werden soll (Häkchen, vorausgewählt).
+4. Die Abschlussseite sagt, wo Letterflow zu finden ist; mit „Letterflow starten“ (vorausgewählt) geht es direkt los.
 
 ## Erster Start
 
@@ -15,6 +16,7 @@ Beim ersten Start lädt Letterflow einmalig die Sprachmodelle herunter (ca. 0,7 
 ## Benutzen
 
 - **Rechte Strg** halten, sprechen, loslassen. Der Text wird eingefügt. In den Einstellungen kannst du stattdessen **Strg + Win** oder **Strg + Umschalt** wählen.
+- Mitten in einen vorhandenen Satz diktiert, setzt Letterflow keinen Schlusspunkt, ergänzt das Leerzeichen und schreibt Wörter wie „ich“, „und“, „der“ klein (wenn das Programm den Text um die Schreibmarke preisgibt).
 - **Esc** während des Haltens verwirft die Aufnahme. Alles andere (etwa Alt + Tab zum Fensterwechsel) ist beim Diktieren erlaubt: Letterflow fügt den Text in das Fenster ein, in dem du angefangen hast, und bringt dich danach zurück.
 - Das Symbol im Infobereich der Taskleiste zeigt den Zustand; ein Rechtsklick öffnet das Menü.
 

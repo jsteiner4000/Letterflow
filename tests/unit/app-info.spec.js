@@ -15,7 +15,7 @@ test('Symbol wird je Exe zwischengespeichert, Fehler → null', async () => {
   let calls = 0;
   const getAppInfo = createAppInfo({
     getFileIcon: async (exe) => {
-      calls++;
+      if (!exe.includes('ohne-symbol')) calls++;
       if (exe.includes('bad')) throw new Error('x');
       return icon;
     },
@@ -25,4 +25,19 @@ test('Symbol wird je Exe zwischengespeichert, Fehler → null', async () => {
   expect(a.iconDataUrl).toBe('data:image/png;base64,AAAA');
   expect(calls).toBe(1);
   expect((await getAppInfo({ exe: 'C:/bad.exe', appName: 'B' })).iconDataUrl).toBeNull();
+});
+
+test('Leeres Windows-Programmsymbol → null (Pille zeigt Letterflow)', async () => {
+  const bild = (px) => ({
+    toBitmap: () => Buffer.from(px),
+    toDataURL: () => 'data:image/png;base64,QQ==',
+  });
+  const getAppInfo = createAppInfo({
+    getFileIcon: async (exe) =>
+      bild(exe.includes('ohne-symbol') || exe.includes('leer') ? 'leer' : 'echt'),
+  });
+  expect((await getAppInfo({ exe: 'C:/leer.exe', appName: 'L' })).iconDataUrl).toBeNull();
+  expect((await getAppInfo({ exe: 'C:/echt.exe', appName: 'E' })).iconDataUrl).toBe(
+    'data:image/png;base64,QQ==',
+  );
 });

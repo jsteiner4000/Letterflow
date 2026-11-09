@@ -1,6 +1,7 @@
 // Letterflow-Helfer: globale Tastenüberwachung, Fokus-Erkennung und Einfügen.
 // Protokoll: eine JSON-Zeile je Nachricht (UTF-8) über stdin/stdout. Siehe src/main/helper.js.
 // Datenschutz: Es wird nie gemeldet, WELCHE normale Taste gedrückt wurde, nur dass eine gedrückt wurde.
+// Der Text direkt um die Schreibmarke (je höchstens 40 Zeichen) geht nur an die App, nie in ein Protokoll.
 // Nur C# 5 (Compiler aus .NET Framework 4).
 using System;
 using System.Collections.Concurrent;
@@ -12,6 +13,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Automation;
+using System.Windows.Automation.Text;
 
 namespace Letterflow
 {
@@ -444,7 +446,7 @@ namespace Letterflow
             long hwnd = fg.ToInt64();
             bool elevated = false;
             string editable = "unknown";
-            string exe = null, appName = null;
+            string exe = null, appName = null, vor = null, nach = null;
             if (fg != IntPtr.Zero)
             {
                 uint pid;
@@ -455,10 +457,11 @@ namespace Letterflow
                 Native.GetClassName(fg, sb, 256);
                 string cls = sb.ToString();
                 if (elevated || cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd") editable = "no";
-                else editable = ProbeEditable();
+                else editable = ProbeEditable(out vor, out nach);
             }
             return "{\"hwnd\":" + hwnd + ",\"editable\":\"" + editable + "\",\"elevated\":" + (elevated ? "true" : "false")
-                + ",\"exe\":" + JsonStr(exe) + ",\"appName\":" + JsonStr(appName) + "}";
+                + ",\"exe\":" + JsonStr(exe) + ",\"appName\":" + JsonStr(appName)
+                + ",\"vor\":" + JsonStr(vor) + ",\"nach\":" + JsonStr(nach) + "}";
         }
 
         static string JsonStr(string s)
@@ -516,10 +519,12 @@ namespace Letterflow
             catch { }
         }
 
-        // UI Automation mit hartem Timeout von 300 ms
-        static string ProbeEditable()
+        // UI Automation mit hartem Timeout von 300 ms. Dauert nur das Lesen um die Schreibmarke zu lange,
+        // bleibt das Ergebnis „Textfeld“ gültig, vor/nach sind dann null.
+        static string ProbeEditable(out string vor, out string nach)
         {
-            string result = "unknown";
+            object sync = new object();
+            string result = "unknown", v = null, n = null;
             Thread t = new Thread(delegate()
             {
                 try
@@ -527,19 +532,42 @@ namespace Letterflow
                     AutomationElement el = AutomationElement.FocusedElement;
                     if (el == null) return;
                     ControlType ct = el.Current.ControlType;
-                    if (ct == ControlType.Edit || ct == ControlType.Document) { result = "yes"; return; }
+                    bool ja = ct == ControlType.Edit || ct == ControlType.Document;
                     object pat;
-                    if (el.TryGetCurrentPattern(ValuePattern.Pattern, out pat))
-                    {
-                        if (!((ValuePattern)pat).Current.IsReadOnly) result = "yes";
-                    }
+                    if (!ja && el.TryGetCurrentPattern(ValuePattern.Pattern, out pat))
+                        ja = !((ValuePattern)pat).Current.IsReadOnly;
+                    if (!ja) return;
+                    lock (sync) result = "yes";
+                    if (el.Current.IsPassword) return;
+                    string a, b;
+                    UmSchreibmarke(el, out a, out b);
+                    lock (sync) { v = a; n = b; }
                 }
                 catch { }
             });
             t.IsBackground = true;
             t.Start();
-            if (!t.Join(300)) return "unknown";
-            return result;
+            t.Join(300);
+            lock (sync) { vor = v; nach = n; return result; }
+        }
+
+        // Text direkt vor und nach der Schreibmarke (bzw. Auswahl) über das TextPattern; sonst null.
+        static void UmSchreibmarke(AutomationElement el, out string vor, out string nach)
+        {
+            vor = null; nach = null;
+            object pat;
+            if (!el.TryGetCurrentPattern(TextPattern.Pattern, out pat)) return;
+            TextPatternRange[] sel = ((TextPattern)pat).GetSelection();
+            if (sel == null || sel.Length == 0) return;
+            TextPatternRange a = sel[0].Clone();
+            a.MoveEndpointByRange(TextPatternRangeEndpoint.End, sel[0], TextPatternRangeEndpoint.Start);
+            a.MoveEndpointByUnit(TextPatternRangeEndpoint.Start, TextUnit.Character, -40);
+            TextPatternRange b = sel[0].Clone();
+            b.MoveEndpointByRange(TextPatternRangeEndpoint.Start, sel[0], TextPatternRangeEndpoint.End);
+            b.MoveEndpointByUnit(TextPatternRangeEndpoint.End, TextUnit.Character, 40);
+            string x = a.GetText(-1), y = b.GetText(-1);
+            vor = x.Length > 40 ? x.Substring(x.Length - 40) : x;
+            nach = y.Length > 40 ? y.Substring(0, 40) : y;
         }
 
         static bool IsDown(int vk)

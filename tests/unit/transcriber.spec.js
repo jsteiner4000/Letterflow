@@ -3,6 +3,20 @@ const { createTranscriptQueue, normalizeLevel } = require('../../src/main/transc
 
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 const abschnitt = (n = 16000) => new Float32Array(n);
+const EINZELN = { maxSamples: 1 }; // jeder Abschnitt eine eigene Gruppe
+
+test('kurze Abschnitte werden gemeinsam erkannt, mit 0,3 s Stille dazwischen', async () => {
+  const laengen = [];
+  const q = createTranscriptQueue(async (s) => {
+    laengen.push(s.length);
+    return 'x';
+  });
+  q.add(abschnitt(16000), true);
+  q.add(abschnitt(16000), true);
+  q.add(abschnitt(11 * 16000), true); // passt nicht mehr in die 12-s-Gruppe
+  expect(await q.finish()).toBe('x x');
+  expect(laengen).toEqual([2 * 16000 + 4800, 11 * 16000]);
+});
 
 test('Abschnitt ohne Sprache wird nicht erkannt', async () => {
   const calls = [];
@@ -25,7 +39,7 @@ test('Abschnitte werden in Reihenfolge verbunden', async () => {
     const [ms, text] = antworten[i++];
     await pause(ms);
     return text;
-  });
+  }, EINZELN);
   q.add(abschnitt(), true);
   q.add(abschnitt(), true);
   expect(await q.finish()).toBe('Eins. Zwei.');
@@ -41,7 +55,7 @@ test('nie zwei Erkennungen gleichzeitig, schon während der Aufnahme begonnen', 
     await pause(20);
     laufend--;
     return 'x';
-  });
+  }, EINZELN);
   q.add(abschnitt(), true);
   q.add(abschnitt(), true);
   q.add(abschnitt(), true);
@@ -55,7 +69,7 @@ test('Fehler in einem Abschnitt verliert nicht den Rest', async () => {
   const q = createTranscriptQueue(async () => {
     if (i++ === 0) throw new Error('kaputt');
     return 'Zwei.';
-  });
+  }, EINZELN);
   const log = console.error;
   console.error = () => {};
   try {

@@ -115,7 +115,7 @@ function inhaltSetzen(state) {
 // --- Glas: Linse über dem erfassten Streifen, sonst getöntes Glas -------------------------------
 
 const glas = window.PilleGlas.erzeugen(document.getElementById('glas'));
-let einstellung = { frost: 40, opacity: 85, refraction: 60, tint: 'hell' };
+let einstellung = { frost: 25, opacity: 34, refraction: 62, tint: 'dunkel' };
 let deckend = false;
 let streifen = null; // { w, h, scale, daten }
 let lum = null;

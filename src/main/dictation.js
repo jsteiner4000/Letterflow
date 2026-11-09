@@ -3,9 +3,10 @@
 // wird; eingefügt wird immer in der Reihenfolge der Aufnahmen.
 const { clipboard } = require('electron');
 const { createSegmenter } = require('./vad');
-const { normalizeLevel, createTranscriptQueue } = require('./transcriber');
+const { createTranscriptQueue } = require('./transcriber');
 const { polish } = require('./smoother');
 const { snapshot, restoreIfUnchanged } = require('./clipboard');
+const { anpassen } = require('./einfuegen');
 
 const MIN_DURATION_MS = 300;
 const MAX_DURATION_MS = 5 * 60 * 1000;
@@ -145,7 +146,10 @@ class Dictation {
     // Nur das Ergebnis des neuesten Diktats zählt: eine ältere, langsamere Abfrage zeigt nie ihr Programm.
     this.lastRec = rec;
     this.lastApp = undefined;
-    rec.app = rec.focus.then((f) => this.getAppInfo(f)).catch(() => null);
+    // Kein Textfeld: kein Programmsymbol, die Pille zeigt das Letterflow-Symbol.
+    rec.app = rec.focus
+      .then((f) => (f.editable === 'no' ? null : this.getAppInfo(f)))
+      .catch(() => null);
     rec.app.then((app) => {
       if (this.lastRec !== rec) return;
       this.lastApp = app;
@@ -207,7 +211,7 @@ class Dictation {
         `mikrofon-start ${Date.now() - rec.startedAt} ms, ${this.recorder.warm ? 'warm' : 'kalt'}`,
       );
     rec.gotAudio = true;
-    for (const seg of rec.segmenter.push(pcm)) rec.queue.add(normalizeLevel(seg), true);
+    for (const seg of rec.segmenter.push(pcm)) rec.queue.add(seg, true);
     if (rec === this.recording) this.overlay.level(rec.segmenter.level);
   }
 
@@ -265,7 +269,7 @@ class Dictation {
       this.log('diktat: verworfen (zu kurz oder still)');
       return null;
     }
-    if (tail) rec.queue.add(normalizeLevel(tail), true);
+    if (tail) rec.queue.add(tail, true);
     this._idle();
     let t = Date.now();
     const raw = await rec.queue.finish();
@@ -284,7 +288,8 @@ class Dictation {
     });
     this.log(`diktat: glättung ${Date.now() - t} ms`);
     if (!text || !text.trim()) return null;
-    return { text, focus: await rec.focus, app: await rec.app };
+    const focus = await rec.focus;
+    return { text: anpassen(text, focus), focus, app: await rec.app };
   }
 
   async _deliver(job) {

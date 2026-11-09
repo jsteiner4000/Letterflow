@@ -400,3 +400,23 @@ Gemessen auf diesem Laptop (125 %, echtes Mikrofon, Erfassung an) mit einem Mess
 Umgesetzt: Fenster bleibt dauerhaft gezeigt (durchsichtig, klickdurchlässig); Federn laufen in Bildern ab dem ersten Bild und enden in Ruhe (Grenze 0,8 s Federzeit); Hintergrund vor dem Erscheinen über den Helfer (`desktopCapturer` nur als Rückfall); Mikrofon in einem eigenen verborgenen Fenster, als Erstes beim Kürzel gestartet, 15 s warm mit 300 ms Ringpuffer. Protokoll: `mikrofon-start X ms, kalt|warm` (nur Zeit).
 
 Offen: Der kalte Start (~1 s) ist Gerätezeit und bleibt; nur längeres Warmhalten würde ihn verkürzen.
+
+## Sprechpausen und Satzzeichen (Version 0.23.0)
+
+Befund: Die Sprechpausen-Erkennung schneidet ab 0,7 s Stille. Jeder Abschnitt wurde einzeln erkannt; Parakeet beendet jeden mit einem Punkt, schreibt den nächsten groß und verhört Wörter am Schnitt („und schre. Schreibt bein Gedicht“).
+
+Umsetzung: Abschnitte werden zu Gruppen bis 12 s verbunden (0,3 s Stille dazwischen) und gemeinsam erkannt; volle Gruppen schon während der Aufnahme, die letzte beim Loslassen. Schlimmster Fall nach dem Loslassen: 12 s Audio ≈ 0,7 s Erkennung (Abschnitt 9.3).
+
+Messung (Skript im Arbeitsordner, nicht im Projekt): 20 Testsatz-Aufnahmen (`testdata/stimme`), echte Erkennungszeiten, Abschnitte wie in der App (100-ms-Pakete), Regel-Glättung ohne Wörterbuch (daher höhere WER als in Abschnitt 13). „Pause“: Stille an der leisesten Stelle zwischen 35 % und 65 % des Satzes eingefügt (Wortgrenze mitten im Satz). Latenz = Loslassen → Text der Erkennung (Abschnitte, die beim Sprechen fertig werden, zählen nicht).
+
+| Aufnahmen | WER vorher → nachher | Punkte mitten im Satz vorher → nachher | Latenz Median (max) vorher → nachher |
+|---|---|---|---|
+| unverändert | 15,2 % → 15,2 % | 1 → 1 | 315 (456) → 324 (456) ms |
+| mit 0,9 s Pause | 27,6 % → 15,9 % | 11 → 4 | 229 (412) → 356 (435) ms |
+| mit 1,5 s Pause | 30,8 % → 18,6 % | 12 → 4 | 205 (371) → 338 (444) ms |
+
+Verworfen: Schwelle 1,2 s statt 0,7 s (bei 0,9-s-Pausen WER 17,3 %, 5 Punkte; bei 1,5-s-Pausen keine Besserung) und Verbinden ohne Stille dazwischen (WER 17,6 %, ohne Pause 16,3 %).
+
+## Pille hinter anderen Fenstern (Version 0.23.0)
+
+Beobachtet (Julius, vor einem Neustart): Die Pille lag hinter anderen Fenstern. Ursache vermutlich: Das Aufnahme-Fenster bleibt seit 0.22.0 dauerhaft gezeigt; „immer oben“ wird nur einmal beim Anlegen gesetzt, andere oberste Fenster (Vollbild, Bildschirmwechsel) schieben sich davor. Behebung: Bei jedem Zeigen `setAlwaysOnTop(true, 'screen-saver')` und `moveTop()` (ohne Fokus). Nicht nachgestellt.

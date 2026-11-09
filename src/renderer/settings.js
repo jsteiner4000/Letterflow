@@ -150,10 +150,10 @@ function speichern(patchOderFunktion) {
 
 // Glas-Standard (Zurücksetzen); die Animation bleibt dabei unberührt.
 const PILLE_STANDARD = {
-  frost: 40,
-  opacity: 85,
-  refraction: 60,
-  tint: 'hell',
+  frost: 25,
+  opacity: 34,
+  refraction: 62,
+  tint: 'dunkel',
   autoDarken: true,
   autoDarkenStrength: 50,
 };

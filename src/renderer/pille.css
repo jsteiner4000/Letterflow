@@ -80,26 +80,24 @@
 }
 .spec {
   z-index: -1;
-  background: radial-gradient(60% 90% at 18% 0%, rgba(255, 255, 255, 0.35), transparent 55%);
+  background: radial-gradient(60% 90% at 18% 0%, rgba(255, 255, 255, 0.18), transparent 55%);
   mix-blend-mode: screen;
 }
-/* Lichtkante: genau 1 Gerätepixel (--hair), ohne Weichzeichnung */
+/* Lichtkante: genau 1 Gerätepixel (--hair), ohne Weichzeichnung. Zurückhaltend wie Apple-Glas: nur
+   oben ein Lichtsaum, ringsum eine kaum sichtbare Kante (ein heller Vollring wirkt künstlich). */
 .rim {
   --hair: calc(1px / var(--dpr, 1));
   z-index: 5;
   box-shadow:
-    inset var(--hair) var(--hair) 0 rgba(255, 255, 255, 0.75),
-    inset calc(-1 * var(--hair)) calc(-1 * var(--hair)) 0 rgba(255, 255, 255, 0.35),
-    inset 0 0 0 var(--hair) rgba(255, 255, 255, 0.35),
-    inset 0 -8px 14px rgba(0, 0, 0, 0.1),
-    inset 0 8px 16px rgba(255, 255, 255, 0.1);
+    inset 0 var(--hair) 0 rgba(255, 255, 255, 0.3),
+    inset 0 0 0 var(--hair) rgba(255, 255, 255, 0.08),
+    inset 0 -6px 12px rgba(0, 0, 0, 0.06);
 }
 .pille.hellgrund .rim {
   box-shadow:
-    inset var(--hair) var(--hair) 0 rgba(255, 255, 255, 0.9),
-    inset calc(-1 * var(--hair)) calc(-1 * var(--hair)) 0 rgba(255, 255, 255, 0.6),
-    inset 0 0 0 var(--hair) rgba(0, 0, 0, 0.18),
-    inset 0 -8px 14px rgba(0, 0, 0, 0.06);
+    inset 0 var(--hair) 0 rgba(255, 255, 255, 0.45),
+    inset 0 0 0 var(--hair) rgba(0, 0, 0, 0.1),
+    inset 0 -6px 12px rgba(0, 0, 0, 0.04);
 }
 
 /* Erscheinen/Verschwinden: Tropfen mit Linsen-Wobble. Federn in overlay.js setzen transform, clip-path,
@@ -161,18 +159,9 @@
 .symbol[data-art='bild'] img {
   display: block;
 }
+/* Programm unbekannt oder ohne eigenes Symbol: Letterflow-Symbol */
 .symbol[data-art='mono'] {
-  background: linear-gradient(160deg, #14b8a6, #0f766e);
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
-}
-.symbol[data-art='mono']::before {
-  content: 'ℓ';
-  font:
-    600 18px/1 'Outfit',
-    sans-serif;
-  color: #fff;
+  background: url('../../assets/icon.png') center / 30px no-repeat;
 }
 .symbol[data-art='warn'] {
   border-radius: 50%;
