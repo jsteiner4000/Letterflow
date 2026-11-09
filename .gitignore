@@ -10,3 +10,4 @@ CLAUDE.md.txt
 resources/_dl/
 testdata/bench-*.wav
 .impeccable/
+testdata/stimme/*.wav
