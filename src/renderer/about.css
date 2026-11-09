@@ -35,3 +35,10 @@ summary {
   flex-direction: column;
   gap: 4px;
 }
+pre.lizenzen {
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: inherit;
+  font-size: 12px;
+}

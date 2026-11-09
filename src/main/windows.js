@@ -8,6 +8,9 @@ const PRELOAD = path.join(__dirname, '..', 'preload', 'preload.js');
 const offen = new Map();
 
 ipcMain.handle('app:info', () => ({ name: app.getName(), version: app.getVersion() }));
+ipcMain.handle('app:licenses', () =>
+  require('node:fs').readFileSync(path.join(__dirname, '..', '..', 'DRITTANBIETER.md'), 'utf8'),
+);
 ipcMain.handle('app:about', () => {
   openAbout();
 });

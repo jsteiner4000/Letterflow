@@ -1,0 +1,42 @@
+name: Auto-Release
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version lesen und Tag prüfen
+        id: v
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
+            echo "neu=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "neu=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.v.outputs.neu == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - name: Bauen und prüfen
+        if: steps.v.outputs.neu == 'true'
+        shell: bash
+        run: |
+          npm ci
+          npm run engines
+          npm run helper
+          npm test
+          npm run dist
+      - name: Release anlegen
+        if: steps.v.outputs.neu == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "v${{ steps.v.outputs.version }}" dist/Letterflow-Setup-*.exe --target "$GITHUB_SHA" --title "Letterflow ${{ steps.v.outputs.version }}" --generate-notes

@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('letterflow', {
   info: () => ipcRenderer.invoke('app:info'),
   about: () => ipcRenderer.invoke('app:about'),
+  licenses: () => ipcRenderer.invoke('app:licenses'),
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
     set: (patch) => ipcRenderer.invoke('settings:set', patch),
