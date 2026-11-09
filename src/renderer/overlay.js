@@ -6,6 +6,8 @@ const zeile2 = document.getElementById('zeile2');
 const ansage = document.getElementById('ansage');
 const spur = document.getElementById('balken');
 const pegelBalken = document.getElementById('pegelbalken');
+const schatten = document.getElementById('schatten');
+const PILLE = 60; // Höhe in CSS-Pixeln, wie in pille.css und main/overlay.js
 
 const ARIA = { aufnahme: 'Ich höre zu', verarbeitung: 'Text wird aufbereitet' };
 const BAND = 16; // wie in main/overlay.js: Rand (DIP) des erfassten Streifens über der Pille
@@ -13,13 +15,13 @@ const ruhig = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const kontrast = () => matchMedia('(forced-colors: active)').matches;
 const aufPixel = (v) => Math.round(v * devicePixelRatio) / devicePixelRatio; // ganze Gerätepixel
 
-// --- Wellenform als Zeitstrahl: alle 45 ms ein Balken rechts, gleitet nach links und blendet aus. --
-// Höhe = Sprachpegel in diesem Moment (logarithmisch, Ansprechen ~40 ms, Abklingen ~180 ms).
-// Stille = keine Balken. Reduzierte Bewegung: ein ruhiger Pegelbalken statt Zeitstrahl.
-const TAKT_MS = 45;
-const ABSTAND = 5.5; // 3 px Balken + 2,5 px Lücke
+// --- Wellenform als Zeitstrahl: alle 90 ms ein Balken rechts, gleitet nach links und blendet aus. --
+// Höhe = Sprachpegel in diesem Moment, symmetrisch um die Mitte (3 px … 34 px, normales Sprechen
+// 60–90 %). Stille = kleine runde Punkte, die mitlaufen. Reduzierte Bewegung: ruhiger Pegelbalken.
+const TAKT_MS = 90;
+const ABSTAND = 5.5; // 3 px Balken + 2,5 px Lücke: 61 px/s
+const HOCH = 34;
 const balken = Array.from({ length: 24 }, () => spur.appendChild(document.createElement('i')));
-const hoehen = new Float32Array(balken.length); // Ringpuffer, hoehen[n % länge] = Balken Nr. n
 let pegel = 0;
 let ziel = 0;
 let lauf = 0;
@@ -33,6 +35,15 @@ function dbNormiert(n) {
   return Math.max(0, Math.min(1, (20 * Math.log10(rms + 1e-5) + 58) / 50));
 }
 
+// Balken Nr. nr (Element nr % 24) bekommt seine Höhe einmal; danach bewegt er sich nur per transform.
+function balkenSetzen(nr, v) {
+  const h = v < 0.04 ? 3 : 3 + (HOCH - 3) * v;
+  const b = balken[nr % balken.length];
+  b.style.height = `${h.toFixed(1)}px`;
+  b.style.top = `${((HOCH - h) / 2).toFixed(2)}px`;
+  b.style.opacity = v < 0.04 ? '0.35' : '1';
+}
+
 function takt(t) {
   const dt = Math.min(64, t - (letzte || t - 16));
   letzte = t;
@@ -43,18 +54,13 @@ function takt(t) {
   } else {
     const zeit = (t - start) / TAKT_MS;
     const n = Math.floor(zeit);
-    gezeigt = Math.max(gezeigt, n - hoehen.length);
-    for (; gezeigt < n; gezeigt++) {
-      // Rauschen unter ~12 % zeigt nichts: Stille bleibt leer (auch keine hauchdünnen Striche).
-      const h = (pegel - 0.12) / 0.88;
-      hoehen[(gezeigt + 1) % hoehen.length] = h < 0.04 ? 0 : h;
-    }
+    gezeigt = Math.max(gezeigt, n - balken.length);
+    for (; gezeigt < n; gezeigt++) balkenSetzen(gezeigt + 1, (pegel - 0.1) / 0.6);
     const breite = spur.clientWidth;
-    balken.forEach((b, k) => {
-      const nr = n - k; // k = Alter in Takten
-      const h = nr >= 0 ? hoehen[nr % hoehen.length] : 0;
+    balken.forEach((b, j) => {
+      const k = (((n - j) % balken.length) + balken.length) % balken.length; // Alter in Takten
       const x = breite - 3 - ABSTAND * (k + (zeit - n) - 1);
-      b.style.transform = `translateX(${x.toFixed(2)}px) scaleY(${h.toFixed(3)})`;
+      b.style.transform = `translateX(${x.toFixed(2)}px)`;
     });
   }
   lauf = aktiv && pille.dataset.kind === 'aufnahme' ? requestAnimationFrame(takt) : 0;
@@ -70,8 +76,7 @@ function wellenformLeeren() {
   ziel = pegel = 0;
   start = 0;
   gezeigt = -1;
-  hoehen.fill(0);
-  balken.forEach((b) => (b.style.transform = 'scaleY(0)'));
+  balken.forEach((b, j) => balkenSetzen(j, 0));
   pegelBalken.style.transform = 'scaleX(0)';
 }
 wellenformLeeren();
@@ -119,22 +124,27 @@ let aktiv = false; // zwischen Zustand und Ausblenden
 // Lage der Pille im Fenster (CSS-Pixel); der Streifen beginnt BAND über der mittig gedachten Pille.
 const links = () => parseFloat(pille.style.left) || 0;
 const oben = () => parseFloat(pille.style.top) || 0;
-const streifenOben = () => (window.innerHeight - 52) / 2 - BAND;
+const streifenOben = () => (window.innerHeight - PILLE) / 2 - BAND;
+
+let bulge = 1; // Faktor auf die Brechung (Tropfen-Wobble), sonst 1
+
+function linse() {
+  if (!pille.classList.contains('echt')) return;
+  const s = streifen.scale;
+  glas.zeichnen({
+    s,
+    ox: Math.round(links() * s),
+    oy: Math.round((oben() - streifenOben()) * s),
+    refraction: einstellung.refraction * bulge,
+  });
+}
 
 function glasAnwenden() {
   const cfg = { ...einstellung, opacity: deckend ? 0 : einstellung.opacity };
   const echt = Boolean(glas && streifen && !deckend && !kontrast());
   window.PilleGlas.anwenden(pille, cfg, echt ? lum : null);
-  if (echt) {
-    const s = streifen.scale;
-    glas.zeichnen({
-      s,
-      ox: Math.round(links() * s),
-      oy: Math.round((oben() - streifenOben()) * s),
-      refraction: cfg.refraction,
-    });
-  }
   pille.classList.toggle('echt', echt);
+  linse();
 }
 
 window.letterflow.overlay.onBackdrop((b) => {
@@ -150,33 +160,137 @@ window.letterflow.overlay.onBackdrop((b) => {
       x,
       Math.max(0, Math.round((oben() - streifenOben()) * s)),
       Math.min(Math.round(pille.offsetWidth * s), streifen.w - x),
-      Math.round(52 * s),
+      Math.round(PILLE * s),
       true,
     );
   }
   glasAnwenden();
 });
 
-// --- Erscheinen: Liquid-Drop (nur transform, opacity, clip-path) oder schlichtes Einblenden ---------
-// Beginnt erst mit dem ersten Bild des sichtbaren Fensters; die Bildzeiten werden gemessen, damit
-// „Automatisch“ auf langsamen PCs abschalten kann. Danach darf der Hauptprozess erfassen.
+// --- Erscheinen/Verschwinden: Tropfen mit Linsen-Wobble ----------------------------------------------
+// Je Eigenschaft eine gedämpfte Feder (echtes dt, feine Teilschritte): `pop` (Größe 0,5 → 1) und
+// `breit` (Kreis → Pille, mit Überschwingen). Der Überschwinger treibt Dehnung (Volumen bleibt:
+// scaleY = scaleX^−0,35), Glanz, Brechung (2,5× → 1× mit Wobble) und Schatten. Nur transform,
+// opacity, clip-path und ein Uniform; kein Layout. Der Inhalt kommt, wenn die Form fast ruht.
+// Verschwinden: kritisch gedämpft, kein Wobble. „schlicht“: CSS-Einblenden.
+
+const feder = () => ({ x: 0, v: 0, w: 1, z: 1, ziel: 0 });
+function federSchritt(f, dt) {
+  for (let r = dt; r > 0; r -= 0.004) {
+    const h = Math.min(r, 0.004);
+    f.v += (f.w * f.w * (f.ziel - f.x) - 2 * f.z * f.w * f.v) * h;
+    f.x += f.v * h;
+  }
+}
+const popFeder = feder();
+const breitFeder = feder();
+const klemme = (v) => Math.max(0, Math.min(1, v));
+const SPIEL_MAX = 0.4; // s: Erscheinen endet spätestens hier
+const WEG_MAX = 0.18;
+const glanzEl = [pille.querySelector('.spec'), pille.querySelector('.rim')];
+const inhaltEl = [symbol, zeile1.parentElement, spur.parentElement];
 
 let erscheint = 0;
-let messung = null;
+let anim = null;
+let erfassenErwartet = false;
+let stateZeit = 0;
 
-function erscheinen() {
-  erscheint = 0;
-  messung = pille.classList.contains('schlicht') ? null : [];
-  pille.classList.remove('weg');
-  pille.classList.add('sichtbar');
-  if (messung) {
-    const mitschreiben = (t) => {
-      if (!messung) return;
-      messung.push(t);
-      requestAnimationFrame(mitschreiben);
+function formSetzen(rein, mitBulge, inhaltT) {
+  const b = parseFloat(pille.style.width) || pille.offsetWidth;
+  const e = breitFeder.x;
+  const p = Math.max(0, popFeder.x);
+  const anteil = PILLE / b + (1 - PILLE / b) * klemme(e);
+  const rand = ((1 - anteil) * b) / 2;
+  const dehnung = 1 + 0.06 * Math.sin(Math.PI * klemme(e)) + Math.max(0, e - 1) * 0.8;
+  const gr = 0.5 + 0.5 * p;
+  const sx = gr * dehnung;
+  const sy = gr * dehnung ** -0.35; // flüssig: breiter = flacher
+  const d = 1 - e;
+  bulge = mitBulge ? Math.max(0.3, 1 + (d > 0 ? 1.5 * d : 4 * d)) : 1;
+  const spitze = klemme((bulge - 1) / 1.5);
+  const alpha = klemme(p * 3).toFixed(3);
+  const form = `scale(${sx.toFixed(4)}, ${sy.toFixed(4)})`;
+  const st = pille.style;
+  st.transform = form;
+  st.clipPath = `inset(0 ${rand.toFixed(2)}px round ${PILLE / 2}px)`;
+  st.opacity = alpha;
+  // Glanz und innere Spiegelung folgen der Verformung, kurz heller beim stärksten Wölben
+  const hell = `brightness(${(1 + 0.5 * spitze).toFixed(3)})`;
+  for (const el of glanzEl) el.style.filter = hell;
+  glanzEl[0].style.transform = `translateX(${(-(1 - klemme(e)) * b * 0.05).toFixed(2)}px) scaleY(${(1 + 0.4 * spitze).toFixed(3)})`;
+  // Schatten gehört zur Form: klein und eng, wächst und wird weicher beim Landen
+  const g = klemme(p) * (0.4 + 0.6 * klemme(e));
+  const ss = schatten.style;
+  ss.width = `${(anteil * b).toFixed(2)}px`;
+  ss.left = `${(links() + rand).toFixed(2)}px`;
+  ss.top = `${oben()}px`;
+  ss.transform = form;
+  ss.opacity = alpha;
+  ss.boxShadow = `0 ${(2 + 5 * g).toFixed(1)}px ${(5 + 17 * g).toFixed(1)}px rgba(0, 0, 0, ${(0.1 + 0.14 * g).toFixed(3)})`;
+  if (rein) {
+    // Symbol, dann Welle: je 70 ms, 2 px Aufstieg
+    const stufe = (ms) => {
+      const a = klemme(ms / 70);
+      const w = a * (2 - a);
+      return [w.toFixed(3), `translateY(${((1 - w) * 2).toFixed(2)}px)`];
     };
-    requestAnimationFrame(mitschreiben);
+    inhaltEl.forEach((el, i) => {
+      [el.style.opacity, el.style.transform] = stufe(inhaltT - (i ? 40 : 0));
+    });
   }
+  linse();
+}
+
+function formLoesen() {
+  const st = pille.style;
+  st.transform = st.clipPath = st.opacity = '';
+  for (const el of glanzEl) el.style.filter = el.style.transform = '';
+  for (const el of inhaltEl) el.style.opacity = el.style.transform = '';
+  schatten.style.transform = '';
+  schatten.style.left = st.left;
+  schatten.style.width = st.width;
+  bulge = 1;
+  linse();
+}
+
+function federLauf(rein, mitBulge) {
+  if (anim) cancelAnimationFrame(anim.id);
+  const a = (anim = { t0: 0, last: 0, ruhe: 0, zeiten: [], id: 0 });
+  const [pw, pz, bw, bz] = rein ? [0.26, 0.7, 0.32, 0.65] : [0.12, 1, 0.12, 1];
+  Object.assign(popFeder, { w: (2 * Math.PI) / pw, z: pz, ziel: rein ? 1 : 0 });
+  Object.assign(breitFeder, { w: (2 * Math.PI) / bw, z: bz, ziel: rein ? 1 : 0 });
+  const schritt = (t) => {
+    if (anim !== a) return;
+    if (!a.t0) a.t0 = a.last = t;
+    const dt = Math.min(0.05, (t - a.last) / 1000);
+    const s = (t - a.t0) / 1000;
+    a.last = t;
+    a.zeiten.push(t);
+    federSchritt(popFeder, dt);
+    if (!rein || s >= 0.05) federSchritt(breitFeder, dt); // Breite setzt kurz nach dem Pop ein
+    if (rein && !a.ruhe && breitFeder.x >= 0.85) a.ruhe = t;
+    formSetzen(rein, mitBulge, a.ruhe ? t - a.ruhe : -1e3);
+    const fertig = rein
+      ? s >= SPIEL_MAX
+      : s >= WEG_MAX || (popFeder.x < 0.52 && breitFeder.x < 0.02);
+    if (!fertig) {
+      a.id = requestAnimationFrame(schritt);
+      return;
+    }
+    anim = null;
+    Object.assign(popFeder, { x: rein ? 1 : 0, v: 0 });
+    Object.assign(breitFeder, { x: rein ? 1 : 0, v: 0 });
+    if (rein) {
+      formLoesen();
+      window.tropfenZeiten = a.zeiten; // Bildzeiten (Messung, Prüfung)
+      pille.classList.remove('tropf');
+      window.letterflow.overlay.erschienen(verworfen(a.zeiten));
+    } else {
+      pille.style.opacity = schatten.style.opacity = '0';
+    }
+  };
+  formSetzen(rein, mitBulge, rein ? -1e3 : 0); // Form schon vor dem ersten Bild gesetzt
+  a.id = requestAnimationFrame(schritt);
 }
 
 // Anteil verworfener Bilder: Lücken, gemessen am kürzesten Bildabstand (= Bildwiederholrate).
@@ -188,11 +302,35 @@ function verworfen(zeiten) {
   return fehlend / (fehlend + abst.length);
 }
 
+// Beginnt mit dem ersten Bild des sichtbaren Fensters. Die Erfassung läuft seit `show` und bekommt
+// 120 ms: ist sie da, wobbelt die Linse über dem echten Hintergrund, sonst gibt es den einfachen Tropfen.
+function erscheinen() {
+  erscheint = 0;
+  const schlicht = pille.classList.contains('schlicht');
+  if (erfassenErwartet && !streifen && performance.now() - stateZeit < 120) {
+    erscheint = requestAnimationFrame(erscheinen);
+    return;
+  }
+  pille.classList.remove('weg');
+  if (schlicht) {
+    formLoesen();
+    schatten.style.opacity = '';
+    schatten.classList.add('an');
+    pille.classList.add('sichtbar');
+  } else {
+    federLauf(true, Boolean(streifen)); // setzt die Form, bevor `sichtbar` greift
+    pille.classList.add('sichtbar');
+  }
+}
+
 pille.addEventListener('animationend', (e) => {
-  if (e.target !== pille || !pille.classList.contains('sichtbar')) return;
-  const anteil = messung ? verworfen(messung) : null;
-  messung = null;
-  window.letterflow.overlay.erschienen(anteil);
+  // nur das schlichte Einblenden (der Tropfen ist federgetrieben)
+  if (
+    e.target === pille &&
+    pille.classList.contains('schlicht') &&
+    pille.classList.contains('sichtbar')
+  )
+    window.letterflow.overlay.erschienen(null);
 });
 
 window.letterflow.overlay.onState((raw) => {
@@ -222,10 +360,19 @@ window.letterflow.overlay.onState((raw) => {
   }
   pille.style.width = `${neu}px`;
   pille.style.left = `${aufPixel((window.innerWidth - neu) / 2)}px`;
-  pille.style.top = `${aufPixel((window.innerHeight - 52) / 2)}px`;
+  pille.style.top = `${aufPixel((window.innerHeight - PILLE) / 2)}px`;
   if (!sichtbar && !erscheint) {
-    pille.classList.toggle('schlicht', !raw.animation || ruhig());
+    const schlicht = !raw.animation || ruhig();
+    pille.classList.toggle('schlicht', schlicht);
+    pille.classList.toggle('tropf', !schlicht);
+    erfassenErwartet = Boolean(raw.erfassen) && !schlicht && !deckend;
+    stateZeit = performance.now();
     erscheint = requestAnimationFrame(() => (erscheint = requestAnimationFrame(erscheinen)));
+  }
+  if (!anim) {
+    schatten.style.left = pille.style.left;
+    schatten.style.top = pille.style.top;
+    schatten.style.width = pille.style.width;
   }
   glasAnwenden();
   if (state.kind === 'aufnahme') taktStarten();
@@ -234,12 +381,27 @@ window.letterflow.overlay.onLevel(pegelSetzen);
 window.letterflow.overlay.onHide(() => {
   cancelAnimationFrame(erscheint);
   erscheint = 0;
-  messung = null;
   aktiv = false;
-  pille.classList.remove('sichtbar', 'wechsel');
-  pille.classList.add('weg'); // Liquid-Drop rückwärts
+  const schlicht = pille.classList.contains('schlicht');
+  const war = pille.classList.contains('sichtbar');
+  pille.classList.remove('sichtbar', 'wechsel', 'tropf');
   streifen = null;
+  if (schlicht) {
+    pille.classList.add('weg'); // Einblenden rückwärts
+    schatten.classList.remove('an');
+  } else if (war) {
+    federLauf(false, false);
+  } else if (anim) {
+    cancelAnimationFrame(anim.id);
+    anim = null;
+  }
 });
+
+// Aufwärmen: Shader und erste Zeichnung im verborgenen Fenster, damit schon das erste Aufploppen ruckelfrei läuft.
+if (glas) {
+  glas.bild({ daten: new Uint8Array(4), w: 1, h: 1 });
+  glas.zeichnen({ s: 1, ox: 0, oy: 0, refraction: 60 });
+}
 
 // --- Aufnahme: nur während der Aufnahme ist das Mikrofon geöffnet ---------
 

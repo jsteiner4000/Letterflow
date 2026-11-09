@@ -13,11 +13,11 @@ const path = require('node:path');
 const RENDERER = path.join(__dirname, '..', 'renderer');
 const PRELOAD = path.join(__dirname, '..', 'preload', 'preload.js');
 const BREITE = 420;
-const PILLE_HOEHE = 52;
+const PILLE_HOEHE = 60;
 const BAND = 16; // Rand (DIP) über und unter der Pille im erfassten Streifen; der Renderer kennt ihn auch
 const ERFASSEN_ALLE_MS = 750;
 const ERFASSEN_FRIST_MS = 400; // länger: gilt als Fehler, die Pille bleibt getönt
-const HOEHE = 150; // Platz für Schatten (32 px Weichheit, 12 px nach unten) und den Weg beim Ein-/Ausblenden
+const HOEHE = 152; // ganze Gerätepixel bei 125 % (190 px); Platz für Schatten (32 px Weichheit, 12 px nach unten) und den Weg beim Ein-/Ausblenden
 const LADE_FRIST_MS = 10000;
 const ABSTAND = 60; // zum unteren Rand des Bildschirms
 const AUSBLEND_MS = 200; // etwas länger als das Verschwinden im Renderer (160 ms)
@@ -38,6 +38,11 @@ function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
   let erfassung = null; // { id, timer } solange die Pille sichtbar ist
   let erfassungId = 0;
   let gezeigt = false; // zwischen show und hide
+  let zuletzt = null; // { schluessel, ergebnis }: letzter Streifen (nur Speicher), damit der Wobble sofort Hintergrund hat
+  const schluessel = () => {
+    const b = win.getBounds();
+    return `${b.x},${b.y},${b.width}`;
+  };
   // Schwacher PC (für „Automatisch“): kein GPU-Compositing oder < 4 Kerne. Bestimmt, sobald der
   // GPU-Prozess sich meldet (vorher meldet Chromium noch Software).
   let schwach = os.availableParallelism() < 4;
@@ -70,12 +75,11 @@ function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
   const onGemeldet = (event) => {
     if (vonOverlay(event)) for (const f of [...wartende]) f();
   };
-  // Erscheinen ist fertig (Anteil verworfener Bilder oder null): erst jetzt erfassen, damit
-  // desktopCapturer und das Hochladen der Linse die Animation nicht stören.
+  // Erscheinen ist fertig (Anteil verworfener Bilder oder null). Erfasst wird schon seit show():
+  // der Wobble braucht den Hintergrund vor dem Aufploppen.
   const onErschienen = (event, anteil) => {
     if (!vonOverlay(event)) return;
     if (Number.isFinite(anteil) && anteil >= 0 && anteil <= 1) events.emit('animation', anteil);
-    if (gezeigt) erfassenStarten();
   };
   ipcMain.on('overlay:ready', onReady);
   ipcMain.on('overlay:erschienen', onErschienen);
@@ -158,6 +162,7 @@ function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
     s.deckend = Boolean(nativeTheme.prefersReducedTransparency);
     const p = getSettings().pill || {};
     s.pille = p;
+    s.erfassen = capture && !s.deckend; // Renderer wartet kurz auf den Hintergrund (Wobble)
     // „Automatisch“: aus auf schwachen PCs oder nach gemessenem Ruckeln.
     s.animation =
       p.animation === 'an' || (p.animation !== 'aus' && !p.animationAutoOff && !schwach);
@@ -203,6 +208,7 @@ function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
         ergebnis = await erfassen();
       } catch {}
       if (erfassung !== lauf || !win || win.isDestroyed()) return;
+      if (ergebnis) zuletzt = { schluessel: schluessel(), ergebnis };
       const ms = Date.now() - t0;
       events.emit('erfasst', ms);
       if (!ergebnis || ms > ERFASSEN_FRIST_MS) {
@@ -247,6 +253,9 @@ function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
             win.showInactive();
           }
           senden('overlay:state', zustand(state));
+          if (zuletzt && zuletzt.schluessel === schluessel() && capture)
+            senden('overlay:backdrop', zuletzt.ergebnis);
+          erfassenStarten();
         })
         .catch((fehler) => console.error('Aufnahme-Pille nicht angezeigt:', fehler.message));
     },
@@ -260,6 +269,10 @@ function createOverlay({ getSettings = () => ({}), capture = true } = {}) {
           const diese = win;
           positionieren();
           diese.showInactive();
+          if (capture && !nativeTheme.prefersReducedTransparency)
+            erfassen()
+              .then((ergebnis) => (zuletzt = { schluessel: schluessel(), ergebnis }))
+              .catch(() => {});
           setTimeout(() => {
             if (!gezeigt && !diese.isDestroyed()) diese.hide();
           }, 500);

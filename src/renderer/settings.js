@@ -193,11 +193,12 @@ function beispielZeichnen() {
   if (vorschauGlas) vorschauGlas.bild(beispiel);
 }
 
-// Zeitstrahl mitten im Sprechen: links älter (blendet aus), rechts die neuesten Balken.
-for (let i = 0; i < 22; i++) {
-  const h = Math.min(1, 0.15 + 0.85 * Math.abs(Math.sin((i + 1) * 0.9) * Math.cos((i + 1) * 0.37)));
+// Zeitstrahl mitten im Sprechen: links älter (blendet aus), rechts die neuesten Balken; Stille = Punkte.
+for (let i = 0; i < 18; i++) {
+  const v = i < 4 ? 0 : 0.2 + 0.8 * Math.abs(Math.sin((i + 1) * 0.9) * Math.cos((i + 1) * 0.37));
+  const h = 3 + 31 * v;
   const b = $('vorschau-balken').appendChild(document.createElement('i'));
-  b.style.transform = `translateX(${i * 5.5}px) scaleY(${(i < 3 ? 0 : h).toFixed(2)})`;
+  b.style.cssText = `height:${h.toFixed(1)}px;top:${((34 - h) / 2).toFixed(2)}px;opacity:${v ? 1 : 0.35};transform:translateX(${i * 5.5}px)`;
 }
 
 function vorschauAnzeigen() {
@@ -205,11 +206,11 @@ function vorschauAnzeigen() {
   if (!breite) return; // Bereich verborgen: beim Öffnen neu
   const s = BILD_S;
   const ox = Math.round(((BILD_B - breite) / 2) * s);
-  const oy = Math.round(((BILD_H - 52) / 2) * s);
+  const oy = Math.round(((BILD_H - 60) / 2) * s);
   const cfg = { ...pilleStand };
   if (matchMedia('(prefers-reduced-transparency: reduce)').matches) cfg.opacity = 0;
   if (beispielHell === null || beispielHell.breite !== breite) {
-    const px = beispiel.getContext('2d').getImageData(ox, oy, Math.round(breite * s), 52 * s);
+    const px = beispiel.getContext('2d').getImageData(ox, oy, Math.round(breite * s), 60 * s);
     beispielHell = {
       breite,
       wert: window.PilleGlas.helligkeit(px.data, px.width, 0, 0, px.width, px.height, false),

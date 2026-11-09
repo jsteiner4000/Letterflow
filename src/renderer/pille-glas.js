@@ -97,8 +97,8 @@ void main(){
       gl.uniform2f(u('texSize'), tex.w, tex.h);
       gl.uniform2f(u('size'), w, h);
       gl.uniform2f(u('off'), a.ox, a.oy);
-      gl.uniform1f(u('S'), h / 52); // Linsenmaße in CSS-Pixeln der 52 px hohen Pille
-      gl.uniform1f(u('ts'), a.s / (h / 52));
+      gl.uniform1f(u('S'), h / 52); // Linsenmaße der Vorlage (52 px), mit der 60 px hohen Pille skaliert
+      gl.uniform1f(u('ts'), (a.s * 60) / h); // Bildpunkte je Zeichenpixel
       gl.uniform1f(u('refr'), a.refraction / 100);
       gl.uniform1f(u('bgra'), tex.bgra);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
