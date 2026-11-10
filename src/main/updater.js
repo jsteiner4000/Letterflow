@@ -38,7 +38,8 @@ function createUpdater({ autoUpdater, gefunden = () => {}, log = () => {} }) {
     autoUpdater.on('error', (fehler) => {
       log(`update: fehler ${fehler?.message || fehler}`);
       // Ein fertig geladenes Update bleibt gültig, auch wenn eine spätere Suche scheitert.
-      if (stand.phase !== 'fertig') setzen({ phase: 'fehler' });
+      // Erneut melden, damit „Neu starten“ nach einem gescheiterten Installieren wieder klickbar wird.
+      setzen(stand.phase === 'fertig' ? {} : { phase: 'fehler' });
     });
   }
   function suchen() {

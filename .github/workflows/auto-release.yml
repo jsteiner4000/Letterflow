@@ -36,7 +36,15 @@ jobs:
           npm run helper
           # Oberflächentests brauchen einen echten Bildschirm und laufen lokal vor dem Push
           npx playwright test tests/unit
+      # 7-Zip packt ab 4 Kernen anders als darunter; die Build-Rechner haben mal 2, mal 4. Fest auf 2 Kerne,
+      # damit gleiche Dateien gleich gepackt werden und Updates nur die geänderten Teile laden.
+      - name: Installer bauen
+        if: steps.v.outputs.neu == 'true'
+        shell: pwsh
+        run: |
+          [System.Diagnostics.Process]::GetCurrentProcess().ProcessorAffinity = 3
           npm run dist
+          exit $LASTEXITCODE
       - name: Release anlegen
         if: steps.v.outputs.neu == 'true'
         shell: bash

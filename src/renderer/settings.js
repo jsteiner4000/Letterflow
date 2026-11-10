@@ -529,6 +529,7 @@ function updateZeigen(u) {
   $('update-prozent').textContent = `${Math.floor(p)} %`;
   $('update-prozent').hidden = phase === 'fertig';
   $('update-installieren').hidden = phase !== 'fertig';
+  $('update-installieren').disabled = false; // nach gescheitertem Installieren wieder klickbar
   if (phase === 'fertig') {
     $('update-titel').textContent = `Version ${u.version} ist bereit`;
     $('update-detail').textContent = 'Wird beim nächsten Beenden installiert, oder gleich jetzt';
@@ -541,7 +542,12 @@ function updateZeigen(u) {
 }
 api.update.onStand(updateZeigen);
 $('update-suchen').addEventListener('click', () => api.update.suchen());
-$('update-installieren').addEventListener('click', () => api.update.installieren());
+$('update-installieren').addEventListener('click', () => {
+  // Bis Letterflow sich schließt, vergehen ein paar Sekunden: zeigen, dass der Klick angekommen ist.
+  $('update-installieren').disabled = true;
+  $('update-detail').textContent = 'Wird installiert, Letterflow startet gleich neu …';
+  api.update.installieren();
+});
 
 // Aus einer Benachrichtigung: gewünschten Bereich zeigen
 function bereichAusAdresse(name) {

@@ -560,15 +560,17 @@ main {
   display: block;
   width: 100%;
   height: auto;
-  overflow: visible;
-  /* Glut wächst mit dem Fortschritt (--p 0…100 aus settings.js) */
-  filter: drop-shadow(0 6px 14px rgba(15, 118, 110, calc(var(--p, 0) * 0.0035)));
+  /* Die Wellen ragen weit über den Schriftzug hinaus: abschneiden, sonst fangen sie Klicks auf
+     „Neu starten“ ab. Keine Glut per drop-shadow: die zeichnete einen eckigen Schleier um den Schriftzug. */
+  overflow: hidden;
+  pointer-events: none;
 }
 /* Leerer Schriftzug zeichnet sich zuerst selbst */
 .update-wort .leer {
   stroke: var(--leer);
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
+  /* Lücke länger als der Strich: am Anfang ist nichts zu sehen, auch keine runden Kappen als Punkte */
+  stroke-dasharray: 1 2;
+  stroke-dashoffset: 1.05;
   animation: lf-zeichnen 1.4s cubic-bezier(0.65, 0, 0.35, 1) forwards;
 }
 @keyframes lf-zeichnen {

@@ -83,23 +83,23 @@
   background: radial-gradient(60% 90% at 18% 0%, rgba(255, 255, 255, 0.35), transparent 55%);
   mix-blend-mode: screen;
 }
-/* Lichtkante: genau 1 Gerätepixel (--hair), ohne Weichzeichnung. Stand 0.27: deutlich zurückgenommen,
-   die Kante soll man ahnen, nicht sehen (wirkte vorher künstlich, besonders über hellem Grund). */
+/* Lichtkante: weich gezeichnet wie Licht, das sich in einer echten Glaskante bricht, statt einer
+   harten Pixellinie. Die Unschärfe verteilt das Licht, daher etwas höhere Deckkraft als die alte Linie. */
 .rim {
   --hair: calc(1px / var(--dpr, 1));
   z-index: 5;
   box-shadow:
-    inset var(--hair) var(--hair) 0 rgba(255, 255, 255, 0.34),
-    inset calc(-1 * var(--hair)) calc(-1 * var(--hair)) 0 rgba(255, 255, 255, 0.14),
-    inset 0 0 0 var(--hair) rgba(255, 255, 255, 0.12),
+    inset var(--hair) calc(1.5 * var(--hair)) 2.5px rgba(255, 255, 255, 0.4),
+    inset calc(-1 * var(--hair)) calc(-1 * var(--hair)) 2.5px rgba(255, 255, 255, 0.16),
+    inset 0 0 1.5px rgba(255, 255, 255, 0.14),
     inset 0 -8px 14px rgba(0, 0, 0, 0.08),
     inset 0 8px 16px rgba(255, 255, 255, 0.06);
 }
 .pille.hellgrund .rim {
   box-shadow:
-    inset var(--hair) var(--hair) 0 rgba(255, 255, 255, 0.5),
-    inset calc(-1 * var(--hair)) calc(-1 * var(--hair)) 0 rgba(255, 255, 255, 0.28),
-    inset 0 0 0 var(--hair) rgba(0, 0, 0, 0.08),
+    inset var(--hair) calc(1.5 * var(--hair)) 2.5px rgba(255, 255, 255, 0.55),
+    inset calc(-1 * var(--hair)) calc(-1 * var(--hair)) 2.5px rgba(255, 255, 255, 0.3),
+    inset 0 0 1.5px rgba(0, 0, 0, 0.1),
     inset 0 -8px 14px rgba(0, 0, 0, 0.04);
 }
 

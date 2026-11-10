@@ -181,3 +181,21 @@ test('Speicherfehler zeigt einen Hinweis und lässt nichts inkonsistent', async 
   await expect(win.getByRole('listitem').filter({ hasText: 'Fehlerfall' })).toHaveCount(0);
   await expect(win.getByLabel('Neuer Eintrag')).toHaveValue('Fehlerfall');
 });
+
+test('„Neu starten“ nach einem Update ist klickbar und installiert', async () => {
+  const { app, win } = await einstellungenOeffnen();
+  await app.evaluate(() => {
+    const f = global.__letterflow.updateFake;
+    f.quitAndInstall = (...a) => (global.__installiert = a);
+    f.emit('update-available', { version: '9.9.9' });
+    f.emit('update-downloaded', { version: '9.9.9' });
+  });
+  await bereich(win, 'Allgemein');
+  // Die Flüssigkeits-Grafik darf den Knopf nicht verdecken (Playwright klickt nur Erreichbares).
+  await win.getByRole('button', { name: 'Neu starten' }).click({ timeout: 3000 });
+  expect(await app.evaluate(() => global.__installiert)).toEqual([true, true]);
+  await expect(win.getByRole('button', { name: 'Neu starten' })).toBeDisabled();
+  // Scheitert das Installieren, wird der Knopf wieder klickbar.
+  await app.evaluate(() => global.__letterflow.updateFake.emit('error', new Error('kaputt')));
+  await expect(win.getByRole('button', { name: 'Neu starten' })).toBeEnabled();
+});
