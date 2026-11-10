@@ -5,7 +5,7 @@ const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 const abschnitt = (n = 16000) => new Float32Array(n);
 const EINZELN = { maxSamples: 1 }; // jeder Abschnitt eine eigene Gruppe
 
-test('kurze Abschnitte werden gemeinsam erkannt, mit 0,3 s Stille dazwischen', async () => {
+test('kurze Abschnitte werden gemeinsam erkannt, mit 0,1 s Stille dazwischen', async () => {
   const laengen = [];
   const q = createTranscriptQueue(async (s) => {
     laengen.push(s.length);
@@ -15,7 +15,7 @@ test('kurze Abschnitte werden gemeinsam erkannt, mit 0,3 s Stille dazwischen', a
   q.add(abschnitt(16000), true);
   q.add(abschnitt(11 * 16000), true); // passt nicht mehr in die 12-s-Gruppe
   expect(await q.finish()).toBe('x x');
-  expect(laengen).toEqual([2 * 16000 + 4800, 11 * 16000]);
+  expect(laengen).toEqual([2 * 16000 + 1600, 11 * 16000]);
 });
 
 test('Abschnitt ohne Sprache wird nicht erkannt', async () => {

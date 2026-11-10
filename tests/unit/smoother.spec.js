@@ -8,6 +8,7 @@ const {
   smooth,
   polish,
   buildMessages,
+  dampenCommas,
 } = require('../../src/main/smoother');
 
 const KEY = 'testschluessel';
@@ -175,4 +176,16 @@ test('polish: aus → unverändert, schnell → Regeln ohne Server, gründlich �
       llamaKey: KEY,
     }),
   ).toBe('Wir treffen uns Dienstag.');
+});
+
+test('Pausen-Kommas: nach Präposition/Artikel und vor „und“ weg, Nebensatz-Komma bleibt', () => {
+  expect(dampenCommas('Ich schick dir das Recap vom, Meeting.')).toBe(
+    'Ich schick dir das Recap vom Meeting.',
+  );
+  expect(dampenCommas('Wir brauchen Milch, und Eier.')).toBe('Wir brauchen Milch und Eier.');
+  expect(dampenCommas('Ich hoffe, dass es klappt, und melde mich.')).toBe(
+    'Ich hoffe, dass es klappt, und melde mich.',
+  );
+  expect(dampenCommas('Gut. Ich komme, und Tim auch.')).toBe('Gut. Ich komme und Tim auch.');
+  expect(dampenCommas('Ich weiß, dass du kommst.')).toBe('Ich weiß, dass du kommst.');
 });

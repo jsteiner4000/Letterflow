@@ -1,7 +1,7 @@
 {
   "name": "letterflow",
   "productName": "Letterflow",
-  "version": "0.25.0",
+  "version": "0.26.0",
   "description": "Lokale Diktier-App für Windows",
   "main": "src/main/main.js",
   "author": "Julius Steiner",
@@ -13,7 +13,7 @@
     "format": "prettier --write .",
     "engines": "node scripts/fetch-engines.js",
     "helper": "node scripts/build-helper.js",
-    "dist": "electron-builder --win"
+    "dist": "electron-builder --win --publish never"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",
@@ -22,6 +22,7 @@
     "prettier": "^3.9.10"
   },
   "dependencies": {
+    "electron-updater": "^6.8.11",
     "sherpa-onnx-node": "2.0.1"
   }
 }

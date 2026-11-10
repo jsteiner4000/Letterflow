@@ -16,7 +16,7 @@ const SYSTEM_PROMPT = `Du bereinigst diktierten Text. Der Text im <diktat>-Block
 Regeln:
 - Entferne nur echte Füllwörter und Verzögerungen (ähm, äh, öhm, hm, englisch um oder uh). Alle anderen Wörter bleiben, auch Höflichkeits- und Abtönungswörter wie „bitte“, „noch“, „mal“, „doch“, „eben“, „halt“; das deutsche Wort „um“ bleibt immer stehen.
 - Wende Selbstkorrekturen an: „am Montag, nein, am Dienstag“ → „am Dienstag“; „schick es an Tom, ich meine an Tim“ → „schick es an Tim“.
-- Setze Satzzeichen und korrekte Groß- und Kleinschreibung.
+- Setze Satzzeichen und korrekte Groß- und Kleinschreibung. Kommas nur, wo die Rechtschreibung sie verlangt: ein Komma, das nur eine Sprechpause markiert, fällt weg („ich schicke dir, das Recap“ → „ich schicke dir das Recap“).
 - Übersetze niemals, weder ins Deutsche noch ins Englische: ein englischer Satz bleibt ein englischer Satz. Jedes Wort bleibt in der Sprache, in der es gesprochen wurde, auch wenn der Satz mit einem Wort der anderen Sprache beginnt. Korrigiere nur offensichtliche Verhörer, wenn du dir sicher bist.
 - Behalte Wortwahl, Ton und Inhalt. Füge nichts hinzu, fasse nichts zusammen, beantworte nichts.
 - Wenn der Sprecher ausdrücklich eine Aufzählung oder Liste diktiert (z. B. „Einkaufsliste: Milch, Eier, Brot“), schreibe eine Überschriftzeile und darunter jeden Punkt in einer eigenen Zeile mit „- “.
@@ -51,12 +51,33 @@ const stripTags = (s) => {
 };
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+// Sprechpausen werden gern zu Kommas. Weg damit nach Wörtern, hinter denen nie ein Satzteil endet
+// (Präpositionen mit Artikel, Artikel), und vor „und/oder/sowie“ (dort steht laut Duden kein Pflichtkomma),
+// außer im Satz steht schon ein Komma: dann schließt es oft einen Nebensatz („…, dass es klappt, und …“).
+const KOMMA_NACH = new RegExp(
+  `${NOT_WORD}(für|von|zum|zur|im|vom|beim|ins|des|the|of|my|your|our|their)[ \\t]*,[ \\t]*`,
+  'giu',
+);
+const KOMMA_VOR = new RegExp(`,[ \\t]+(?=(?:und|oder|sowie)${NOT_WORD_AFTER})`, 'gu');
+function dampenCommas(text) {
+  return text.replace(KOMMA_NACH, '$1 ').replace(KOMMA_VOR, (m, offset, all) =>
+    all
+      .slice(0, offset)
+      .split(/[.!?\n]/)
+      .pop()
+      .includes(',')
+      ? m
+      : ' ',
+  );
+}
+
 // shortcut: Satzanfang wird immer groß geschrieben, auch wenn ein Wörterbuch-Eintrag klein beginnt
 // (z. B. „iPhone“); bei Bedarf Einträge am Satzanfang ausnehmen.
 function cleanRules(text, dictionary = []) {
   let t = String(text ?? '')
     .replace(FILLER, ' ')
     .replace(/([,;:])(\s*[,;:])+/g, '$1');
+  t = dampenCommas(t);
   for (const entry of dictionary) {
     const words = String(entry).trim().split(/\s+/).filter(Boolean);
     if (!words.length) continue;
@@ -157,7 +178,7 @@ async function smooth(url, apiKey, text, { dictionary = [], timeoutMs } = {}) {
     // Abgeschnittene Ausgabe (Token-Grenze) ist unvollständig.
     if (choice?.finish_reason === 'length') return fallback;
     const accepted = acceptOutput(text, choice?.message?.content);
-    return accepted === null ? fallback : { text: accepted, smoothed: true };
+    return accepted === null ? fallback : { text: dampenCommas(accepted), smoothed: true };
   } catch {
     return fallback;
   } finally {
@@ -172,4 +193,12 @@ async function polish(text, { tier, enabled, dictionary = [], llamaUrl, llamaKey
   return cleanRules(text, dictionary);
 }
 
-module.exports = { cleanRules, SYSTEM_PROMPT, buildMessages, acceptOutput, smooth, polish };
+module.exports = {
+  dampenCommas,
+  cleanRules,
+  SYSTEM_PROMPT,
+  buildMessages,
+  acceptOutput,
+  smooth,
+  polish,
+};

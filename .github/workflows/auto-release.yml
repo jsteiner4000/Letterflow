@@ -39,4 +39,4 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "v${{ steps.v.outputs.version }}" dist/Letterflow-Setup-*.exe --target "$GITHUB_SHA" --title "Letterflow ${{ steps.v.outputs.version }}" --generate-notes
+        run: gh release create "v${{ steps.v.outputs.version }}" dist/Letterflow-Setup-*.exe dist/Letterflow-Setup-*.exe.blockmap dist/latest.yml --target "$GITHUB_SHA" --title "Letterflow ${{ steps.v.outputs.version }}" --generate-notes

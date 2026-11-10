@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Xml;
 using System.Windows.Automation;
 using System.Windows.Automation.Text;
 
@@ -108,6 +109,12 @@ namespace Letterflow
         public static extern bool CloseHandle(IntPtr h);
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         public static extern bool QueryFullProcessImageName(IntPtr proc, int flags, StringBuilder sb, ref int size);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+        public static extern int GetPackageFullName(IntPtr proc, ref int len, StringBuilder sb);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+        public static extern int GetPackagePathByFullName(string fullName, ref int len, StringBuilder sb);
+        [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)]
+        public static extern int SHLoadIndirectString(string src, StringBuilder sb, int cch, IntPtr reserved);
         public delegate bool EnumProc(IntPtr hWnd, IntPtr lParam);
         [DllImport("user32.dll")]
         public static extern bool EnumChildWindows(IntPtr parent, EnumProc proc, IntPtr lParam);
@@ -788,13 +795,14 @@ namespace Letterflow
         {
             try
             {
-                string exe = null, name = null;
+                string exe = null, name = null, icon = null;
                 uint pid;
                 Native.GetWindowThreadProcessId(hwnd, out pid);
-                if (!IstShell(hwnd) && !IsElevated(pid)) ProgramOf(hwnd, pid, out exe, out name);
+                if (!IstShell(hwnd) && !IsElevated(pid)) ProgramOf(hwnd, pid, out exe, out name, out icon);
                 // Nur der neueste Wechsel zählt (Meldungen aus dem Thread-Pool können sich überholen)
                 if (nr == Interlocked.Read(ref vordergrundNr))
-                    Emit("{\"ev\":\"vordergrund\",\"exe\":" + JsonStr(exe) + ",\"appName\":" + JsonStr(name) + "}");
+                    Emit("{\"ev\":\"vordergrund\",\"exe\":" + JsonStr(exe) + ",\"appName\":" + JsonStr(name)
+                        + ",\"icon\":" + JsonStr(icon) + "}");
             }
             catch { }
         }
@@ -866,13 +874,13 @@ namespace Letterflow
             long hwnd = fg.ToInt64();
             bool elevated = false;
             string editable = "unknown";
-            string exe = null, appName = null, vor = null, nach = null;
+            string exe = null, appName = null, icon = null, vor = null, nach = null;
             if (fg != IntPtr.Zero)
             {
                 uint pid;
                 Native.GetWindowThreadProcessId(fg, out pid);
                 elevated = IsElevated(pid);
-                ProgramOf(fg, pid, out exe, out appName);
+                ProgramOf(fg, pid, out exe, out appName, out icon);
                 StringBuilder sb = new StringBuilder(256);
                 Native.GetClassName(fg, sb, 256);
                 string cls = sb.ToString();
@@ -880,7 +888,7 @@ namespace Letterflow
                 else editable = ProbeEditable(out vor, out nach);
             }
             return "{\"hwnd\":" + hwnd + ",\"editable\":\"" + editable + "\",\"elevated\":" + (elevated ? "true" : "false")
-                + ",\"exe\":" + JsonStr(exe) + ",\"appName\":" + JsonStr(appName)
+                + ",\"exe\":" + JsonStr(exe) + ",\"appName\":" + JsonStr(appName) + ",\"icon\":" + JsonStr(icon)
                 + ",\"vor\":" + JsonStr(vor) + ",\"nach\":" + JsonStr(nach) + "}";
         }
 
@@ -910,10 +918,11 @@ namespace Letterflow
             finally { Native.CloseHandle(proc); }
         }
 
-        // Pfad und Anzeigename des Programms hinter dem Fenster; nie der Fenstertitel
-        static void ProgramOf(IntPtr fg, uint pid, out string exe, out string appName)
+        // Pfad und Anzeigename des Programms hinter dem Fenster; nie der Fenstertitel.
+        // icon: Logo-Datei (PNG) bei Paket-Apps (Store, WhatsApp …), deren Exe weder Namen noch Symbol trägt.
+        static void ProgramOf(IntPtr fg, uint pid, out string exe, out string appName, out string icon)
         {
-            exe = null; appName = null;
+            exe = null; appName = null; icon = null;
             try
             {
                 exe = ExePath(pid);
@@ -921,22 +930,124 @@ namespace Letterflow
                 if (exe != null && Path.GetFileName(exe).Equals("ApplicationFrameHost.exe", StringComparison.OrdinalIgnoreCase))
                 {
                     string inner = null;
+                    uint innerPid = 0;
                     Native.EnumChildWindows(fg, delegate(IntPtr child, IntPtr lp)
                     {
                         uint cp;
                         Native.GetWindowThreadProcessId(child, out cp);
                         if (cp == pid) return true;
                         inner = ExePath(cp);
+                        innerPid = cp;
                         return inner == null;
                     }, IntPtr.Zero);
-                    if (inner != null) exe = inner;
+                    if (inner != null) { exe = inner; pid = innerPid; }
                 }
                 if (exe == null) return;
+                if (PaketApp(pid, exe, out appName, out icon)) return;
                 string desc = null;
                 try { desc = FileVersionInfo.GetVersionInfo(exe).FileDescription; } catch { }
                 appName = !string.IsNullOrWhiteSpace(desc) ? desc.Trim() : Path.GetFileNameWithoutExtension(exe);
             }
             catch { }
+        }
+
+        static readonly ConcurrentDictionary<string, string[]> paketCache = new ConcurrentDictionary<string, string[]>();
+
+        // Paket-App: Anzeigename und Logo aus dem AppxManifest (wie Startmenü und Taskleiste). false: kein Paket.
+        static bool PaketApp(uint pid, string exe, out string name, out string logo)
+        {
+            name = null; logo = null;
+            string voll;
+            IntPtr proc = Native.OpenProcess(0x1000, false, pid); // PROCESS_QUERY_LIMITED_INFORMATION
+            if (proc == IntPtr.Zero) return false;
+            try
+            {
+                int len = 0;
+                if (Native.GetPackageFullName(proc, ref len, null) != 122 || len <= 0) return false; // 122: Puffer zu klein, also Paket
+                StringBuilder sb = new StringBuilder(len);
+                if (Native.GetPackageFullName(proc, ref len, sb) != 0) return false;
+                voll = sb.ToString();
+            }
+            finally { Native.CloseHandle(proc); }
+            string[] info = paketCache.GetOrAdd(voll + "|" + exe, delegate { return PaketLesen(voll, exe); });
+            if (info == null || info[0] == null) return false;
+            name = info[0]; logo = info[1];
+            return true;
+        }
+
+        static string[] PaketLesen(string voll, string exe)
+        {
+            try
+            {
+                int len = 1024;
+                StringBuilder sb = new StringBuilder(len);
+                if (Native.GetPackagePathByFullName(voll, ref len, sb) != 0) return null;
+                string wurzel = sb.ToString().TrimEnd('\\');
+                XmlDocument doc = new XmlDocument();
+                doc.XmlResolver = null;
+                doc.Load(Path.Combine(wurzel, "AppxManifest.xml"));
+                XmlElement id = doc.SelectSingleNode("/*[local-name()='Package']/*[local-name()='Identity']") as XmlElement;
+                // Die Application zur Exe, sonst die erste
+                string rel = exe.StartsWith(wurzel + "\\", StringComparison.OrdinalIgnoreCase) ? exe.Substring(wurzel.Length + 1) : null;
+                XmlElement app = null;
+                foreach (XmlNode n in doc.SelectNodes("//*[local-name()='Application']"))
+                {
+                    XmlElement a = n as XmlElement;
+                    if (a == null) continue;
+                    if (app == null) app = a;
+                    if (rel != null && rel.Equals(a.GetAttribute("Executable"), StringComparison.OrdinalIgnoreCase)) { app = a; break; }
+                }
+                XmlElement ve = app == null ? null : app.SelectSingleNode("*[local-name()='VisualElements']") as XmlElement;
+                if (ve == null) return null;
+                string name = Aufloesen(ve.GetAttribute("DisplayName"), voll, id == null ? "" : id.GetAttribute("Name"));
+                string logo = LogoDatei(wurzel, ve.GetAttribute("Square44x44Logo")) ?? LogoDatei(wurzel, ve.GetAttribute("Square150x150Logo"));
+                return new string[] { string.IsNullOrWhiteSpace(name) ? null : name.Trim(), logo };
+            }
+            catch { return null; }
+        }
+
+        // „ms-resource:…“ über die Ressourcen des Pakets auflösen, sonst den Text selbst
+        static string Aufloesen(string wert, string voll, string paketName)
+        {
+            if (string.IsNullOrEmpty(wert) || !wert.StartsWith("ms-resource:", StringComparison.OrdinalIgnoreCase)) return wert;
+            string rest = wert.Substring(12);
+            string[] versuche = {
+                rest.StartsWith("//") ? wert
+                    : rest.StartsWith("/") ? "ms-resource://" + paketName + rest
+                    : "ms-resource://" + paketName + "/resources/" + rest,
+                "ms-resource:" + rest.TrimStart('/'),
+            };
+            foreach (string uri in versuche)
+            {
+                StringBuilder sb = new StringBuilder(512);
+                if (Native.SHLoadIndirectString("@{" + voll + "? " + uri + "}", sb, sb.Capacity, IntPtr.Zero) == 0) return sb.ToString();
+            }
+            return null;
+        }
+
+        // Das Logo liegt in Varianten auf der Platte (…targetsize-48_altform-unplated.png, …scale-200.png).
+        // Bevorzugt: ohne Hintergrundplatte, Zielgröße nahe 48 px; Kontrast-Varianten nie.
+        static string LogoDatei(string wurzel, string logo)
+        {
+            if (string.IsNullOrEmpty(logo)) return null;
+            string voll = Path.Combine(wurzel, logo);
+            string dir = Path.GetDirectoryName(voll), stamm = Path.GetFileNameWithoutExtension(voll), ext = Path.GetExtension(voll);
+            if (!Directory.Exists(dir)) return null;
+            string best = File.Exists(voll) ? voll : null;
+            int bestWert = best == null ? int.MinValue : 0;
+            foreach (string f in Directory.GetFiles(dir, stamm + ".*" + ext))
+            {
+                string q = Path.GetFileNameWithoutExtension(f).Substring(stamm.Length).ToLowerInvariant();
+                if (q.Contains("contrast")) continue;
+                int wert = 0;
+                if (q.Contains("altform-unplated")) wert += 100;
+                else if (q.Contains("altform-lightunplated")) wert += 50;
+                Match m = Regex.Match(q, "targetsize-(\\d+)");
+                if (m.Success) { int t = int.Parse(m.Groups[1].Value); wert += t >= 32 ? 60 - Math.Abs(t - 48) : 0; }
+                else if (q.Contains("scale-200")) wert += 30;
+                if (wert > bestWert) { bestWert = wert; best = f; }
+            }
+            return best;
         }
 
         // UI Automation mit hartem Timeout von 300 ms. Dauert nur das Lesen um die Schreibmarke zu lange,

@@ -17,7 +17,7 @@ ipcMain.handle('app:about', () => {
 
 // Öffnet das Fenster zu `key` oder holt das bestehende nach vorn.
 // zeigen: false → das Fenster bleibt verborgen, bis es selbst gezeigt wird (z. B. nach dem Anpassen der Größe).
-function openSingle(key, datei, optionen, zeigen = true) {
+function openSingle(key, datei, optionen, zeigen = true, hash = '') {
   const bestehend = offen.get(key);
   if (bestehend && !bestehend.isDestroyed()) {
     if (bestehend.isMinimized()) bestehend.restore();
@@ -43,7 +43,7 @@ function openSingle(key, datei, optionen, zeigen = true) {
   // Erst anzeigen, wenn der Inhalt bereit ist (kein schwarzes Aufblitzen).
   if (zeigen) win.once('ready-to-show', () => win.show());
   win.on('closed', () => offen.delete(key));
-  win.loadFile(path.join(RENDERER, datei));
+  win.loadFile(path.join(RENDERER, datei), { hash });
   offen.set(key, win);
   return win;
 }
@@ -83,9 +83,11 @@ ipcMain.on('settings:groesse', (event, hoehe) => {
   if (win) einstellungenAnpassen(win, hoehe);
 });
 
-function openSettings() {
+// bereich: Seite der Einstellungen, die vorn liegen soll (z. B. 'allgemein'), sonst die zuletzt gezeigte.
+function openSettings(bereich = '') {
   const vorher = offen.get('settings');
   const neu = !vorher || vorher.isDestroyed();
+  if (!neu && bereich) vorher.webContents.send('settings:bereich', bereich);
   const win = openSingle(
     'settings',
     'settings.html',
@@ -97,6 +99,7 @@ function openSettings() {
       title: 'Letterflow – Einstellungen',
     },
     false,
+    bereich,
   );
   // Zeigt sich nach der Größenmeldung der Seite; ohne Meldung nach 2 s trotzdem.
   if (neu) setTimeout(() => !win.isDestroyed() && !win.isVisible() && win.show(), 2000);

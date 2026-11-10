@@ -130,7 +130,7 @@ class Helper extends EventEmitter {
     }
     if (m.ev === 'vordergrund') {
       const text = (v) => (typeof v === 'string' && v.length < 1024 ? v : null);
-      this.emit('vordergrund', { exe: text(m.exe), appName: text(m.appName) });
+      this.emit('vordergrund', { exe: text(m.exe), appName: text(m.appName), icon: text(m.icon) });
       return;
     }
     const r = this.machine.feed(m);

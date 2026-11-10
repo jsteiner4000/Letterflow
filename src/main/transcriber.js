@@ -18,7 +18,9 @@ function normalizeLevel(samples) {
 // Eine Warteschlange je Diktat: add() nach finish() ist nicht erlaubt.
 const SR = 16000;
 const GRUPPE_MAX = 12 * SR;
-const LUECKE = new Float32Array(0.3 * SR); // Stille zwischen den Abschnitten einer Gruppe
+// Stille zwischen den Abschnitten einer Gruppe. Jeder Abschnitt bringt schon 200 ms Vor- und Nachlauf mit;
+// mehr Stille liest Parakeet als Pause und setzt dort ein Komma.
+const LUECKE = new Float32Array(0.1 * SR);
 
 function createTranscriptQueue(transcribeFn, { maxSamples = GRUPPE_MAX } = {}) {
   let kette = Promise.resolve();

@@ -41,3 +41,14 @@ test('Leeres Windows-Programmsymbol → null (Pille zeigt Letterflow)', async ()
     'data:image/png;base64,QQ==',
   );
 });
+
+test('Paket-App: Logo aus dem Paket statt leerem Exe-Symbol', async () => {
+  const logo = { isEmpty: () => false, toDataURL: () => 'data:image/png;base64,LOGO' };
+  const getAppInfo = createAppInfo({ getFileIcon: async () => icon, loadImage: () => logo });
+  const a = await getAppInfo({
+    exe: 'C:/w/WhatsApp.Root.exe',
+    appName: 'WhatsApp',
+    icon: 'C:/w/a.png',
+  });
+  expect(a).toEqual({ name: 'WhatsApp', iconDataUrl: 'data:image/png;base64,LOGO' });
+});

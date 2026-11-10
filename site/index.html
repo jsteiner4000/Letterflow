@@ -1,0 +1,1121 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Letterflow – Diktieren für Windows</title>
+    <meta
+      name="description"
+      content="Taste halten, sprechen, loslassen: Letterflow schreibt deinen Text dorthin, wo der Cursor blinkt. Läuft komplett lokal auf deinem Windows-PC."
+    />
+    <meta property="og:title" content="Letterflow – Diktieren für Windows" />
+    <meta
+      property="og:description"
+      content="Taste halten, sprechen, loslassen. Komplett lokal, ohne Konto, ohne Cloud."
+    />
+    <meta property="og:image" content="bilder/pille-erfolg.png" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin />
+    <link
+      rel="preload"
+      href="fonts/Newsreader-Variable.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <style>
+      @font-face {
+        font-family: 'Inter';
+        src: url('fonts/InterVariable.woff2') format('woff2');
+        font-weight: 100 900;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: 'Newsreader';
+        src: url('fonts/Newsreader-Variable.woff2') format('woff2');
+        font-weight: 200 800;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: 'Outfit';
+        src: url('fonts/Outfit-Variable.woff2') format('woff2');
+        font-weight: 100 900;
+        font-display: swap;
+      }
+
+      :root {
+        --bg: #fbfaf7;
+        --card: #f3f1ec;
+        --card-2: #ebe8e2;
+        --line: rgba(30, 25, 20, 0.09);
+        --ink: #1d1b18;
+        --ink-2: #625e57;
+        --petrol: #0f766e;
+        --petrol-hell: #3cc4ae;
+        --knopf: #1d1b18;
+        --knopf-ink: #ffffff;
+        --schatten: 0 1px 2px rgba(30, 25, 20, 0.06), 0 12px 40px rgba(30, 25, 20, 0.08);
+        --breite: 1120px;
+        color-scheme: light;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #1b1a18;
+          --card: #252422;
+          --card-2: #2f2e2b;
+          --line: rgba(255, 250, 240, 0.08);
+          --ink: #efece6;
+          --ink-2: #a39f97;
+          --petrol: #3cc4ae;
+          --knopf: #efece6;
+          --knopf-ink: #1b1a18;
+          --schatten: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 40px rgba(0, 0, 0, 0.35);
+          color-scheme: dark;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          400 17px/1.6 'Inter',
+          system-ui,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      img {
+        max-width: 100%;
+        display: block;
+      }
+      a {
+        color: inherit;
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: 'Newsreader', Georgia, serif;
+        font-weight: 400;
+        letter-spacing: -0.02em;
+        margin: 0;
+      }
+      p {
+        margin: 0;
+      }
+      .rahmen {
+        width: min(var(--breite), 100% - 32px);
+        margin-inline: auto;
+      }
+      .leise {
+        color: var(--ink-2);
+      }
+
+      /* --- Kopf ------------------------------------------------------------ */
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: color-mix(in srgb, var(--bg) 82%, transparent);
+        backdrop-filter: blur(14px);
+        border-bottom: 1px solid transparent;
+        transition: border-color 200ms;
+      }
+      header.gescrollt {
+        border-color: var(--line);
+      }
+      header .rahmen {
+        display: flex;
+        align-items: center;
+        gap: 28px;
+        height: 64px;
+      }
+      .logo img {
+        height: 26px;
+        width: auto;
+      }
+      .logo .dunkel {
+        display: none;
+      }
+      @media (prefers-color-scheme: dark) {
+        .logo .hell {
+          display: none;
+        }
+        .logo .dunkel {
+          display: block;
+        }
+      }
+      nav {
+        display: flex;
+        gap: 24px;
+        margin-left: auto;
+        font-size: 15px;
+      }
+      nav a {
+        text-decoration: none;
+        color: var(--ink-2);
+        transition: color 150ms;
+      }
+      nav a:hover {
+        color: var(--ink);
+      }
+      @media (max-width: 640px) {
+        nav a:not(.gh) {
+          display: none;
+        }
+      }
+
+      /* --- Knöpfe ---------------------------------------------------------- */
+      .knopf {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        height: 50px;
+        padding: 0 22px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 16px;
+        text-decoration: none;
+        background: var(--knopf);
+        color: var(--knopf-ink);
+        transition:
+          transform 120ms ease-out,
+          box-shadow 200ms;
+      }
+      .knopf:hover {
+        box-shadow: 0 8px 24px rgba(15, 118, 110, 0.25);
+      }
+      .knopf:active {
+        transform: scale(0.98);
+      }
+      .knopf svg {
+        width: 18px;
+        height: 18px;
+      }
+      .knopf.zweit {
+        background: transparent;
+        color: var(--ink);
+        box-shadow: inset 0 0 0 1px var(--line);
+      }
+      .knopf.zweit:hover {
+        box-shadow: inset 0 0 0 1px var(--ink-2);
+      }
+      a:focus-visible {
+        outline: 2px solid var(--petrol);
+        outline-offset: 3px;
+        border-radius: 8px;
+      }
+
+      /* --- Bühne (Hero) ---------------------------------------------------- */
+      .held {
+        padding: 72px 0 40px;
+        text-align: center;
+      }
+      .held h1 {
+        font-size: clamp(44px, 7.4vw, 88px);
+        line-height: 1;
+        max-width: 14ch;
+        margin-inline: auto;
+      }
+      .held h1 em {
+        font-style: italic;
+        color: var(--petrol);
+      }
+      .held .unter {
+        max-width: 560px;
+        margin: 22px auto 0;
+        font-size: 19px;
+        color: var(--ink-2);
+      }
+      .aktionen {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 34px;
+      }
+      .kleingedruckt {
+        margin-top: 14px;
+        font-size: 14px;
+        color: var(--ink-2);
+      }
+
+      /* Vorführung: ein Nachrichtenfenster, die Pille, das Ergebnis */
+      .vorfuehrung {
+        position: relative;
+        margin: 56px auto 0;
+        max-width: 880px;
+        aspect-ratio: 16 / 9;
+        border-radius: 22px;
+        overflow: hidden;
+        background:
+          radial-gradient(60% 80% at 15% 20%, #c9774e 0%, transparent 60%),
+          radial-gradient(55% 70% at 85% 30%, #1f8f86 0%, transparent 60%),
+          radial-gradient(60% 70% at 55% 100%, #2b579a 0%, transparent 60%), #1d2b38;
+        box-shadow: var(--schatten);
+        text-align: left;
+      }
+      .fenster {
+        position: absolute;
+        left: 50%;
+        top: 12%;
+        width: min(560px, 80%);
+        translate: -50% 0;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.94);
+        color: #1d1b18;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+      }
+      .fenster-kopf {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #e8a33d, #c9774e);
+      }
+      .verlauf {
+        padding: 16px;
+        display: grid;
+        gap: 8px;
+        font-size: 14px;
+      }
+      .blase {
+        justify-self: start;
+        max-width: 80%;
+        padding: 8px 12px;
+        border-radius: 12px 12px 12px 4px;
+        background: #f0eee9;
+      }
+      .eingabe {
+        display: flex;
+        align-items: flex-start;
+        margin: 4px 16px 16px;
+        min-height: 46px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: #f6f4f0;
+        font-size: 15px;
+        line-height: 1.45;
+      }
+      /* Eingefügt wird auf einmal: Text erscheint, die Schreibmarke springt ans Ende */
+      .eingabe .text {
+        display: none;
+      }
+      .eingabe.voll .text {
+        display: inline;
+        animation: auftauchen 260ms ease-out;
+      }
+      @keyframes auftauchen {
+        from {
+          opacity: 0;
+        }
+      }
+      .eingabe .marke {
+        width: 2px;
+        height: 20px;
+        margin-left: 1px;
+        background: #0f766e;
+        animation: blinken 1s steps(1) infinite;
+      }
+      @keyframes blinken {
+        50% {
+          opacity: 0;
+        }
+      }
+      .gesprochen {
+        position: absolute;
+        left: 50%;
+        bottom: 31%;
+        translate: -50% 0;
+        width: min(560px, 82%);
+        text-align: center;
+        font:
+          italic 400 clamp(14px, 2vw, 19px) / 1.4 'Newsreader',
+          serif;
+        color: rgba(255, 255, 255, 0.92);
+        text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
+        opacity: 0;
+        transition: opacity 300ms;
+      }
+      .gesprochen.an {
+        opacity: 1;
+      }
+      .gesprochen s {
+        text-decoration-color: rgba(255, 255, 255, 0.7);
+        opacity: 0.65;
+      }
+
+      /* Pille: dunkles Glas, wie in der App */
+      .pille {
+        position: absolute;
+        left: 50%;
+        bottom: 9%;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: 58px;
+        min-width: 230px;
+        padding: 0 18px 0 9px;
+        border-radius: 29px;
+        background: rgba(24, 26, 30, 0.55);
+        backdrop-filter: blur(18px) saturate(1.4);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+          inset 0 1px 0 rgba(255, 255, 255, 0.25),
+          0 12px 32px rgba(0, 0, 0, 0.3);
+        color: #fff;
+        translate: -50% 0;
+        scale: 0.6;
+        opacity: 0;
+        transition:
+          scale 420ms cubic-bezier(0.34, 1.56, 0.64, 1),
+          opacity 220ms ease-out;
+      }
+      .pille.an {
+        scale: 1;
+        opacity: 1;
+      }
+      .pille .symbol {
+        flex: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: url('bilder/symbol.png') center / 40px;
+      }
+      .balken {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        height: 34px;
+      }
+      .balken i {
+        width: 3px;
+        height: 100%;
+        border-radius: 2px;
+        background: #fff;
+        transform: scaleY(0.12);
+        animation: pegel 900ms ease-in-out infinite alternate;
+        animation-play-state: paused;
+      }
+      .pille[data-art='hoeren'] .balken i {
+        animation-play-state: running;
+      }
+      @keyframes pegel {
+        to {
+          transform: scaleY(var(--h, 0.8));
+        }
+      }
+      .erfolg {
+        display: none;
+        line-height: 1.25;
+      }
+      .erfolg b {
+        display: block;
+        font-size: 15px;
+      }
+      .erfolg span {
+        font-size: 13px;
+        opacity: 0.75;
+      }
+      .haken {
+        display: none;
+        width: 26px;
+        height: 26px;
+        margin-left: auto;
+        border-radius: 50%;
+        box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.7);
+        place-items: center;
+      }
+      .haken svg {
+        width: 14px;
+        height: 14px;
+      }
+      .pille[data-art='erfolg'] .balken {
+        display: none;
+      }
+      .pille[data-art='erfolg'] .erfolg {
+        display: block;
+      }
+      .pille[data-art='erfolg'] .haken {
+        display: grid;
+      }
+      .taste {
+        position: absolute;
+        right: 5%;
+        bottom: 9%;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 44px;
+        padding: 0 16px;
+        border-radius: 10px;
+        background: linear-gradient(#fff, #f1efea);
+        color: #1d1b18;
+        font: 600 15px/1 'Inter';
+        box-shadow:
+          inset 0 0 0 1px rgba(0, 0, 0, 0.12),
+          0 4px 0 rgba(0, 0, 0, 0.25),
+          0 8px 18px rgba(0, 0, 0, 0.2);
+        transition:
+          transform 90ms,
+          box-shadow 90ms;
+      }
+      .taste small {
+        font-weight: 500;
+        font-size: 12px;
+        opacity: 0.6;
+      }
+      .taste.gedrueckt {
+        transform: translateY(4px);
+        box-shadow:
+          inset 0 0 0 1px rgba(0, 0, 0, 0.12),
+          0 0 0 rgba(0, 0, 0, 0.25),
+          0 3px 8px rgba(0, 0, 0, 0.2);
+      }
+      @media (max-width: 640px) {
+        .vorfuehrung {
+          aspect-ratio: 4 / 5;
+        }
+        .fenster {
+          top: 6%;
+          width: 90%;
+        }
+        .gesprochen {
+          bottom: 30%;
+        }
+        .taste {
+          display: none;
+        }
+      }
+
+      /* --- Schritte -------------------------------------------------------- */
+      section {
+        padding: 96px 0;
+      }
+      .kopfzeile {
+        max-width: 640px;
+        margin-bottom: 48px;
+      }
+      .kopfzeile .marke {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--petrol);
+        letter-spacing: 0.02em;
+      }
+      .kopfzeile h2 {
+        margin-top: 8px;
+        font-size: clamp(34px, 4.6vw, 52px);
+        line-height: 1.08;
+      }
+      .kopfzeile p {
+        margin-top: 16px;
+        font-size: 18px;
+        color: var(--ink-2);
+      }
+      .schritte {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        counter-reset: schritt;
+      }
+      .schritt {
+        padding: 28px;
+        border-radius: 18px;
+        background: var(--card);
+      }
+      .schritt::before {
+        counter-increment: schritt;
+        content: counter(schritt);
+        display: block;
+        font: 400 40px/1 'Newsreader';
+        color: var(--petrol);
+        margin-bottom: 18px;
+      }
+      .schritt h3 {
+        font-size: 24px;
+      }
+      .schritt p {
+        margin-top: 8px;
+        color: var(--ink-2);
+      }
+      kbd {
+        display: inline-block;
+        padding: 1px 8px;
+        border-radius: 6px;
+        font: 600 0.85em/1.6 'Inter';
+        background: var(--bg);
+        box-shadow:
+          inset 0 0 0 1px var(--line),
+          0 2px 0 var(--line);
+      }
+      @media (max-width: 800px) {
+        .schritte {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* --- Funktionen: abwechselnd Text und Bild ----------------------------- */
+      .reihe {
+        display: grid;
+        grid-template-columns: 1fr 1.15fr;
+        gap: 56px;
+        align-items: center;
+        padding: 40px 0;
+      }
+      .reihe:nth-child(even) .bild {
+        order: -1;
+      }
+      .reihe h3 {
+        font-size: clamp(28px, 3.4vw, 38px);
+        line-height: 1.12;
+      }
+      .reihe p {
+        margin-top: 14px;
+        color: var(--ink-2);
+      }
+      .reihe ul {
+        margin: 18px 0 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 8px;
+      }
+      .reihe li {
+        display: flex;
+        gap: 10px;
+        align-items: baseline;
+      }
+      .reihe li::before {
+        content: '';
+        flex: none;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--petrol);
+        translate: 0 -2px;
+      }
+      .bild {
+        border-radius: 18px;
+        overflow: hidden;
+        background: var(--card);
+        box-shadow: var(--schatten);
+      }
+      .bild.flach {
+        box-shadow: none;
+        padding: 28px;
+      }
+      @media (max-width: 860px) {
+        .reihe {
+          grid-template-columns: 1fr;
+          gap: 28px;
+        }
+        .reihe:nth-child(even) .bild {
+          order: 0;
+        }
+      }
+
+      /* Vorher/Nachher der Glättung */
+      .glaettung {
+        display: grid;
+        gap: 12px;
+        font-size: 16px;
+      }
+      .glaettung div {
+        padding: 16px 18px;
+        border-radius: 12px;
+        background: var(--bg);
+      }
+      .glaettung small {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--ink-2);
+      }
+      .glaettung .roh {
+        font-family: 'Newsreader', serif;
+        font-style: italic;
+        font-size: 18px;
+        color: var(--ink-2);
+      }
+      .glaettung .roh s {
+        text-decoration-color: var(--petrol);
+        text-decoration-thickness: 2px;
+      }
+      .glaettung .fertig {
+        box-shadow: inset 3px 0 0 var(--petrol);
+      }
+      .apps {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 18px;
+      }
+      .apps span {
+        padding: 6px 12px;
+        border-radius: 99px;
+        font-size: 14px;
+        background: var(--card);
+      }
+
+      /* --- Download ------------------------------------------------------- */
+      .download {
+        text-align: center;
+        border-radius: 28px;
+        padding: 72px 28px;
+        background:
+          radial-gradient(
+            70% 90% at 50% 0%,
+            color-mix(in srgb, var(--petrol) 18%, transparent),
+            transparent 70%
+          ),
+          var(--card);
+      }
+      .download h2 {
+        font-size: clamp(36px, 5vw, 56px);
+        line-height: 1.05;
+      }
+      .download .unter {
+        margin: 16px auto 0;
+        max-width: 520px;
+        color: var(--ink-2);
+      }
+      .fakten {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 10px 28px;
+        margin-top: 36px;
+        font-size: 14px;
+        color: var(--ink-2);
+      }
+      details {
+        max-width: 560px;
+        margin: 28px auto 0;
+        text-align: left;
+        font-size: 15px;
+        color: var(--ink-2);
+      }
+      summary {
+        cursor: pointer;
+        text-align: center;
+        color: var(--ink);
+      }
+      details p {
+        margin-top: 10px;
+      }
+
+      footer {
+        padding: 40px 0 56px;
+        font-size: 14px;
+        color: var(--ink-2);
+      }
+      footer .rahmen {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 28px;
+        justify-content: space-between;
+      }
+
+      /* Einblenden beim Scrollen */
+      .auftritt {
+        opacity: 0;
+        translate: 0 18px;
+        transition:
+          opacity 700ms ease-out,
+          translate 700ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .auftritt.da {
+        opacity: 1;
+        translate: 0 0;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        .auftritt {
+          opacity: 1;
+          translate: none;
+          transition: none;
+        }
+        .balken i,
+        .eingabe .marke {
+          animation: none;
+        }
+        .pille,
+        .taste {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="rahmen">
+        <a class="logo" href="#" aria-label="Letterflow, zum Anfang">
+          <img class="hell" src="bilder/lockup.svg" alt="" width="166" height="26" />
+          <img class="dunkel" src="bilder/lockup-hell.svg" alt="" width="166" height="26" />
+        </a>
+        <nav aria-label="Seite">
+          <a href="#so-gehts">So geht's</a>
+          <a href="#funktionen">Funktionen</a>
+          <a href="#download">Download</a>
+          <a class="gh" href="https://github.com/jsteiner4000/Letterflow">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <div class="held rahmen">
+        <h1>Sprich einfach. <em>Es steht da.</em></h1>
+        <p class="unter">
+          Taste halten, sprechen, loslassen: Letterflow schreibt deinen Text dorthin, wo der Cursor
+          blinkt. Komplett auf deinem PC, ohne Konto und ohne Cloud.
+        </p>
+        <div class="aktionen">
+          <a
+            class="knopf lade-link"
+            href="https://github.com/jsteiner4000/Letterflow/releases/latest"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 20h14" />
+            </svg>
+            Für Windows laden
+          </a>
+          <a class="knopf zweit" href="#so-gehts">So funktioniert's</a>
+        </div>
+        <p class="kleingedruckt"><span class="version-text">Kostenlos</span> · Windows 10 und 11</p>
+
+        <div
+          class="vorfuehrung"
+          aria-label="Vorführung: Ein gesprochener Satz wird geglättet in ein Nachrichtenfeld eingefügt"
+          role="img"
+        >
+          <div class="fenster" aria-hidden="true">
+            <div class="fenster-kopf"><span class="avatar"></span>Tim</div>
+            <div class="verlauf">
+              <div class="blase">Schickst du mir nachher noch das Recap?</div>
+            </div>
+            <div class="eingabe">
+              <span class="text">Klar, ich schicke dir das Recap nach dem Standup.</span
+              ><span class="marke"></span>
+            </div>
+          </div>
+          <p class="gesprochen" aria-hidden="true">
+            „Klar, ich schick dir das Recap nach dem <s>äh</s> Standup“
+          </p>
+          <div class="pille" data-art="hoeren" aria-hidden="true">
+            <span class="symbol"></span>
+            <span class="balken"></span>
+            <span class="erfolg"><b>Eingefügt in Nachrichten</b><span>9 Wörter</span></span>
+            <span class="haken"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#fff"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M5 12.5l4.5 4.5L19 7.5" /></svg
+            ></span>
+          </div>
+          <div class="taste" aria-hidden="true">Strg <small>rechts</small></div>
+        </div>
+      </div>
+
+      <section id="so-gehts">
+        <div class="rahmen">
+          <div class="kopfzeile auftritt">
+            <span class="marke">So geht's</span>
+            <h2>Drei Handgriffe. Keine neue App, in die du tippst.</h2>
+            <p>
+              Letterflow sitzt still im Infobereich und arbeitet in jedem Programm, in dem du gerade
+              schreibst.
+            </p>
+          </div>
+          <div class="schritte">
+            <div class="schritt auftritt">
+              <h3>Taste halten</h3>
+              <p>
+                <kbd>Strg</kbd> rechts gedrückt halten. Oder zweimal antippen, wenn du lieber
+                freihändig sprichst.
+              </p>
+            </div>
+            <div class="schritt auftritt">
+              <h3>Sprechen</h3>
+              <p>Ganz normal, mit Pausen und „ähm“. Die Pille zeigt, dass Letterflow zuhört.</p>
+            </div>
+            <div class="schritt auftritt">
+              <h3>Loslassen</h3>
+              <p>Der Text steht sauber im Textfeld, mit Satzzeichen und deinen Schreibweisen.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="funktionen" style="padding-top: 24px">
+        <div class="rahmen">
+          <div class="reihe auftritt">
+            <div>
+              <h3>Alles bleibt auf deinem Rechner.</h3>
+              <p>
+                Spracherkennung und Glättung laufen lokal. Es gibt kein Konto, keinen Server und
+                kein Abo. Nach dem ersten Herunterladen der Modelle funktioniert Letterflow ohne
+                Internet.
+              </p>
+              <ul>
+                <li>Mikrofon nur, solange du diktierst</li>
+                <li>Kein Diktat landet im Protokoll</li>
+                <li>Bei Vollbild-Spielen und Präsentationen bleibt die Pille aus</li>
+              </ul>
+            </div>
+            <div class="bild">
+              <img
+                src="bilder/pille-erfolg.png"
+                alt="Die Pille nach dem Diktat: Eingefügt in Editor, 12 Wörter"
+                width="525"
+                height="189"
+                loading="lazy"
+              />
+            </div>
+          </div>
+
+          <div class="reihe auftritt">
+            <div>
+              <h3>Glättet, wie du es selbst getan hättest.</h3>
+              <p>
+                Füllwörter fliegen raus, Selbstkorrekturen werden angewendet, Kommas stehen da, wo
+                die Rechtschreibung sie will, nicht bei jeder Atempause.
+              </p>
+            </div>
+            <div class="bild flach">
+              <div class="glaettung">
+                <div class="roh">
+                  <small>Gesagt</small>„<s>Ähm</s> wir treffen uns am Montag, <s>nein,</s>
+                  <s>am</s> Dienstag um zehn“
+                </div>
+                <div class="fertig">
+                  <small>Eingefügt</small>Wir treffen uns am Dienstag um zehn.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="reihe auftritt">
+            <div>
+              <h3>Funktioniert dort, wo du schreibst.</h3>
+              <p>
+                Word, Mails, Chats, Browser, Notizen: Letterflow fügt den Text in das Fenster ein,
+                in dem du angefangen hast. Die Pille zeigt dabei, welches Programm es ist.
+              </p>
+              <div class="apps">
+                <span>Word</span><span>Outlook</span><span>WhatsApp</span><span>Chrome</span
+                ><span>Teams</span><span>Notion</span><span>Editor</span>
+              </div>
+            </div>
+            <div class="bild">
+              <img
+                src="bilder/einstellungen-pille.png"
+                alt="Einstellungen der Pille mit Vorschau und Reglern für das Glas"
+                width="1000"
+                height="700"
+                loading="lazy"
+              />
+            </div>
+          </div>
+
+          <div class="reihe auftritt">
+            <div>
+              <h3>Hält sich selbst aktuell.</h3>
+              <p>
+                Neue Versionen lädt Letterflow im Hintergrund. Installiert wird beim nächsten
+                Beenden oder mit einem Klick auf „Neu starten“. Deine Einstellungen bleiben, wie sie
+                sind.
+              </p>
+            </div>
+            <div class="bild">
+              <img
+                src="bilder/update.png"
+                alt="Ein Update wird geladen: der Schriftzug füllt sich in Petrol"
+                width="612"
+                height="220"
+                loading="lazy"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="download">
+        <div class="rahmen">
+          <div class="download auftritt">
+            <h2>Bereit, wenn du es bist.</h2>
+            <p class="unter">
+              Einmal installieren, Modelle laden lassen, lossprechen. Keine Administratorrechte
+              nötig.
+            </p>
+            <div class="aktionen">
+              <a
+                class="knopf lade-link"
+                href="https://github.com/jsteiner4000/Letterflow/releases/latest"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 20h14" />
+                </svg>
+                <span class="lade-text">Letterflow für Windows laden</span>
+              </a>
+            </div>
+            <div class="fakten">
+              <span>Windows 10 und 11, 64 Bit</span>
+              <span>Modelle einmalig ca. 0,7 GB</span>
+              <span>Deutsch und Englisch, auch gemischt</span>
+            </div>
+            <details>
+              <summary>Windows zeigt eine blaue Warnung?</summary>
+              <p>
+                Letterflow ist noch nicht signiert, deshalb meldet sich SmartScreen. Auf „Weitere
+                Informationen“ klicken, dann auf „Trotzdem ausführen“.
+              </p>
+            </details>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="rahmen">
+        <span>© 2026 Julius Steiner · Letterflow</span>
+        <span
+          ><a href="https://github.com/jsteiner4000/Letterflow">Quellcode</a> ·
+          <a href="https://github.com/jsteiner4000/Letterflow/releases">Alle Versionen</a></span
+        >
+      </div>
+    </footer>
+
+    <script>
+      // Kopfzeile bekommt beim Scrollen eine Kante
+      const kopf = document.querySelector('header');
+      addEventListener('scroll', () => kopf.classList.toggle('gescrollt', scrollY > 8), {
+        passive: true,
+      });
+
+      // Abschnitte blenden beim Erreichen ein
+      const io = new IntersectionObserver(
+        (eintraege) =>
+          eintraege.forEach((e) => {
+            if (e.isIntersecting) {
+              e.target.classList.add('da');
+              io.unobserve(e.target);
+            }
+          }),
+        { threshold: 0.15 },
+      );
+      document.querySelectorAll('.auftritt').forEach((el) => io.observe(el));
+
+      // Neueste Version: direkter Link auf den Installer, sonst bleibt die Release-Seite
+      fetch('https://api.github.com/repos/jsteiner4000/Letterflow/releases/latest')
+        .then((r) => (r.ok ? r.json() : Promise.reject()))
+        .then((rel) => {
+          const exe = rel.assets.find((a) => /\.exe$/i.test(a.name));
+          if (exe)
+            document
+              .querySelectorAll('.lade-link')
+              .forEach((a) => (a.href = exe.browser_download_url));
+          const v = rel.tag_name.replace(/^v/, '');
+          document.querySelector('.version-text').textContent = `Kostenlos · Version ${v}`;
+          document.querySelector('.lade-text').textContent = `Letterflow ${v} für Windows laden`;
+        })
+        .catch(() => {});
+
+      // Vorführung: Taste drücken, Pille hört zu, loslassen, Text erscheint; in Schleife
+      const balken = document.querySelector('.balken');
+      for (let i = 0; i < 22; i++) {
+        const b = balken.appendChild(document.createElement('i'));
+        b.style.setProperty(
+          '--h',
+          (0.25 + 0.75 * Math.abs(Math.sin(i * 1.7) * Math.cos(i * 0.6))).toFixed(2),
+        );
+        b.style.animationDelay = `${-(i * 137) % 900}ms`;
+      }
+      const pille = document.querySelector('.pille');
+      const taste = document.querySelector('.taste');
+      const eingabe = document.querySelector('.eingabe');
+      const gesprochen = document.querySelector('.gesprochen');
+      const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (still) {
+        pille.dataset.art = 'erfolg';
+        pille.classList.add('an');
+        eingabe.classList.add('voll');
+      } else {
+        const schritte = [
+          [
+            700,
+            () => {
+              taste.classList.add('gedrueckt');
+              pille.dataset.art = 'hoeren';
+              pille.classList.add('an');
+            },
+          ],
+          [500, () => gesprochen.classList.add('an')],
+          [
+            2600,
+            () => {
+              taste.classList.remove('gedrueckt');
+              gesprochen.classList.remove('an');
+            },
+          ],
+          [
+            450,
+            () => {
+              pille.dataset.art = 'erfolg';
+              eingabe.classList.add('voll');
+            },
+          ],
+          [2600, () => pille.classList.remove('an')],
+          [1800, () => eingabe.classList.remove('voll')],
+        ];
+        let i = 0;
+        const weiter = () => {
+          const [warte, tun] = schritte[i];
+          setTimeout(() => {
+            tun();
+            i = (i + 1) % schritte.length;
+            weiter();
+          }, warte);
+        };
+        weiter();
+      }
+    </script>
+  </body>
+</html>

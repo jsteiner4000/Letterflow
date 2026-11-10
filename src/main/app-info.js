@@ -15,10 +15,12 @@ function cleanName(appName, exe) {
 // eigenes Symbol: damit vergleichen, statt ein Bild des Windows-Symbols mitzuführen.
 const OHNE_SYMBOL = 'C:/Letterflow-gibt-es-nicht/ohne-symbol.exe';
 
-function createAppInfo({ getFileIcon, scale = () => 1 }) {
+// loadImage: (pngPfad) => NativeImage (electron.nativeImage.createFromPath). Paket-Apps (Store, WhatsApp)
+// tragen kein Symbol in der Exe; der Helfer meldet dann die Logo-Datei aus dem Paket als icon.
+function createAppInfo({ getFileIcon, loadImage = null, scale = () => 1 }) {
   const cache = new Map();
   let leer = null; // Promise: Bitmap des leeren Programmsymbols oder null
-  return async function getAppInfo({ exe, appName } = {}) {
+  return async function getAppInfo({ exe, appName, icon } = {}) {
     const name = cleanName(appName, exe);
     if (!exe) return { name, iconDataUrl: null };
     if (!cache.has(exe)) {
@@ -28,8 +30,9 @@ function createAppInfo({ getFileIcon, scale = () => 1 }) {
           (b) => (b.toBitmap ? b.toBitmap() : null),
           () => null,
         );
-        const bild = await getFileIcon(exe, { size: 'large' });
-        const ohne = await leer;
+        const logo = typeof icon === 'string' && /\.png$/i.test(icon) && loadImage?.(icon);
+        const bild = logo && !logo.isEmpty() ? logo : await getFileIcon(exe, { size: 'large' });
+        const ohne = bild === logo ? null : await leer;
         // Leeres Symbol → null: die Pille zeigt dann das Letterflow-Symbol.
         if (!(ohne && bild.toBitmap && ohne.equals(bild.toBitmap()))) {
           const px = Math.round(28 * scale());

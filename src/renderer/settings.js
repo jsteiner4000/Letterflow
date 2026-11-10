@@ -24,7 +24,7 @@ function kappenZeigen(ziel, hotkey) {
   ziel.replaceChildren(...teile);
   ziel.setAttribute(
     'aria-label',
-    `Sprechtaste ${(KAPPE[hotkey] || []).map((k) => k.join(' ')).join(' plus ')} – ändern`,
+    `Sprechtaste ${(KAPPE[hotkey] || []).map((k) => k.join(' ')).join(' plus ')} – wählen`,
   );
 }
 
@@ -311,16 +311,13 @@ async function stufeWaehlen(wert) {
 for (const r of document.querySelectorAll('input[name="smoothingModel"]')) {
   r.addEventListener('change', () => stufeWaehlen(r.value));
 }
-// Ändern-Knopf und Tastenkappe klappen die Auswahl der Sprechtaste auf und zu.
-function kuerzelWahlUmschalten() {
+// Die Tastenkappe selbst ist der Knopf: klappt die Auswahl der Sprechtaste auf und zu.
+$('kappe').addEventListener('click', () => {
   const offen = $('kuerzel-wahl').hidden;
   $('kuerzel-wahl').hidden = !offen;
-  for (const k of [$('kuerzel-aendern'), $('kappe')])
-    k.setAttribute('aria-expanded', String(offen));
+  $('kappe').setAttribute('aria-expanded', String(offen));
   if (offen) $('kuerzel-wahl').querySelector('input:checked')?.focus();
-}
-$('kuerzel-aendern').addEventListener('click', kuerzelWahlUmschalten);
-$('kappe').addEventListener('click', kuerzelWahlUmschalten);
+});
 $('ueber').addEventListener('click', () => api.about());
 $('glaettung').addEventListener('change', (e) => speichern({ smoothing: e.target.checked }));
 $('autostart').addEventListener('change', (e) => speichern({ autostart: e.target.checked }));
@@ -494,6 +491,52 @@ api.settings.onChanged((s) => {
   statusAktualisieren();
 });
 
+// --- Update ---------------------------------------------------------------
+
+let version = '';
+const mb = (b) => (b / 1048576).toLocaleString('de-DE', { maximumFractionDigits: 1 });
+function updateZeigen(u) {
+  const phase = u?.phase || 'aus';
+  const zusatz = {
+    suche: ' · sucht nach Updates …',
+    aktuell: ' · aktuell',
+    fehler: ' · Updates gerade nicht erreichbar',
+  }[phase];
+  $('version').textContent = `Version ${version}${zusatz || ''}`;
+  $('update-suchen').hidden = !['leer', 'aktuell', 'fehler'].includes(phase);
+  const sichtbar = phase === 'laedt' || phase === 'fertig';
+  $('tab-allgemein').classList.toggle('neu', sichtbar);
+  $('update').hidden = !sichtbar;
+  if (!sichtbar) return;
+  const p = phase === 'fertig' ? 100 : Math.max(0, Math.min(100, u.prozent || 0));
+  $('update').dataset.phase = phase;
+  $('update-balken').style.setProperty('--p', p.toFixed(1));
+  $('update-balken').setAttribute('aria-valuenow', Math.floor(p));
+  $('update-prozent').textContent = `${Math.floor(p)} %`;
+  $('update-prozent').hidden = phase === 'fertig';
+  $('update-installieren').hidden = phase !== 'fertig';
+  if (phase === 'fertig') {
+    $('update-titel').textContent = `Version ${u.version} ist bereit`;
+    $('update-detail').textContent = 'Wird beim nächsten Beenden installiert, oder gleich jetzt';
+  } else {
+    $('update-titel').textContent = `Version ${u.version} wird geladen`;
+    $('update-detail').textContent = u.gesamt
+      ? `${mb(u.uebertragen)} von ${mb(u.gesamt)} MB${u.tempo ? ` · ${mb(u.tempo)} MB/s` : ''}`
+      : 'Verbindung wird aufgebaut …';
+  }
+}
+api.update.onStand(updateZeigen);
+$('update-suchen').addEventListener('click', () => api.update.suchen());
+$('update-installieren').addEventListener('click', () => api.update.installieren());
+
+// Aus einer Benachrichtigung: gewünschten Bereich zeigen
+function bereichAusAdresse(name) {
+  const tab = $(`tab-${name}`);
+  if (tab) bereichZeigen(tab);
+}
+api.onBereich(bereichAusAdresse);
+bereichAusAdresse(location.hash.slice(1));
+
 // Meldet die Höhe der höchsten Seite, damit das Fenster ohne Scrollen passt.
 async function groesseMelden() {
   try {
@@ -525,9 +568,11 @@ async function groesseMelden() {
   api
     .info()
     .then((info) => {
-      $('version').textContent = `Version ${info.version}`;
+      version = info.version;
       $('version-zeile').textContent = `Letterflow v${info.version}`;
+      return api.update.stand();
     })
+    .then(updateZeigen)
     .catch(() => {});
   statusAktualisieren();
   setInterval(statusAktualisieren, 3000);

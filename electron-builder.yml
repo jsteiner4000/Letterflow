@@ -20,6 +20,12 @@ extraResources:
     to: engines
   - from: resources/bin
     to: bin
+# Auto-Update (electron-updater): die App liest neue Versionen aus den GitHub-Releases.
+# Hochgeladen wird im Workflow (.github/workflows/auto-release.yml), nicht von electron-builder.
+publish:
+  provider: github
+  owner: jsteiner4000
+  repo: Letterflow
 win:
   target: nsis
   icon: assets/letterflow.ico

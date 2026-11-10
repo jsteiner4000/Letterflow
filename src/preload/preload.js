@@ -24,6 +24,13 @@ contextBridge.exposeInMainWorld('letterflow', {
   status: {
     get: () => ipcRenderer.invoke('status:get'),
   },
+  update: {
+    stand: () => ipcRenderer.invoke('update:stand'),
+    suchen: () => ipcRenderer.invoke('update:suchen'),
+    installieren: () => ipcRenderer.invoke('update:installieren'),
+    onStand: (cb) => ipcRenderer.on('update:stand', (_event, s) => cb(s)),
+  },
+  onBereich: (cb) => ipcRenderer.on('settings:bereich', (_event, b) => cb(b)),
   overlay: {
     ready: () => ipcRenderer.send('overlay:ready'),
     erschienen: (anteil) => ipcRenderer.send('overlay:erschienen', anteil),

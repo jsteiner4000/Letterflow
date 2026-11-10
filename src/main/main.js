@@ -1,4 +1,14 @@
-const { app, BrowserWindow, ipcMain, session, clipboard, screen } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  session,
+  clipboard,
+  screen,
+  nativeImage,
+  Notification,
+} = require('electron');
+const { EventEmitter } = require('node:events');
 const path = require('node:path');
 
 const testMode = process.env.LETTERFLOW_TEST === '1';
@@ -29,6 +39,7 @@ const { Helper } = require('./helper');
 const { Dictation } = require('./dictation');
 const { createAppInfo } = require('./app-info');
 const { createLog } = require('./log');
+const { createUpdater } = require('./updater');
 
 if (!app.requestSingleInstanceLock()) {
   // Zweite Instanz: sofort beenden, die erste öffnet die Einstellungen.
@@ -50,6 +61,32 @@ if (!app.requestSingleInstanceLock()) {
   let hardware = null; // Ergebnis von detectHardware
   let engines = null; // EngineManager, sobald die Einrichtung abgeschlossen ist
   let beendet = false;
+  // Updates nur in der installierten App; Tests steuern einen Ersatz mit denselben Ereignissen.
+  const updateFake = testMode
+    ? Object.assign(new EventEmitter(), { checkForUpdates: async () => {}, quitAndInstall() {} })
+    : null;
+  const updater = createUpdater({
+    autoUpdater: testMode
+      ? updateFake
+      : app.isPackaged
+        ? require('electron-updater').autoUpdater
+        : null,
+    gefunden: (version) => {
+      if (testMode || !Notification.isSupported()) return;
+      const n = new Notification({
+        title: 'Letterflow wird aktualisiert',
+        body: `Version ${version} wird im Hintergrund geladen. Zum Zuschauen hier klicken.`,
+        icon: path.join(__dirname, '..', '..', 'assets', 'icon.png'),
+      });
+      n.on('click', () => windows.openSettings('allgemein'));
+      n.show();
+    },
+    log: (z) => console.log(z),
+  });
+  updater.on('stand', (stand) => {
+    for (const w of BrowserWindow.getAllWindows())
+      if (!w.isDestroyed()) w.webContents.send('update:stand', stand);
+  });
   let startFehler = false; // Start der Engines ist gescheitert (bis zum nächsten Erfolg)
   let neustart = null; // laufender Neustart der Engines
   let helper = null; // Tastaturhelfer
@@ -188,6 +225,9 @@ if (!app.requestSingleInstanceLock()) {
       return settings;
     });
     ipcMain.handle('status:get', () => getStatus());
+    ipcMain.handle('update:stand', () => updater.stand());
+    ipcMain.handle('update:suchen', () => updater.suchen());
+    ipcMain.handle('update:installieren', () => updater.installieren());
     try {
       applyAutostart(loadSettings(dir));
     } catch (fehler) {
@@ -196,6 +236,8 @@ if (!app.requestSingleInstanceLock()) {
   }
 
   app.whenReady().then(() => {
+    // Gleiche Kennung wie die Verknüpfung des Installers: sonst zeigt Windows keine Benachrichtigungen.
+    app.setAppUserModelId('de.letterflow.app');
     setupPermissions(session.defaultSession);
     registerIpc();
     trayHandle = tray.createTray();
@@ -224,6 +266,7 @@ if (!app.requestSingleInstanceLock()) {
     });
     // Tests prüfen das erste Fenster: dort die Pille nicht vorab laden.
     if (!testMode) overlay.prepare();
+    updater.starten();
     helper = new Helper();
     const recorder = createRecorder(helper);
     helper.setPreset(einstellungen().hotkey || 'rctrl', einstellungen().hotkeyMode);
@@ -256,6 +299,7 @@ if (!app.requestSingleInstanceLock()) {
       getEngines: () => engines,
       getAppInfo: createAppInfo({
         getFileIcon: (exe, opts) => app.getFileIcon(exe, opts),
+        loadImage: (p) => nativeImage.createFromPath(p),
         scale: () => screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).scaleFactor,
       }),
       getStatus,
@@ -318,6 +362,7 @@ if (!app.requestSingleInstanceLock()) {
         },
         befehle,
         // Test: Mikrofon-Zugriff verweigern, als wäre er in Windows gesperrt.
+        updateFake,
         mikrofonSperren: () => helper.send({ cmd: '__micFehler', name: 'NotAllowedError' }),
       };
     }

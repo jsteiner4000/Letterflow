@@ -15,7 +15,7 @@ Beim ersten Start lädt Letterflow einmalig die Sprachmodelle herunter (ca. 0,7 
 
 ## Benutzen
 
-- **Rechte Strg** halten, sprechen, loslassen. Der Text wird eingefügt. In den Einstellungen kannst du stattdessen **Strg + Win** oder **Strg + Umschalt** wählen (Klick auf die Taste oder „Ändern“).
+- **Rechte Strg** halten, sprechen, loslassen. Der Text wird eingefügt. In den Einstellungen kannst du stattdessen **Strg + Win** oder **Strg + Umschalt** wählen (Klick auf die Taste).
 - Lieber ohne Festhalten? Unter „Bedienung“ auf **Umschalten** stellen: Sprechtaste **zweimal schnell tippen** startet, **einmal tippen** beendet und fügt ein. Ein einzelnes Antippen tut nichts.
 - Mitten in einen vorhandenen Satz diktiert, setzt Letterflow keinen Schlusspunkt, ergänzt das Leerzeichen und schreibt Wörter wie „ich“, „und“, „der“ klein (wenn das Programm den Text um die Schreibmarke preisgibt).
 - **Esc** während des Diktats verwirft die Aufnahme. Alles andere (etwa Alt + Tab zum Fensterwechsel) ist beim Diktieren erlaubt: Letterflow fügt den Text in das Fenster ein, in dem du angefangen hast, und bringt dich danach zurück.
@@ -40,7 +40,7 @@ Läuft ein Spiel, Video oder eine Präsentation im Vollbild, bleibt die Pille au
 
 ## Neue Version
 
-Den neuen Installer einfach ausführen; er ersetzt die alte Version, deine Einstellungen und Modelle bleiben.
+Letterflow aktualisiert sich selbst: Beim Start und alle vier Stunden sucht es nach einer neuen Version und lädt sie im Hintergrund (Windows meldet das kurz; unter Einstellungen → Allgemein siehst du den Fortschritt). Installiert wird beim nächsten Beenden oder sofort mit „Neu starten“. Deine Einstellungen und Modelle bleiben. Alternativ den neuen Installer von der Release-Seite einfach ausführen.
 
 ## Deinstallieren
 

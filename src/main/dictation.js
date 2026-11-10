@@ -107,10 +107,10 @@ class Dictation {
 
   // Der Helfer meldet jeden Vordergrundwechsel: Symbol schon jetzt laden, damit die Pille es beim
   // Erscheinen hat. exe null: Desktop, Taskleiste oder erhöhtes Programm (Letterflow-Symbol).
-  _vordergrund({ exe, appName }) {
-    const v = (this.vordergrundApp = { exe, info: exe ? null : undefined });
+  _vordergrund({ exe, appName, icon }) {
+    const v = (this.vordergrundApp = { exe, appName, icon, info: exe ? null : undefined });
     if (exe)
-      this.getAppInfo({ exe, appName })
+      this.getAppInfo({ exe, appName, icon })
         .then((info) => (v.info = info))
         .catch(() => (v.info = undefined));
   }
@@ -179,9 +179,13 @@ class Dictation {
     // Nur das Ergebnis des neuesten Diktats zählt: eine ältere, langsamere Abfrage zeigt nie ihr Programm.
     this.lastRec = rec;
     this.lastApp = undefined;
-    // Kein Textfeld: kein Programmsymbol, die Pille zeigt das Letterflow-Symbol.
+    // Kein Textfeld: kein Programmsymbol, die Pille zeigt das Letterflow-Symbol. Lief die Abfrage ins
+    // Leere (träges Programm, z. B. Word mit großem Dokument), gilt das zuletzt gemeldete Vordergrundprogramm.
     rec.app = rec.focus
-      .then((f) => (f.editable === 'no' ? null : this.getAppInfo(f)))
+      .then((f) => {
+        if (f.editable === 'no') return null;
+        return this.getAppInfo(f.exe || !this.vordergrundApp?.exe ? f : this.vordergrundApp);
+      })
       .catch(() => null);
     rec.app.then((app) => {
       if (this.lastRec !== rec) return;

@@ -312,29 +312,29 @@ main {
 
 /* --- Pille: Vorschau und Regler ---------------------------------------- */
 
-/* Zwei Spalten: Vorschau links (bleibt beim Scrollen stehen), Regler rechts */
-.pille-spalten {
-  display: grid;
-  grid-template-columns: minmax(200px, 300px) minmax(0, 1fr);
-  gap: 24px;
-  align-items: start;
-}
-.pille-links {
-  position: sticky;
-  top: 0;
-}
-.pille-spalten .gruppe:last-child {
-  margin-bottom: 0;
-}
+/* Vorschau über die volle Breite, bleibt beim Scrollen oben stehen: Regler wirken sichtbar.
+   Seitenflächen setzen die Ränder des 640px-Beispielbilds fort (links Orange, rechts Weiß). */
 .buehne {
-  position: relative;
+  position: sticky;
+  top: -24px; /* versetzt zum Innenabstand von main (40px): dockt 16px unter dem Fensterrand an */
+  z-index: 2;
   display: grid;
   place-items: center;
   height: 170px;
-  margin-bottom: 16px;
+  margin-bottom: 28px;
   border-radius: 12px;
   overflow: hidden;
-  background: #1d2b38;
+  background: linear-gradient(90deg, #c9774e 50%, #fff 50%);
+  /* deckt beim Scrollen den Streifen darüber und daneben ab */
+  box-shadow: 0 -16px 0 16px var(--bg);
+}
+.buehne::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--line);
+  pointer-events: none;
 }
 .buehne-bild {
   position: absolute;
@@ -433,7 +433,7 @@ main {
 }
 
 /* Sprechtaste als echte Tastenkappe: Unterkante wie eine physische Taste, gibt beim Drücken nach.
-   Klick klappt die Auswahl der Sprechtaste auf (wie „Ändern“). */
+   Sie ist zugleich der einzige Knopf: Klick klappt die Auswahl auf, der Pfeil zeigt das an. */
 .kappe-knopf {
   --kante: rgba(30, 25, 20, 0.16);
   --kante-unten: rgba(30, 25, 20, 0.2);
@@ -447,6 +447,19 @@ main {
   background: none;
   color: var(--ink);
   cursor: pointer;
+}
+.kappe-knopf::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  margin: 0 4px 0 6px;
+  border: solid var(--ink-2);
+  border-width: 0 1.5px 1.5px 0;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform var(--fade);
+}
+.kappe-knopf[aria-expanded='true']::after {
+  transform: translateY(1px) rotate(-135deg);
 }
 .kappe-knopf .plus {
   font:
@@ -523,5 +536,138 @@ main {
 @media (prefers-reduced-motion: reduce) {
   .kappe-knopf:active .kappe {
     transform: none;
+  }
+}
+
+/* --- Update: der Schriftzug füllt sich beim Download wie eine Flüssigkeit ---------------- */
+
+.update {
+  --fluessig: #0f766e;
+  --fluessig-2: rgba(20, 184, 166, 0.45);
+  --leer: var(--off);
+  padding: 26px 18px 16px;
+  border-top: 1px solid var(--line);
+}
+@media (prefers-color-scheme: dark) {
+  .update {
+    --fluessig: #3cc4ae;
+    --fluessig-2: rgba(15, 118, 110, 0.7);
+  }
+}
+.update-wort {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  /* Glut wächst mit dem Fortschritt (--p 0…100 aus settings.js) */
+  filter: drop-shadow(0 6px 14px rgba(15, 118, 110, calc(var(--p, 0) * 0.0035)));
+}
+/* Leerer Schriftzug zeichnet sich zuerst selbst */
+.update-wort .leer {
+  stroke: var(--leer);
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: lf-zeichnen 1.4s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+@keyframes lf-zeichnen {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+/* Pegel: unten (216) leer, oben (30) voll; weich nachziehen */
+.pegel-fluessig {
+  transform: translateY(calc(216px - var(--p, 0) * 1.86px));
+  transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.welle {
+  animation: lf-welle 1.8s linear infinite;
+}
+.welle.vorn {
+  fill: var(--fluessig);
+}
+.welle.hinten {
+  fill: var(--fluessig-2);
+  translate: 0 -6px;
+  animation-duration: 2.7s;
+  animation-direction: reverse;
+}
+@keyframes lf-welle {
+  to {
+    transform: translateX(112px);
+  }
+}
+.glanz {
+  opacity: 0;
+}
+.update[data-phase='fertig'] .glanz {
+  animation: lf-glanz 1.5s 0.4s cubic-bezier(0.45, 0, 0.25, 1) 2;
+}
+.update[data-phase='fertig'] .update-wort {
+  animation: lf-fertig 700ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes lf-glanz {
+  from {
+    opacity: 1;
+    transform: translateX(0) skewX(-20deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(1150px) skewX(-20deg);
+  }
+}
+@keyframes lf-fertig {
+  50% {
+    transform: scale(1.025);
+  }
+}
+.update-fuss {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 18px;
+}
+.update-prozent {
+  font:
+    400 30px/1 'Newsreader',
+    serif;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+#seite-allgemein .update-fuss .text b {
+  font-variant-numeric: tabular-nums;
+}
+/* Neues Update: Punkt am Bereich „Allgemein“ */
+#tab-allgemein.neu::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: #0f766e;
+}
+@media (prefers-reduced-motion: reduce) {
+  .update-wort .leer {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .welle,
+  .update[data-phase='fertig'] .glanz,
+  .update[data-phase='fertig'] .update-wort {
+    animation: none;
+  }
+  .pegel-fluessig {
+    transition: none;
+  }
+}
+@media (forced-colors: active) {
+  .update-wort .leer {
+    stroke: GrayText;
+  }
+  .welle.vorn {
+    fill: Highlight;
+  }
+  .welle.hinten,
+  .glanz {
+    display: none;
   }
 }
