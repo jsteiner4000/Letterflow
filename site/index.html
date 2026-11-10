@@ -108,8 +108,8 @@
         position: sticky;
         top: 0;
         z-index: 10;
-        background: color-mix(in srgb, var(--bg) 82%, transparent);
-        backdrop-filter: blur(14px);
+        /* bewusst ohne backdrop-filter: das Verwischen bei jedem Scroll-Bild ließ die Seite ruckeln */
+        background: color-mix(in srgb, var(--bg) 95%, transparent);
         border-bottom: 1px solid transparent;
         transition: border-color 200ms;
       }
@@ -925,16 +925,13 @@
       .auftritt {
         opacity: 0;
         translate: 0 56px;
-        scale: 0.97;
         transition:
           opacity 800ms ease-out,
-          translate 1000ms cubic-bezier(0.22, 1, 0.36, 1),
-          scale 1000ms cubic-bezier(0.22, 1, 0.36, 1);
+          translate 1000ms cubic-bezier(0.22, 1, 0.36, 1);
       }
       .auftritt.da {
         opacity: 1;
         translate: 0 0;
-        scale: 1;
       }
       /* Bilder kommen einen Tick später und von weiter unten nach */
       .reihe.auftritt .bild {
@@ -952,7 +949,6 @@
         .reihe.auftritt .bild {
           opacity: 1;
           translate: none;
-          scale: none;
           transition: none;
         }
         .balken i,
