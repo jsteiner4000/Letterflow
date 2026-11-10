@@ -41,8 +41,14 @@ test('Status zeigt erkannte Hardware und bereite Engines', async () => {
 test('Wechsel auf Gründlich startet llama-server und zeigt es an', async () => {
   const { app, win } = await fertigeEinrichtung();
   await expect.poll(() => app.evaluate(() => global.__letterflow.status().engines)).toBe('bereit');
-  // Modell liegt schon da: keine Rückfrage.
-  await win.getByRole('radio', { name: /^Gründlich/ }).check();
+  // Modell liegt schon da: keine Download-Rückfrage.
+  await win.getByRole('radio', { name: /^Gründlich/ }).click();
+  // Testrechner ohne passende Grafikkarte: erst die Grafikkarten-Rückfrage bestätigen.
+  await win
+    .getByRole('dialog', { name: 'Gründlich ohne Grafikkarte?' })
+    .getByRole('button', { name: 'Trotzdem wählen' })
+    .click();
+
   await expect.poll(() => app.evaluate(() => global.__letterflow.status().tier)).toBe('gruendlich');
   await expect.poll(() => app.evaluate(() => global.__letterflow.status().engines)).toBe('bereit');
   await expect(win.locator('#status-glaettung')).toHaveText('Glättung: Gründlich auf Prozessor');
@@ -100,6 +106,11 @@ test('Stufenwechsel während der Einrichtung geht nicht verloren', async () => {
   // Erst wenn die gespeicherte Wahl angezeigt wird, hört die Seite auf Klicks (unter Last sonst zu früh).
   await expect(win.getByRole('radio', { name: /^Schnell/ })).toBeChecked();
   await win.getByRole('radio', { name: /^Gründlich/ }).click();
+  // Testrechner ohne passende Grafikkarte: erst die Grafikkarten-Rückfrage bestätigen.
+  await win
+    .getByRole('dialog', { name: 'Gründlich ohne Grafikkarte?' })
+    .getByRole('button', { name: 'Trotzdem wählen' })
+    .click();
   await win.getByRole('dialog').getByRole('button', { name: 'Laden' }).click();
   await expect
     .poll(() => app.evaluate(() => global.__letterflow.status().engines), {

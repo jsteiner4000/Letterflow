@@ -16,11 +16,16 @@ function cleanName(appName, exe) {
 const OHNE_SYMBOL = 'C:/Letterflow-gibt-es-nicht/ohne-symbol.exe';
 
 // loadImage: (pngPfad) => NativeImage (electron.nativeImage.createFromPath). Paket-Apps (Store, WhatsApp)
-// tragen kein Symbol in der Exe; der Helfer meldet dann die Logo-Datei aus dem Paket als icon.
+// tragen kein Symbol in der Exe; der Helfer meldet dann die Logo-Datei aus dem Paket als icon. Liefert die
+// Exe nur das leere Standardsymbol (Office: WINWORD.EXE), gilt das Fenstersymbol (fensterIcon, PNG).
 function createAppInfo({ getFileIcon, loadImage = null, scale = () => 1 }) {
   const cache = new Map();
   let leer = null; // Promise: Bitmap des leeren Programmsymbols oder null
-  return async function getAppInfo({ exe, appName, icon } = {}) {
+  const png = (p) => {
+    const b = typeof p === 'string' && /\.png$/i.test(p) && loadImage?.(p);
+    return b && !b.isEmpty() ? b : null;
+  };
+  return async function getAppInfo({ exe, appName, icon, fensterIcon } = {}) {
     const name = cleanName(appName, exe);
     if (!exe) return { name, iconDataUrl: null };
     if (!cache.has(exe)) {
@@ -30,18 +35,23 @@ function createAppInfo({ getFileIcon, loadImage = null, scale = () => 1 }) {
           (b) => (b.toBitmap ? b.toBitmap() : null),
           () => null,
         );
-        const logo = typeof icon === 'string' && /\.png$/i.test(icon) && loadImage?.(icon);
-        const bild = logo && !logo.isEmpty() ? logo : await getFileIcon(exe, { size: 'large' });
-        const ohne = bild === logo ? null : await leer;
-        // Leeres Symbol → null: die Pille zeigt dann das Letterflow-Symbol.
-        if (!(ohne && bild.toBitmap && ohne.equals(bild.toBitmap()))) {
+        let bild = png(icon);
+        if (!bild) {
+          const datei = await getFileIcon(exe, { size: 'large' });
+          const ohne = await leer;
+          // Leeres Symbol → Fenstersymbol, sonst null: die Pille zeigt dann das Letterflow-Symbol.
+          bild = ohne && datei.toBitmap && ohne.equals(datei.toBitmap()) ? png(fensterIcon) : datei;
+        }
+        if (bild) {
           const px = Math.round(28 * scale());
           url = (
             bild.resize ? bild.resize({ width: px, height: px, quality: 'best' }) : bild
           ).toDataURL();
         }
       } catch {}
-      cache.set(exe, url);
+      // Ohne Symbol und ohne Fenstersymbol nicht merken: beim nächsten Mal kann das Fenster eins haben.
+      if (url || fensterIcon) cache.set(exe, url);
+      else return { name, iconDataUrl: null };
     }
     return { name, iconDataUrl: cache.get(exe) };
   };

@@ -81,6 +81,11 @@ test('Gründlich ohne Modell fragt vorher; Abbrechen behält die alte Stufe', as
   const automatisch = win.getByRole('radio', { name: /^Automatisch/ });
   await expect(automatisch).toBeChecked();
   await win.getByRole('radio', { name: /^Gründlich/ }).click();
+  // Testrechner ohne passende Grafikkarte: erst die Grafikkarten-Rückfrage bestätigen.
+  await win
+    .getByRole('dialog', { name: 'Gründlich ohne Grafikkarte?' })
+    .getByRole('button', { name: 'Trotzdem wählen' })
+    .click();
   const dialog = win.getByRole('dialog', { name: 'Gründliche Glättung laden?' });
   await expect(dialog).toContainText('Einmalig 2,5 GB, danach offline.');
   await dialog.getByRole('button', { name: 'Abbrechen' }).click();

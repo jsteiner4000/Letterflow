@@ -6,12 +6,12 @@
     <title>Letterflow – Diktieren für Windows</title>
     <meta
       name="description"
-      content="Taste halten, sprechen, loslassen: Letterflow schreibt deinen Text dorthin, wo der Cursor blinkt. Läuft komplett lokal auf deinem Windows-PC."
+      content="Taste halten, sprechen, loslassen: Letterflow setzt deine Worte genau dort ein, wo der Cursor steht. Vollständig lokal auf deinem Windows-PC."
     />
     <meta property="og:title" content="Letterflow – Diktieren für Windows" />
     <meta
       property="og:description"
-      content="Taste halten, sprechen, loslassen. Komplett lokal, ohne Konto, ohne Cloud."
+      content="Taste halten, sprechen, loslassen. Vollständig lokal, ohne Konto und ohne Cloud."
     />
     <meta property="og:image" content="bilder/pille-erfolg.png" />
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
@@ -43,35 +43,21 @@
         font-display: swap;
       }
 
+      /* Die Seite ist immer dunkel, unabhängig von der Systemeinstellung */
       :root {
-        --bg: #fbfaf7;
-        --card: #f3f1ec;
-        --card-2: #ebe8e2;
-        --line: rgba(30, 25, 20, 0.09);
-        --ink: #1d1b18;
-        --ink-2: #625e57;
-        --petrol: #0f766e;
+        --bg: #1b1a18;
+        --card: #252422;
+        --card-2: #2f2e2b;
+        --line: rgba(255, 250, 240, 0.08);
+        --ink: #efece6;
+        --ink-2: #a39f97;
+        --petrol: #3cc4ae;
         --petrol-hell: #3cc4ae;
-        --knopf: #1d1b18;
-        --knopf-ink: #ffffff;
-        --schatten: 0 1px 2px rgba(30, 25, 20, 0.06), 0 12px 40px rgba(30, 25, 20, 0.08);
+        --knopf: #efece6;
+        --knopf-ink: #1b1a18;
+        --schatten: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 40px rgba(0, 0, 0, 0.35);
         --breite: 1120px;
-        color-scheme: light;
-      }
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --bg: #1b1a18;
-          --card: #252422;
-          --card-2: #2f2e2b;
-          --line: rgba(255, 250, 240, 0.08);
-          --ink: #efece6;
-          --ink-2: #a39f97;
-          --petrol: #3cc4ae;
-          --knopf: #efece6;
-          --knopf-ink: #1b1a18;
-          --schatten: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 40px rgba(0, 0, 0, 0.35);
-          color-scheme: dark;
-        }
+        color-scheme: dark;
       }
 
       * {
@@ -139,16 +125,8 @@
         height: 26px;
         width: auto;
       }
-      .logo .dunkel {
+      .logo .hell {
         display: none;
-      }
-      @media (prefers-color-scheme: dark) {
-        .logo .hell {
-          display: none;
-        }
-        .logo .dunkel {
-          display: block;
-        }
       }
       nav {
         display: flex;
@@ -219,7 +197,7 @@
       .held h1 {
         font-size: clamp(44px, 7.4vw, 88px);
         line-height: 1;
-        max-width: 14ch;
+        max-width: 20ch;
         margin-inline: auto;
       }
       .held h1 em {
@@ -802,6 +780,140 @@
         }
       }
 
+      /* Dialog nach dem Download */
+      dialog#weiter {
+        width: min(640px, 100% - 32px);
+        max-height: calc(100% - 32px);
+        padding: 36px clamp(20px, 5vw, 40px) 28px;
+        border: 0;
+        border-radius: 22px;
+        background: var(--bg);
+        color: var(--ink);
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+      }
+      dialog#weiter[open] {
+        animation: aufgehen 320ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      dialog#weiter::backdrop {
+        background: rgba(20, 18, 16, 0.45);
+        backdrop-filter: blur(4px);
+      }
+      @keyframes aufgehen {
+        from {
+          opacity: 0;
+          translate: 0 16px;
+          scale: 0.98;
+        }
+      }
+      #weiter .marke {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--petrol);
+      }
+      #weiter h2 {
+        margin: 6px 0 12px;
+        font-size: clamp(28px, 4vw, 36px);
+        line-height: 1.1;
+      }
+      #weiter .zu {
+        position: absolute;
+        top: 14px;
+        right: 16px;
+        width: 36px;
+        height: 36px;
+        border: 0;
+        border-radius: 50%;
+        font-size: 22px;
+        line-height: 1;
+        color: var(--ink-2);
+        background: var(--card);
+        cursor: pointer;
+      }
+      #weiter .klein {
+        margin-top: 18px;
+        font-size: 14px;
+      }
+      #weiter .installation.kompakt {
+        margin-top: 4px;
+        padding-top: 20px;
+      }
+      /* Schematische SmartScreen-Warnung: zeigt, wohin man klickt */
+      .smartscreen {
+        margin: 22px 0 8px;
+        padding: 18px;
+        border-radius: 14px;
+        background: var(--card);
+      }
+      .ss-fenster {
+        padding: 18px 20px 16px;
+        border-radius: 6px;
+        background: #0f5fa8;
+        color: #fff;
+        font:
+          400 13px/1.45 'Segoe UI',
+          'Inter',
+          sans-serif;
+      }
+      .ss-fenster b {
+        display: block;
+        font-size: 17px;
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+      .ss-fenster p {
+        opacity: 0.9;
+      }
+      .ss-link {
+        display: inline-block;
+        margin-top: 8px;
+        text-decoration: underline;
+        border-radius: 4px;
+        animation: zeigen 2.4s ease-in-out infinite;
+      }
+      .ss-zeile {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .ss-knopf {
+        padding: 5px 14px;
+        border: 1px solid rgba(255, 255, 255, 0.85);
+        font-size: 12px;
+      }
+      .ss-knopf.trotzdem {
+        border-radius: 2px;
+        animation: zeigen 2.4s 1.2s ease-in-out infinite;
+      }
+      /* Abwechselnd leuchten „Weitere Informationen“ und „Trotzdem ausführen“ auf */
+      @keyframes zeigen {
+        0%,
+        45%,
+        100% {
+          box-shadow: 0 0 0 0 rgba(94, 234, 212, 0);
+        }
+        15%,
+        30% {
+          box-shadow: 0 0 0 4px #5eead4;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        dialog#weiter[open],
+        .ss-link,
+        .ss-knopf.trotzdem {
+          animation: none;
+        }
+        .ss-link,
+        .ss-knopf.trotzdem {
+          box-shadow: 0 0 0 3px #5eead4;
+        }
+      }
+      @media (max-width: 640px) {
+        #weiter .installation.kompakt {
+          grid-template-columns: 1fr;
+        }
+      }
+
       footer {
         padding: 40px 0 56px;
         font-size: 14px;
@@ -854,7 +966,7 @@
           <img class="dunkel" src="bilder/lockup-hell.svg" alt="" width="166" height="26" />
         </a>
         <nav aria-label="Seite">
-          <a href="#so-gehts">So geht's</a>
+          <a href="#so-gehts">Ablauf</a>
           <a href="#funktionen">Funktionen</a>
           <a href="#download">Download</a>
           <a class="gh" href="https://github.com/jsteiner4000/Letterflow">GitHub</a>
@@ -864,10 +976,10 @@
 
     <main>
       <div class="held rahmen">
-        <h1>Sprich einfach. <em>Es steht da.</em></h1>
+        <h1>Du sprichst,<br /><em>Letterflow schreibt.</em></h1>
         <p class="unter">
-          Taste halten, sprechen, loslassen: Letterflow schreibt deinen Text dorthin, wo der Cursor
-          blinkt. Komplett auf deinem PC, ohne Konto und ohne Cloud.
+          Taste halten, sprechen, loslassen: Letterflow setzt deine Worte genau dort ein, wo der
+          Cursor steht. Vollständig auf deinem PC, ohne Konto und ohne Cloud.
         </p>
         <div class="aktionen">
           <a
@@ -884,9 +996,9 @@
             >
               <path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 20h14" />
             </svg>
-            Für Windows laden
+            Für Windows herunterladen
           </a>
-          <a class="knopf zweit" href="#so-gehts">So funktioniert's</a>
+          <a class="knopf zweit" href="#so-gehts">So funktioniert es</a>
         </div>
         <p class="kleingedruckt"><span class="version-text">Kostenlos</span> · Windows 10 und 11</p>
 
@@ -931,28 +1043,34 @@
       <section id="so-gehts">
         <div class="rahmen">
           <div class="kopfzeile auftritt">
-            <span class="marke">So geht's</span>
-            <h2>Drei Handgriffe. Keine neue App, in die du tippst.</h2>
+            <span class="marke">Ablauf</span>
+            <h2>Drei Handgriffe. Kein weiteres Fenster.</h2>
             <p>
-              Letterflow sitzt still im Infobereich und arbeitet in jedem Programm, in dem du gerade
-              schreibst.
+              Letterflow wartet unauffällig im Infobereich und schreibt in jedes Programm, in dem du
+              gerade arbeitest.
             </p>
           </div>
           <div class="schritte">
             <div class="schritt auftritt">
               <h3>Taste halten</h3>
               <p>
-                <kbd>Strg</kbd> rechts gedrückt halten. Oder zweimal antippen, wenn du lieber
-                freihändig sprichst.
+                Halte die rechte <kbd>Strg</kbd>-Taste gedrückt. Oder tippe sie zweimal an, um
+                freihändig zu diktieren.
               </p>
             </div>
             <div class="schritt auftritt">
               <h3>Sprechen</h3>
-              <p>Ganz normal, mit Pausen und „ähm“. Die Pille zeigt, dass Letterflow zuhört.</p>
+              <p>
+                So natürlich, wie du redest, mit Pausen und „ähm“. Die Pille zeigt dir, dass
+                Letterflow zuhört.
+              </p>
             </div>
             <div class="schritt auftritt">
               <h3>Loslassen</h3>
-              <p>Der Text steht sauber im Textfeld, mit Satzzeichen und deinen Schreibweisen.</p>
+              <p>
+                Dein Text erscheint sauber gesetzt im Eingabefeld, mit Satzzeichen und in deinen
+                Schreibweisen.
+              </p>
             </div>
           </div>
         </div>
@@ -962,16 +1080,15 @@
         <div class="rahmen">
           <div class="reihe auftritt">
             <div>
-              <h3>Alles bleibt auf deinem Rechner.</h3>
+              <h3>Deine Worte verlassen nie deinen Rechner.</h3>
               <p>
-                Spracherkennung und Glättung laufen lokal. Es gibt kein Konto, keinen Server und
-                kein Abo. Nach dem ersten Herunterladen der Modelle funktioniert Letterflow ohne
-                Internet.
+                Spracherkennung und Glättung laufen vollständig lokal. Kein Konto, kein Server, kein
+                Abo. Sind die Modelle einmal geladen, arbeitet Letterflow auch ganz ohne Internet.
               </p>
               <ul>
-                <li>Mikrofon nur, solange du diktierst</li>
-                <li>Kein Diktat landet im Protokoll</li>
-                <li>Bei Vollbild-Spielen und Präsentationen bleibt die Pille aus</li>
+                <li>Das Mikrofon ist nur aktiv, solange du diktierst</li>
+                <li>Diktate werden nicht protokolliert</li>
+                <li>Bei Vollbildspielen und Präsentationen bleibt die Pille verborgen</li>
               </ul>
             </div>
             <div class="bild">
@@ -987,10 +1104,10 @@
 
           <div class="reihe auftritt">
             <div>
-              <h3>Glättet, wie du es selbst getan hättest.</h3>
+              <h3>Geschliffen, als hättest du es selbst geschrieben.</h3>
               <p>
-                Füllwörter fliegen raus, Selbstkorrekturen werden angewendet, Kommas stehen da, wo
-                die Rechtschreibung sie will, nicht bei jeder Atempause.
+                Füllwörter verschwinden, Selbstkorrekturen werden übernommen, und Kommas stehen
+                dort, wo die Rechtschreibung sie verlangt, nicht nach jeder Atempause.
               </p>
             </div>
             <div class="bild flach">
@@ -1008,10 +1125,11 @@
 
           <div class="reihe auftritt">
             <div>
-              <h3>Funktioniert dort, wo du schreibst.</h3>
+              <h3>Überall dort, wo du schreibst.</h3>
               <p>
-                Word, Mails, Chats, Browser, Notizen: Letterflow fügt den Text in das Fenster ein,
-                in dem du angefangen hast. Die Pille zeigt dabei, welches Programm es ist.
+                Ob Word, E-Mail, Chat, Browser oder Notizen: Letterflow setzt den Text in genau das
+                Fenster ein, in dem du begonnen hast. Die Pille zeigt dir dabei, welches Programm es
+                ist.
               </p>
               <div class="apps">
                 <span>Word</span><span>Outlook</span><span>WhatsApp</span><span>Chrome</span
@@ -1031,11 +1149,11 @@
 
           <div class="reihe auftritt">
             <div>
-              <h3>Hält sich selbst aktuell.</h3>
+              <h3>Stets auf dem neuesten Stand.</h3>
               <p>
-                Neue Versionen lädt Letterflow im Hintergrund. Installiert wird beim nächsten
-                Beenden oder mit einem Klick auf „Neu starten“. Deine Einstellungen bleiben, wie sie
-                sind.
+                Neue Versionen lädt Letterflow still im Hintergrund. Installiert wird beim nächsten
+                Beenden oder mit einem Klick auf „Neu starten“. Deine Einstellungen bleiben dabei
+                unberührt.
               </p>
             </div>
             <div class="bild">
@@ -1057,8 +1175,8 @@
             <div class="lade-spalte">
               <h2>Bereit, wenn du es bist.</h2>
               <p class="unter">
-                Einmal installieren, Modelle laden lassen, lossprechen. Keine Administratorrechte
-                nötig, danach hält sich Letterflow selbst aktuell.
+                Einmal installieren, die Modelle laden lassen, lossprechen. Administratorrechte
+                brauchst du dafür nicht, und alle weiteren Versionen kommen von selbst.
               </p>
               <a
                 class="knopf gross lade-link"
@@ -1074,7 +1192,7 @@
                 >
                   <path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 20h14" />
                 </svg>
-                <span class="lade-text">Letterflow für Windows laden</span>
+                <span class="lade-text">Letterflow für Windows herunterladen</span>
               </a>
               <p class="lade-meta">
                 <span id="lade-info">Neueste Version</span> ·
@@ -1088,29 +1206,63 @@
             <ol class="installation">
               <li>
                 <b>Installer starten</b
-                ><span>Letterflow-Setup.exe aus deinem Download-Ordner öffnen.</span>
+                ><span>Öffne Letterflow-Setup.exe in deinem Download-Ordner.</span>
               </li>
               <li>
-                <b>Blaue Warnung?</b
+                <b>Hinweis von Windows</b
                 ><span
-                  >Letterflow ist noch nicht signiert: „Weitere Informationen“, dann „Trotzdem
-                  ausführen“.</span
+                  >Letterflow ist noch nicht signiert. Wähle „Weitere Informationen“ und dann
+                  „Trotzdem ausführen“.</span
                 >
               </li>
               <li>
                 <b>Modelle laden</b
-                ><span>Beim ersten Start einmalig ca. 0,7 GB, danach läuft alles offline.</span>
+                ><span>Beim ersten Start einmalig rund 0,7 GB, danach läuft alles offline.</span>
               </li>
             </ol>
             <div class="fakten">
               <span>Windows 10 und 11, 64 Bit</span>
               <span>Deutsch und Englisch, auch gemischt</span>
-              <span>Kostenlos, ohne Konto</span>
+              <span>Kostenlos und ohne Konto</span>
             </div>
           </div>
         </div>
       </section>
     </main>
+
+    <!-- Nach dem Klick auf „Laden“: was gleich passiert und dass die Windows-Warnung harmlos ist -->
+    <dialog id="weiter" aria-labelledby="weiter-titel">
+      <button class="zu" type="button" aria-label="Schließen">×</button>
+      <span class="marke">Download läuft</span>
+      <h2 id="weiter-titel">Gleich warnt Windows. Das ist normal.</h2>
+      <p class="leise">
+        Letterflow ist noch nicht mit einem kostenpflichtigen Microsoft-Zertifikat signiert. Deshalb
+        kennt Windows den Herausgeber nicht und zeigt beim Start eine blaue Warnung. Mit Letterflow
+        ist alles in Ordnung: Es installiert keine Treiber und braucht keine Administratorrechte.
+      </p>
+      <div class="smartscreen" aria-hidden="true">
+        <div class="ss-fenster">
+          <b>Der Computer wurde durch Windows geschützt</b>
+          <p>
+            Von Microsoft Defender SmartScreen wurde der Start einer unbekannten App verhindert.
+          </p>
+          <span class="ss-link">Weitere Informationen</span>
+          <div class="ss-zeile">
+            <span class="ss-knopf trotzdem">Trotzdem ausführen</span
+            ><span class="ss-knopf">Nicht ausführen</span>
+          </div>
+        </div>
+      </div>
+      <ol class="installation kompakt">
+        <li><b>Installer öffnen</b><span>Letterflow-Setup.exe aus dem Download-Ordner.</span></li>
+        <li><b>„Weitere Informationen“</b><span>in der blauen Warnung anklicken.</span></li>
+        <li><b>„Trotzdem ausführen“</b><span>Danach führt der Installer dich durch.</span></li>
+      </ol>
+      <p class="leise klein">
+        Meldet sich dein Virenscanner? Letterflow beobachtet die Sprechtaste über die Tastatur, das
+        lösen manche Scanner als Hinweis aus. Auch das kannst du zulassen.
+      </p>
+    </dialog>
 
     <footer>
       <div class="rahmen">
@@ -1123,6 +1275,16 @@
     </footer>
 
     <script>
+      // Nach dem Klick auf „Laden“: Download läuft weiter, daneben die Anleitung zur Windows-Warnung
+      const weiter = document.querySelector('#weiter');
+      document
+        .querySelectorAll('.lade-link')
+        .forEach((a) =>
+          a.addEventListener('click', () => setTimeout(() => weiter.showModal(), 300)),
+        );
+      weiter.querySelector('.zu').addEventListener('click', () => weiter.close());
+      weiter.addEventListener('click', (e) => e.target === weiter && weiter.close());
+
       // Kopfzeile bekommt beim Scrollen eine Kante
       const kopf = document.querySelector('header');
       addEventListener('scroll', () => kopf.classList.toggle('gescrollt', scrollY > 8), {
@@ -1156,7 +1318,7 @@
           });
           const mb = exe ? ` · ${Math.round(exe.size / 1048576)} MB` : '';
           document.querySelector('.version-text').textContent = `Kostenlos · Version ${v}`;
-          document.querySelector('.lade-text').textContent = `Letterflow ${v} laden`;
+          document.querySelector('.lade-text').textContent = `Letterflow ${v} herunterladen`;
           document.querySelector('#lade-info').textContent = `Version ${v} vom ${datum}${mb}`;
           // Neuigkeiten: die Spiegelstriche der Release-Notizen, als reiner Text
           const punkte = (rel.body || '')

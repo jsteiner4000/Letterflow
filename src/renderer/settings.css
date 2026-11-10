@@ -321,7 +321,9 @@ main {
   display: grid;
   place-items: center;
   height: 170px;
-  margin-bottom: 28px;
+  /* Abdeckung reicht 32px nach oben: genug Abstand, damit sie die Unterzeile nicht überdeckt
+     (Außenabstände fallen mit dem der Unterzeile zusammen, daher 40px statt eines Zuschlags) */
+  margin: 40px 0 28px;
   border-radius: 12px;
   overflow: hidden;
   background: linear-gradient(90deg, #c9774e 50%, #fff 50%);

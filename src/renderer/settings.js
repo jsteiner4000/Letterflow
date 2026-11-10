@@ -301,6 +301,15 @@ async function stufeWaehlen(wert) {
     st = await api.status.get();
   } catch {}
   const stufe = wert === 'auto' ? st?.autoTier : wert;
+  // Gründlich ohne passende Grafikkarte: läuft, aber jedes Diktat dauert spürbar länger.
+  if (wert === 'gruendlich' && st?.autoTier && st.autoTier !== 'gruendlich') {
+    const trotzdem = await window.bestaetigen({
+      titel: 'Gründlich ohne Grafikkarte?',
+      text: 'Dein PC hat keine passende Grafikkarte. Gründlich läuft dann auf dem Prozessor, jedes Diktat dauert mehrere Sekunden länger.',
+      ja: 'Trotzdem wählen',
+    });
+    if (!trotzdem) return anzeigen(aktuell);
+  }
   if (DOWNLOAD[stufe] && st?.[`${stufe}Fehlt`]) {
     const laden = await window.bestaetigen({ ...DOWNLOAD[stufe], ja: 'Laden' });
     if (!laden) return anzeigen(aktuell); // vorige Stufe wieder anzeigen
@@ -469,6 +478,11 @@ function statusAnzeigen(st) {
   $('statuszeile').textContent = STATUSZEILE[zustand];
   const pc = STUFE_TEXT[st.autoTier];
   $('auto-text').textContent = pc ? `Wählt nach deinem PC – hier: ${pc}` : 'Wählt nach deinem PC';
+  if (st.autoTier)
+    $('gruendlich-text').textContent =
+      st.autoTier === 'gruendlich'
+        ? 'Wendet auch „Montag, nein, Dienstag“ an · deine Grafikkarte passt · lädt einmalig 2,5 GB'
+        : 'Wendet auch „Montag, nein, Dienstag“ an · dein PC hat keine passende Grafikkarte, Diktate dauern deutlich länger';
   $('status-glaettung').textContent =
     st.tier === 'gruendlich'
       ? `Glättung: Gründlich auf ${BACKEND_TEXT[st.backend] || 'Prozessor'}${st.rueckfall ? ' (Rückfall, Grafikkarte nicht nutzbar)' : ''}`

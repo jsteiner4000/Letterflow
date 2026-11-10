@@ -122,6 +122,21 @@ h2 {
   color: var(--ink-2);
 }
 
+/* Kleines Etikett hinter einem Titel, z. B. „Grafikkarte nötig“ (.text .etikett schlägt .text span) */
+.etikett,
+.text .etikett {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 99px;
+  font:
+    600 11px/18px 'Inter',
+    sans-serif;
+  vertical-align: 1px;
+  color: var(--warm);
+  background: var(--warm-tint);
+}
+
 /* Listen-Gruppe: Fläche mit Zeilen, Trennlinien dazwischen */
 .gruppe {
   margin: 0 0 24px;

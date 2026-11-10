@@ -52,3 +52,17 @@ test('Paket-App: Logo aus dem Paket statt leerem Exe-Symbol', async () => {
   });
   expect(a).toEqual({ name: 'WhatsApp', iconDataUrl: 'data:image/png;base64,LOGO' });
 });
+
+test('Exe mit leerem Symbol (Word): Fenstersymbol statt Letterflow-Symbol', async () => {
+  const leer = { toBitmap: () => Buffer.from('leer') };
+  const fenster = { isEmpty: () => false, toDataURL: () => 'data:image/png;base64,FENSTER' };
+  const getAppInfo = createAppInfo({ getFileIcon: async () => leer, loadImage: () => fenster });
+  const a = await getAppInfo({
+    exe: 'C:/o/WINWORD.EXE',
+    appName: 'Microsoft Word',
+    fensterIcon: 'C:/t/w.png',
+  });
+  expect(a.iconDataUrl).toBe('data:image/png;base64,FENSTER');
+  const b = await getAppInfo({ exe: 'C:/o/ohne.exe', appName: 'Ohne' });
+  expect(b.iconDataUrl).toBeNull();
+});

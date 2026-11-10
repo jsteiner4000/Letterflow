@@ -11,7 +11,7 @@ Diktieren auf Windows: Taste halten, sprechen, loslassen – der Text erscheint 
 
 ## Erster Start
 
-Beim ersten Start lädt Letterflow einmalig die Sprachmodelle herunter (ca. 0,7 GB). Für die Glättung „Ausgewogen“ kommen ca. 1,1 GB dazu, für „Gründlich“ ca. 2,5 GB; vorher fragt Letterflow, welche Stufe du möchtest, und schlägt die zu deinem PC passende vor. Danach funktioniert alles ohne Internet.
+Beim ersten Start lädt Letterflow einmalig die Sprachmodelle herunter (ca. 0,7 GB). Für die Glättung „Ausgewogen“ kommen ca. 1,1 GB dazu, für „Gründlich“ ca. 2,5 GB („Gründlich“ braucht eine Grafikkarte, NVIDIA oder ab 6 GB Grafikspeicher, sonst dauert jedes Diktat deutlich länger); vorher fragt Letterflow, welche Stufe du möchtest, und schlägt die zu deinem PC passende vor. Danach funktioniert alles ohne Internet.
 
 ## Benutzen
 

@@ -115,6 +115,10 @@ namespace Letterflow
         public static extern int GetPackagePathByFullName(string fullName, ref int len, StringBuilder sb);
         [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)]
         public static extern int SHLoadIndirectString(string src, StringBuilder sb, int cch, IntPtr reserved);
+        [DllImport("user32.dll")]
+        public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint msg, IntPtr w, IntPtr l, uint flags, uint timeout, out IntPtr result);
+        [DllImport("user32.dll", EntryPoint = "GetClassLongPtrW")]
+        public static extern IntPtr GetClassLongPtr(IntPtr hWnd, int index);
         public delegate bool EnumProc(IntPtr hWnd, IntPtr lParam);
         [DllImport("user32.dll")]
         public static extern bool EnumChildWindows(IntPtr parent, EnumProc proc, IntPtr lParam);
@@ -802,7 +806,7 @@ namespace Letterflow
                 // Nur der neueste Wechsel zählt (Meldungen aus dem Thread-Pool können sich überholen)
                 if (nr == Interlocked.Read(ref vordergrundNr))
                     Emit("{\"ev\":\"vordergrund\",\"exe\":" + JsonStr(exe) + ",\"appName\":" + JsonStr(name)
-                        + ",\"icon\":" + JsonStr(icon) + "}");
+                        + ",\"icon\":" + JsonStr(icon) + ",\"fensterIcon\":" + JsonStr(icon == null ? FensterSymbol(hwnd, exe) : null) + "}");
             }
             catch { }
         }
@@ -888,7 +892,7 @@ namespace Letterflow
                 else editable = ProbeEditable(out vor, out nach);
             }
             return "{\"hwnd\":" + hwnd + ",\"editable\":\"" + editable + "\",\"elevated\":" + (elevated ? "true" : "false")
-                + ",\"exe\":" + JsonStr(exe) + ",\"appName\":" + JsonStr(appName) + ",\"icon\":" + JsonStr(icon)
+                + ",\"exe\":" + JsonStr(exe) + ",\"appName\":" + JsonStr(appName) + ",\"icon\":" + JsonStr(icon) + ",\"fensterIcon\":" + JsonStr(icon == null ? FensterSymbol(fg, exe) : null)
                 + ",\"vor\":" + JsonStr(vor) + ",\"nach\":" + JsonStr(nach) + "}";
         }
 
@@ -949,6 +953,36 @@ namespace Letterflow
                 appName = !string.IsNullOrWhiteSpace(desc) ? desc.Trim() : Path.GetFileNameWithoutExtension(exe);
             }
             catch { }
+        }
+
+        static readonly ConcurrentDictionary<string, string> fensterSymbole = new ConcurrentDictionary<string, string>();
+
+        // Symbol des Fensters als PNG (je Exe einmal, im Temp-Ordner). Ersatz für Programme, deren Exe kein
+        // Symbol trägt (Office: WINWORD.EXE liefert nur das leere Standardsymbol). null: keins.
+        static string FensterSymbol(IntPtr hwnd, string exe)
+        {
+            if (exe == null || hwnd == IntPtr.Zero) return null;
+            string schon;
+            if (fensterSymbole.TryGetValue(exe, out schon)) return schon;
+            string pfad = null;
+            try
+            {
+                IntPtr h;
+                Native.SendMessageTimeout(hwnd, 0x7F, new IntPtr(1), IntPtr.Zero, 2, 100, out h); // WM_GETICON, ICON_BIG, SMTO_ABORTIFHUNG
+                if (h == IntPtr.Zero) h = Native.GetClassLongPtr(hwnd, -14); // GCLP_HICON
+                if (h != IntPtr.Zero)
+                {
+                    string dir = Path.Combine(Path.GetTempPath(), "Letterflow-Symbole");
+                    Directory.CreateDirectory(dir);
+                    pfad = Path.Combine(dir, Path.GetFileNameWithoutExtension(exe) + "-" + ((uint)exe.ToLowerInvariant().GetHashCode()).ToString("x8") + ".png");
+                    using (System.Drawing.Icon ico = System.Drawing.Icon.FromHandle(h))
+                    using (System.Drawing.Bitmap bmp = ico.ToBitmap())
+                        bmp.Save(pfad, System.Drawing.Imaging.ImageFormat.Png);
+                }
+            }
+            catch { pfad = null; }
+            if (pfad != null) fensterSymbole[exe] = pfad; // ohne Symbol: beim nächsten Mal neu versuchen
+            return pfad;
         }
 
         static readonly ConcurrentDictionary<string, string[]> paketCache = new ConcurrentDictionary<string, string[]>();

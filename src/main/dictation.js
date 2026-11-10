@@ -107,10 +107,16 @@ class Dictation {
 
   // Der Helfer meldet jeden Vordergrundwechsel: Symbol schon jetzt laden, damit die Pille es beim
   // Erscheinen hat. exe null: Desktop, Taskleiste oder erhöhtes Programm (Letterflow-Symbol).
-  _vordergrund({ exe, appName, icon }) {
-    const v = (this.vordergrundApp = { exe, appName, icon, info: exe ? null : undefined });
+  _vordergrund({ exe, appName, icon, fensterIcon }) {
+    const v = (this.vordergrundApp = {
+      exe,
+      appName,
+      icon,
+      fensterIcon,
+      info: exe ? null : undefined,
+    });
     if (exe)
-      this.getAppInfo({ exe, appName, icon })
+      this.getAppInfo({ exe, appName, icon, fensterIcon })
         .then((info) => (v.info = info))
         .catch(() => (v.info = undefined));
   }
