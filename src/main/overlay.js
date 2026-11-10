@@ -12,12 +12,12 @@ const path = require('node:path');
 
 const RENDERER = path.join(__dirname, '..', 'renderer');
 const PRELOAD = path.join(__dirname, '..', 'preload', 'preload.js');
-const BREITE = 420;
-const PILLE_HOEHE = 60;
+const BREITE = 500; // breiteste Pille (408) plus Platz für den Schatten
+const PILLE_HOEHE = 72;
 const BAND = 16; // Rand (DIP) über und unter der Pille im erfassten Streifen; der Renderer kennt ihn auch
 const ERFASSEN_ALLE_MS = 750;
 const ERFASSEN_FRIST_MS = 400; // länger: gilt als Fehler, die Pille bleibt getönt
-const HOEHE = 152; // ganze Gerätepixel bei 125 % (190 px); Platz für Schatten (32 px Weichheit, 12 px nach unten) und den Weg beim Ein-/Ausblenden
+const HOEHE = 168; // ganze Gerätepixel bei 125 % (210 px); Platz für Schatten (32 px Weichheit, 12 px nach unten) und den Weg beim Ein-/Ausblenden
 const LADE_FRIST_MS = 10000;
 const ABSTAND = 60; // zum unteren Rand des Bildschirms
 const BILD_FRIST_MS = 200; // so lange höchstens auf die ersten Bilder des gezeigten Fensters warten

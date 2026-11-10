@@ -7,7 +7,7 @@ const ansage = document.getElementById('ansage');
 const spur = document.getElementById('balken');
 const pegelBalken = document.getElementById('pegelbalken');
 const schatten = document.getElementById('schatten');
-const PILLE = 60; // Höhe in CSS-Pixeln, wie in pille.css und main/overlay.js
+const PILLE = 72; // Höhe in CSS-Pixeln, wie in pille.css und main/overlay.js
 
 const ARIA = { aufnahme: 'Ich höre zu', verarbeitung: 'Text wird aufbereitet' };
 const BAND = 16; // wie in main/overlay.js: Rand (DIP) des erfassten Streifens über der Pille
@@ -16,11 +16,11 @@ const kontrast = () => matchMedia('(forced-colors: active)').matches;
 const aufPixel = (v) => Math.round(v * devicePixelRatio) / devicePixelRatio; // ganze Gerätepixel
 
 // --- Wellenform als Zeitstrahl: alle 90 ms ein Balken rechts, gleitet nach links und blendet aus. --
-// Höhe = Sprachpegel in diesem Moment, symmetrisch um die Mitte (3 px … 34 px, normales Sprechen
+// Höhe = Sprachpegel in diesem Moment, symmetrisch um die Mitte (3 px … 40 px, normales Sprechen
 // 60–90 %). Stille = kleine runde Punkte, die mitlaufen. Reduzierte Bewegung: ruhiger Pegelbalken.
 const TAKT_MS = 90;
 const ABSTAND = 5.5; // 3 px Balken + 2,5 px Lücke: 61 px/s
-const HOCH = 34;
+const HOCH = 40;
 const balken = Array.from({ length: 24 }, () => spur.appendChild(document.createElement('i')));
 let pegel = 0;
 let ziel = 0;
