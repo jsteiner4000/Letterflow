@@ -1,9 +1,0 @@
-{
-  "recommendations": [
-    "esbenp.prettier-vscode",
-    "ms-playwright.playwright",
-    "ms-dotnettools.csharp",
-    "eamodio.gitlens",
-    "anthropic.claude-code"
-  ]
-}
