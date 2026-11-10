@@ -705,20 +705,101 @@
         font-size: 14px;
         color: var(--ink-2);
       }
-      details {
-        max-width: 560px;
-        margin: 28px auto 0;
+      /* Download-Karte: links Knopf, rechts Neuigkeiten, darunter die drei Installationsschritte */
+      .download {
+        display: grid;
+        grid-template-columns: 1.1fr 1fr;
+        gap: 40px 56px;
         text-align: left;
+        padding: 64px clamp(24px, 5vw, 64px) 40px;
+      }
+      .download .unter {
+        margin: 16px 0 28px;
+      }
+      .knopf.gross {
+        height: 58px;
+        padding: 0 28px;
+        font-size: 17px;
+      }
+      .lade-meta {
+        margin-top: 14px;
+        font-size: 14px;
+        color: var(--ink-2);
+      }
+      .neu-spalte {
+        align-self: center;
+        padding: 24px 26px;
+        border-radius: 16px;
+        background: var(--bg);
+      }
+      .neu-spalte h3 {
+        font-size: 22px;
+      }
+      .neu-spalte ul {
+        margin: 12px 0 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 8px;
         font-size: 15px;
         color: var(--ink-2);
       }
-      summary {
-        cursor: pointer;
-        text-align: center;
-        color: var(--ink);
+      .neu-spalte li {
+        display: flex;
+        gap: 10px;
       }
-      details p {
-        margin-top: 10px;
+      .neu-spalte li::before {
+        content: '';
+        flex: none;
+        width: 6px;
+        height: 6px;
+        margin-top: 9px;
+        border-radius: 50%;
+        background: var(--petrol);
+      }
+      .installation {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin: 8px 0 0;
+        padding: 28px 0 0;
+        border-top: 1px solid var(--line);
+        list-style: none;
+        counter-reset: i;
+      }
+      .installation li {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 2px 12px;
+        font-size: 15px;
+      }
+      .installation li::before {
+        counter-increment: i;
+        content: counter(i);
+        grid-row: span 2;
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        font: 600 13px/1 'Inter';
+        color: var(--petrol);
+        box-shadow: inset 0 0 0 1.5px var(--petrol);
+      }
+      .installation span {
+        color: var(--ink-2);
+      }
+      .download .fakten {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+        margin-top: 0;
+      }
+      @media (max-width: 860px) {
+        .download,
+        .installation {
+          grid-template-columns: 1fr;
+        }
       }
 
       footer {
@@ -791,7 +872,7 @@
         <div class="aktionen">
           <a
             class="knopf lade-link"
-            href="https://github.com/jsteiner4000/Letterflow/releases/latest"
+            href="https://github.com/jsteiner4000/Letterflow/releases/latest/download/Letterflow-Setup.exe"
           >
             <svg
               viewBox="0 0 24 24"
@@ -973,15 +1054,15 @@
       <section id="download">
         <div class="rahmen">
           <div class="download auftritt">
-            <h2>Bereit, wenn du es bist.</h2>
-            <p class="unter">
-              Einmal installieren, Modelle laden lassen, lossprechen. Keine Administratorrechte
-              nötig.
-            </p>
-            <div class="aktionen">
+            <div class="lade-spalte">
+              <h2>Bereit, wenn du es bist.</h2>
+              <p class="unter">
+                Einmal installieren, Modelle laden lassen, lossprechen. Keine Administratorrechte
+                nötig, danach hält sich Letterflow selbst aktuell.
+              </p>
               <a
-                class="knopf lade-link"
-                href="https://github.com/jsteiner4000/Letterflow/releases/latest"
+                class="knopf gross lade-link"
+                href="https://github.com/jsteiner4000/Letterflow/releases/latest/download/Letterflow-Setup.exe"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -995,19 +1076,37 @@
                 </svg>
                 <span class="lade-text">Letterflow für Windows laden</span>
               </a>
+              <p class="lade-meta">
+                <span id="lade-info">Neueste Version</span> ·
+                <a href="https://github.com/jsteiner4000/Letterflow/releases">Alle Versionen</a>
+              </p>
             </div>
+            <div class="neu-spalte" id="neuigkeiten" hidden>
+              <h3 id="neu-titel">Was ist neu</h3>
+              <ul id="neu-liste"></ul>
+            </div>
+            <ol class="installation">
+              <li>
+                <b>Installer starten</b
+                ><span>Letterflow-Setup.exe aus deinem Download-Ordner öffnen.</span>
+              </li>
+              <li>
+                <b>Blaue Warnung?</b
+                ><span
+                  >Letterflow ist noch nicht signiert: „Weitere Informationen“, dann „Trotzdem
+                  ausführen“.</span
+                >
+              </li>
+              <li>
+                <b>Modelle laden</b
+                ><span>Beim ersten Start einmalig ca. 0,7 GB, danach läuft alles offline.</span>
+              </li>
+            </ol>
             <div class="fakten">
               <span>Windows 10 und 11, 64 Bit</span>
-              <span>Modelle einmalig ca. 0,7 GB</span>
               <span>Deutsch und Englisch, auch gemischt</span>
+              <span>Kostenlos, ohne Konto</span>
             </div>
-            <details>
-              <summary>Windows zeigt eine blaue Warnung?</summary>
-              <p>
-                Letterflow ist noch nicht signiert, deshalb meldet sich SmartScreen. Auf „Weitere
-                Informationen“ klicken, dann auf „Trotzdem ausführen“.
-              </p>
-            </details>
           </div>
         </div>
       </section>
@@ -1044,17 +1143,38 @@
       document.querySelectorAll('.auftritt').forEach((el) => io.observe(el));
 
       // Neueste Version: direkter Link auf den Installer, sonst bleibt die Release-Seite
+      // Neueste Version: Nummer, Datum, Größe und Neuigkeiten. Der feste Link funktioniert auch ohne.
       fetch('https://api.github.com/repos/jsteiner4000/Letterflow/releases/latest')
         .then((r) => (r.ok ? r.json() : Promise.reject()))
         .then((rel) => {
-          const exe = rel.assets.find((a) => /\.exe$/i.test(a.name));
-          if (exe)
-            document
-              .querySelectorAll('.lade-link')
-              .forEach((a) => (a.href = exe.browser_download_url));
           const v = rel.tag_name.replace(/^v/, '');
+          const exe = rel.assets.find((a) => /\.exe$/i.test(a.name));
+          const datum = new Date(rel.published_at).toLocaleDateString('de-DE', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          });
+          const mb = exe ? ` · ${Math.round(exe.size / 1048576)} MB` : '';
           document.querySelector('.version-text').textContent = `Kostenlos · Version ${v}`;
-          document.querySelector('.lade-text').textContent = `Letterflow ${v} für Windows laden`;
+          document.querySelector('.lade-text').textContent = `Letterflow ${v} laden`;
+          document.querySelector('#lade-info').textContent = `Version ${v} vom ${datum}${mb}`;
+          // Neuigkeiten: die Spiegelstriche der Release-Notizen, als reiner Text
+          const punkte = (rel.body || '')
+            .split('\n')
+            .filter((z) => /^\s*[-*] /.test(z))
+            .map((z) =>
+              z
+                .replace(/^\s*[-*] /, '')
+                .replace(/\*\*|`/g, '')
+                .trim(),
+            )
+            .slice(0, 6);
+          if (punkte.length) {
+            document.querySelector('#neu-titel').textContent = `Neu in ${v}`;
+            const liste = document.querySelector('#neu-liste');
+            for (const p of punkte) liste.appendChild(document.createElement('li')).textContent = p;
+            document.querySelector('#neuigkeiten').hidden = false;
+          }
         })
         .catch(() => {});
 
