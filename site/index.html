@@ -78,6 +78,7 @@
       }
       img {
         max-width: 100%;
+        height: auto;
         display: block;
       }
       a {
@@ -923,22 +924,35 @@
       /* Einblenden beim Scrollen */
       .auftritt {
         opacity: 0;
-        translate: 0 18px;
+        translate: 0 56px;
+        scale: 0.97;
         transition:
-          opacity 700ms ease-out,
-          translate 700ms cubic-bezier(0.22, 1, 0.36, 1);
+          opacity 800ms ease-out,
+          translate 1000ms cubic-bezier(0.22, 1, 0.36, 1),
+          scale 1000ms cubic-bezier(0.22, 1, 0.36, 1);
       }
       .auftritt.da {
         opacity: 1;
+        translate: 0 0;
+        scale: 1;
+      }
+      /* Bilder kommen einen Tick später und von weiter unten nach */
+      .reihe.auftritt .bild {
+        translate: 0 64px;
+        transition: translate 1200ms 150ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .reihe.auftritt.da .bild {
         translate: 0 0;
       }
       @media (prefers-reduced-motion: reduce) {
         html {
           scroll-behavior: auto;
         }
-        .auftritt {
+        .auftritt,
+        .reihe.auftritt .bild {
           opacity: 1;
           translate: none;
+          scale: none;
           transition: none;
         }
         .balken i,
@@ -1154,8 +1168,8 @@
               <img
                 src="bilder/update.png"
                 alt="Ein Update wird geladen: der Schriftzug füllt sich in Petrol"
-                width="612"
-                height="220"
+                width="697"
+                height="238"
                 loading="lazy"
               />
             </div>
