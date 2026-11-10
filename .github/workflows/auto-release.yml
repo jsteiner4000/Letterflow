@@ -32,7 +32,8 @@ jobs:
           npm ci
           npm run engines
           npm run helper
-          npm test
+          # Oberflächentests brauchen einen echten Bildschirm und laufen lokal vor dem Push
+          npx playwright test tests/unit
           npm run dist
       - name: Release anlegen
         if: steps.v.outputs.neu == 'true'
