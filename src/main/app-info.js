@@ -10,7 +10,7 @@ function cleanName(appName, exe) {
 }
 
 // getFileIcon: (exe, opts) => Promise<NativeImage> (in der App: electron.app.getFileIcon)
-// scale: Bildschirmskalierung; das Symbol wird auf 28 × scale verkleinert (scharf in der Pille).
+// scale: Bildschirmskalierung; das Symbol wird auf 36 × scale verkleinert (so groß wie in pille.css, sonst unscharf).
 // Windows liefert für eine nicht vorhandene Exe dasselbe leere Programmsymbol wie für Programme ohne
 // eigenes Symbol: damit vergleichen, statt ein Bild des Windows-Symbols mitzuführen.
 const OHNE_SYMBOL = 'C:/Letterflow-gibt-es-nicht/ohne-symbol.exe';
@@ -43,7 +43,7 @@ function createAppInfo({ getFileIcon, loadImage = null, scale = () => 1 }) {
           bild = ohne && datei.toBitmap && ohne.equals(datei.toBitmap()) ? png(fensterIcon) : datei;
         }
         if (bild) {
-          const px = Math.round(28 * scale());
+          const px = Math.round(36 * scale());
           url = (
             bild.resize ? bild.resize({ width: px, height: px, quality: 'best' }) : bild
           ).toDataURL();
