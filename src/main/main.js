@@ -7,6 +7,7 @@ const {
   screen,
   nativeImage,
   Notification,
+  dialog,
 } = require('electron');
 const { EventEmitter } = require('node:events');
 const path = require('node:path');
@@ -55,8 +56,10 @@ if (!app.requestSingleInstanceLock()) {
   function applyAutostart(settings) {
     if (testMode || !app.isPackaged) return;
     loginItemCalls += 1;
-    app.setLoginItemSettings({ openAtLogin: settings.autostart });
+    // --autostart: beim Windows-Start nach Updates fragen statt still zu installieren.
+    app.setLoginItemSettings({ openAtLogin: settings.autostart, args: ['--autostart'] });
   }
+  const amWindowsStart = process.argv.includes('--autostart');
 
   let hardware = null; // Ergebnis von detectHardware
   let engines = null; // EngineManager, sobald die Einrichtung abgeschlossen ist
@@ -81,6 +84,21 @@ if (!app.requestSingleInstanceLock()) {
       n.on('click', () => windows.openSettings('allgemein'));
       n.show();
     },
+    fragen: amWindowsStart
+      ? async (version) =>
+          (
+            await dialog.showMessageBox({
+              type: 'question',
+              title: 'Letterflow',
+              message: `Version ${version} ist da`,
+              detail: 'Jetzt laden und installieren? Letterflow startet danach kurz neu.',
+              buttons: ['Jetzt aktualisieren', 'Später'],
+              defaultId: 0,
+              cancelId: 1,
+              icon: path.join(__dirname, '..', '..', 'assets', 'icon.png'),
+            })
+          ).response === 0
+      : null,
     log: (z) => console.log(z),
   });
   updater.on('stand', (stand) => {
